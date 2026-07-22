@@ -7,7 +7,7 @@ from mcp_server.exceptions import ToolBridgeError, ConfigurationError, ProviderE
 def test_package_version():
     """Package should expose a version string."""
     assert isinstance(__version__, str)
-    assert __version__ == "0.1.0"
+    assert __version__ == "0.3.0"
 
 
 def test_exception_hierarchy():
