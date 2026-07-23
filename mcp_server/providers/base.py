@@ -7,7 +7,6 @@ streaming, health checks, and model management.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import time
 from abc import ABC, abstractmethod

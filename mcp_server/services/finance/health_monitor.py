@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Callable, Awaitable
 
-from mcp_server.services.finance.finance_provider import BaseFinanceProvider, ProviderHealth
+from mcp_server.services.finance.finance_provider import BaseFinanceProvider
 
 logger = logging.getLogger(__name__)
 

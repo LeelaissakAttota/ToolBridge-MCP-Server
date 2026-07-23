@@ -1,6 +1,6 @@
 """Exceptions for finance tools."""
 
-from mcp_server.mcp_core.errors import ToolExecutionError, ToolValidationError
+from mcp_server.mcp_core.errors import ToolExecutionError
 
 
 class FinanceToolError(ToolExecutionError):

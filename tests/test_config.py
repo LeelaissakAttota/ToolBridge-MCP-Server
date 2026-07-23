@@ -1,6 +1,5 @@
 """Tests for configuration loading."""
 
-import os
 from mcp_server.config.settings import Settings
 
 

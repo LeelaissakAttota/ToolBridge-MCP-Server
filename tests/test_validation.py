@@ -1,10 +1,6 @@
 """Tests for validation module."""
 
-import pytest
 from mcp_server.validation import (
-    RequestValidator,
-    ResponseValidator,
-    ToolSchemaValidator,
     ValidationError,
     request_validator,
     response_validator,

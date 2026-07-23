@@ -1,0 +1,116 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "toolbridge-mcp-server"
+version = "1.0.0"
+description = "ToolBridge MCP Server - Production-ready MCP server with financial tools"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "ToolBridge Contributors", email = "toolbridge@example.com"}
+]
+maintainers = [
+    {name = "ToolBridge Team", email = "toolbridge@example.com"}
+]
+keywords = [
+    "mcp",
+    "model-context-protocol",
+    "financial-tools",
+    "stock-price",
+    "currency-exchange",
+    "technical-analysis",
+    "financial-analysis"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Office/Business :: Financial",
+]
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.0,<3.0",
+    "pydantic-settings>=2.0,<3.0",
+    "uvicorn[standard]>=0.23",
+    "mcp>=1.0.0",
+    "jsonschema>=4.0,<5.0",
+    "numpy>=1.24.0",
+    "aiohttp>=3.8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21",
+    "pytest-cov>=4.0",
+    "ruff>=0.1.0",
+    "black>=23.0",
+    "mypy>=1.0",
+    "bandit>=1.7",
+]
+test = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21",
+    "pytest-cov>=4.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/LeelaissakAttota/toolbridge-mcp-server"
+Repository = "https://github.com/LeelaissakAttota/toolbridge-mcp-server"
+Issues = "https://github.com/LeelaissakAttota/toolbridge-mcp-server/issues"
+Documentation = "https://github.com/LeelaissakAttota/toolbridge-mcp-server/tree/main/docs"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["mcp_server*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+select = ["E", "F", "I", "W", "UP", "B", "C4", "SIM", "T20"]
+ignore = ["E501", "B008"]
+exclude = [".git", "__pycache__", ".pytest_cache", ".venv", "venv", "build", "dist", "*.egg-info"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+include = "\\.pyi?$"
+extend-exclude = '''
+/(
+  \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+strict = false
+
+[tool.bandit]
+exclude_dirs = ["tests", ".git", "__pycache__", ".venv", "venv"]
+skip = ["B101", "B601"]

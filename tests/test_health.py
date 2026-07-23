@@ -1,7 +1,6 @@
 """Tests for Health and Version services."""
 
 import pytest
-import asyncio
 from mcp_server.core.health import HealthService, VersionService, ServerInfo, HealthStatus
 
 

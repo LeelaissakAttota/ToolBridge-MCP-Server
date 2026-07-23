@@ -1,10 +1,8 @@
 """Tests for JSON-RPC functionality."""
 
-import pytest
 from mcp_server.validation import (
     RequestValidator,
     ResponseValidator,
-    ToolSchemaValidator,
 )
 from mcp_server.exceptions.mcp import (
     InvalidRequest,

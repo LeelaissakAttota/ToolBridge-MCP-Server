@@ -6,8 +6,6 @@ and graceful startup/shutdown.
 
 import asyncio
 import logging
-import signal
-from contextlib import asynccontextmanager
 from typing import Any
 
 from mcp.server import FastMCP

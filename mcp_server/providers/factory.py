@@ -1,9 +1,7 @@
 """Provider factory and registry."""
 
 import logging
-from typing import Any, Optional
 
-from mcp_server.providers.base import ProviderBase, ProviderConfig
 from mcp_server.providers.cerebras import CerebrasProvider
 from mcp_server.providers.nvidia import NvidiaProvider
 from mcp_server.providers.openrouter import OpenRouterProvider

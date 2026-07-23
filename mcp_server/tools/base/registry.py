@@ -5,7 +5,6 @@ Provides thread-safe tool registration, lookup, and management.
 
 import logging
 import threading
-from typing import Any
 
 from mcp_server.tools.base.metadata import ToolMetadata
 from mcp_server.tools.base.tool import BaseTool

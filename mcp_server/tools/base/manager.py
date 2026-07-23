@@ -5,7 +5,7 @@ import logging
 import pkgutil
 from typing import Any
 
-from mcp_server.mcp_core.errors import ToolExecutionError, ToolNotFoundError, ToolValidationError
+from mcp_server.mcp_core.errors import ToolNotFoundError, ToolValidationError
 from mcp_server.tools.base.registry import ToolRegistry
 from mcp_server.tools.base.tool import BaseTool
 

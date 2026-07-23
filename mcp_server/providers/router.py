@@ -1,12 +1,10 @@
 """Model router for intelligent provider selection and failover."""
 
 import logging
-from typing import Any, Optional
+from typing import Optional
 
 from mcp_server.config import settings
 from mcp_server.providers.base import (
-    ProviderBase,
-    ProviderConfig,
     GenerationRequest,
     GenerationResponse,
     HealthCheckResult,
@@ -14,10 +12,7 @@ from mcp_server.providers.base import (
 from mcp_server.providers.factory import provider_factory
 from mcp_server.providers.routing import (
     RoutingConfig,
-    RoutingDecision,
     RoutingStrategy,
-    RoutingReason,
-    get_routing_config,
 )
 
 logger = logging.getLogger(__name__)
@@ -66,7 +61,6 @@ class ModelRouter:
     def _ensure_initialized(self) -> None:
         """Ensure router is initialized."""
         if not self._initialized:
-            import asyncio
             # We can't await here, so we'll lazy-initialize
             pass
 

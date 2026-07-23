@@ -68,7 +68,7 @@ class StockPriceTool(BaseTool):
 
             return quote
 
-        except SymbolNotFoundError as e:
+        except SymbolNotFoundError:
             logger.warning(f"Stock not found: {symbol}")
             raise
         except MarketClosedError as e:

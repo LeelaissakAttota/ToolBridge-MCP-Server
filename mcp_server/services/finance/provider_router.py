@@ -6,7 +6,6 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from typing import Any, Optional, Callable, Awaitable
 
 from mcp_server.services.finance.exceptions import (
@@ -14,8 +13,8 @@ from mcp_server.services.finance.exceptions import (
     ProviderUnavailableError,
     RateLimitError,
 )
-from mcp_server.services.finance.finance_provider import BaseFinanceProvider, ProviderHealth
-from mcp_server.services.finance.metrics import metrics_collector, ProviderMetrics
+from mcp_server.services.finance.finance_provider import BaseFinanceProvider
+from mcp_server.services.finance.metrics import metrics_collector
 
 logger = logging.getLogger(__name__)
 
@@ -141,7 +140,7 @@ class ProviderRouter:
 
                 return result
 
-            except RateLimitError as e:
+            except RateLimitError:
                 latency_ms = (time.perf_counter() - start_time) * 1000
                 metrics_collector.record_provider_request(provider.name, False, latency_ms, "rate_limit")
                 metrics_collector.record_service_request(service_name, False, latency_ms, "rate_limit")

@@ -9,10 +9,10 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 
 from mcp_server.config import settings
-from mcp_server.core.server import MCPServer
 from mcp_server.health import HealthService, ServerInfo, VersionService
 from mcp_server.tools.manager import ToolManager
 from mcp_server.tools.registry import ToolRegistry
+from mcp_server.tools.finance import StockPriceTool, CurrencyExchangeTool, SupportedCurrenciesTool
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +56,9 @@ def create_mcp_server() -> FastMCP:
     mcp._toolbridge_version = version_service
     mcp._toolbridge_registry = registry
     mcp._toolbridge_manager = tool_manager
+
+    # Register finance tools
+    _register_finance_tools(tool_manager)
 
     # Register core handlers
     _register_core_handlers(mcp, health_service, version_service, tool_manager)
@@ -162,6 +165,35 @@ def _register_core_handlers(
         return json.dumps(version.get_version())
 
     logger.info("Core MCP handlers registered")
+
+
+def _register_finance_tools(tool_manager: ToolManager) -> None:
+    """Register all finance tools with the tool manager."""
+    from mcp_server.tools.finance import (
+        HistoricalPriceTool,
+        CompanyInfoTool,
+        MarketMoversTool,
+        TechnicalIndicatorsTool,
+        FinancialNewsTool,
+        NewsSentimentTool,
+        FinancialAnalysisTool,
+    )
+
+    # Register basic finance tools
+    tool_manager.register_tool(StockPriceTool())
+    tool_manager.register_tool(CurrencyExchangeTool())
+    tool_manager.register_tool(SupportedCurrenciesTool())
+
+    # Register advanced finance tools (dependency injection will be handled separately)
+    tool_manager.register_tool(HistoricalPriceTool())
+    tool_manager.register_tool(CompanyInfoTool())
+    tool_manager.register_tool(MarketMoversTool())
+    tool_manager.register_tool(TechnicalIndicatorsTool())
+    tool_manager.register_tool(FinancialNewsTool())
+    tool_manager.register_tool(NewsSentimentTool())
+    tool_manager.register_tool(FinancialAnalysisTool())
+
+    logger.info("Finance tools registered (dependency injection needed for advanced tools)")
 
 
 # Create the server instance

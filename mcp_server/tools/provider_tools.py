@@ -2,14 +2,10 @@
 
 from __future__ import annotations
 
-import time
-from abc import ABC, abstractmethod
-from typing import Any, Optional
-from mcp_server.tools.base import BaseTool, ToolMetadata, ToolRegistry, ToolManager
-from mcp_server.mcp_core.errors import ToolExecutionError, ToolValidationError
+from typing import Any
+from mcp_server.tools.base import BaseTool, ToolMetadata
 from mcp_server.providers import (
     ProviderFactory,
-    ProviderConfig,
     GenerationRequest,
     model_router,
     RoutingStrategy,
@@ -366,18 +362,18 @@ class CodeGenerationTool(ProviderAwareTool):
         parts = [
             f"Generate {language} code for the following task:",
             f"\nTask: {task}\n",
-            f"Requirements:",
+            "Requirements:",
             f"- Write clean, idiomatic {language} code",
-            f"- Follow best practices and conventions",
+            "- Follow best practices and conventions",
         ]
 
         if include_docs:
-            parts.append(f"- Include comprehensive docstrings/comments")
+            parts.append("- Include comprehensive docstrings/comments")
 
         if include_tests:
-            parts.append(f"- Include unit tests using standard testing framework")
+            parts.append("- Include unit tests using standard testing framework")
 
-        parts.append(f"\nOutput ONLY the code, no explanations or markdown formatting.")
+        parts.append("\nOutput ONLY the code, no explanations or markdown formatting.")
 
         return "\n".join(parts)
 

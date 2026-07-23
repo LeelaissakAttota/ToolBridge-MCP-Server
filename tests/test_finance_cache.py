@@ -1,8 +1,6 @@
 """Tests for FinanceCache."""
 
 import pytest
-import asyncio
-from datetime import datetime, timedelta
 
 from mcp_server.services.finance.cache import (
     FinanceCache,

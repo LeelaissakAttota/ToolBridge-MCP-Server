@@ -2,10 +2,9 @@
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from contextlib import asynccontextmanager
 
 from mcp_server.providers.cerebras import CerebrasProvider
-from mcp_server.providers.base import ProviderConfig, GenerationRequest, GenerationResponse, HealthCheckResult
+from mcp_server.providers.base import ProviderConfig, GenerationRequest, GenerationResponse
 
 
 class MockAsyncContextManager:

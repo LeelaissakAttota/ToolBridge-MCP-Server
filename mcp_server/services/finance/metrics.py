@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import time
 import asyncio
 import logging
 from dataclasses import dataclass, field

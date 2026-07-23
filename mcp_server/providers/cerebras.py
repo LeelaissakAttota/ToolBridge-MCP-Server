@@ -4,7 +4,7 @@ import asyncio
 import json
 import logging
 import time
-from typing import Any, AsyncIterator, Optional
+from typing import AsyncIterator, Optional
 
 import aiohttp
 
@@ -17,7 +17,6 @@ from mcp_server.providers.base import (
     ModelInfo,
     TokenUsage,
 )
-from mcp_server.providers.base import GenerationResponse
 
 logger = logging.getLogger(__name__)
 

@@ -1,11 +1,10 @@
 """Tests for MCP Server creation and FastMCP initialization."""
 
-import pytest
 from mcp_server.server import create_mcp_server
 from mcp_server.tools.base import BaseTool
 from mcp_server.tools.registry import ToolRegistry
 from mcp_server.tools.manager import ToolManager
-from mcp_server.health import HealthService, ServerInfo, VersionService
+from mcp_server.health import HealthService, VersionService
 
 
 class TestTool(BaseTool):
