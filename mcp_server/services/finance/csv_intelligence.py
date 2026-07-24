@@ -473,12 +473,7 @@ class CSVEngine:
         return any(re.match(p, value.strip()) for p in date_patterns)
 
     def _is_currency(self, value: str) -> bool:
-        return bool(re.match(r'^[\$\£\€]?\s*\d{1,3}(?:,\d{3})*(?:\.\d{2})?$', value.strip()))
-
-    def _is_percentage(self, value: str) -> bool:
-        return bool(re.match(r'^\d+(?:\.\d+)?%$', value.strip()))
-
-    # Public API methods
+        return bool(re.match(r'^[\\$\\£\\€]\\s*\\d{1,3}(?:,\\d{3})*(?:\\.\\d{2})?$', value.strip()))\n    # Public API methods
 
     async def filter(self, filters: list[CSVFilter]) -> 'CSVEngine':
         """Apply filters to the data."""
