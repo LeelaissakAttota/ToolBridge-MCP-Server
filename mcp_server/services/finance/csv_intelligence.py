@@ -213,22 +213,56 @@ class CSVEngine:
         file_size: int,
     ) -> CSVSchema:
         """Load CSV using pandas."""
+        # Convert source to a string IO for reading
+        if isinstance(source, (str, Path)):
+            # Read the entire file into a string
+            with open(source, "r", encoding=encoding) as f:
+                content = f.read()
+            string_io = io.StringIO(content)
+        elif isinstance(source, bytes):
+            # Decode bytes to string
+            string_io = io.StringIO(source.decode(encoding))
+        else:
+            # Assume it has a read() method (StringIO, BytesIO, or file object)
+            # Save current position if possible
+            pos = None
+            if hasattr(source, "tell"):
+                pos = source.tell()
+            data = source.read()
+            # Restore position if possible
+            if hasattr(source, "seek") and pos is not None:
+                try:
+                    source.seek(pos)
+                except Exception:
+                    pass  # Ignore if seek fails
+            if isinstance(data, bytes):
+                data = data.decode(encoding)
+            string_io = io.StringIO(data)
+
         # Detect delimiter if not provided
         if delimiter is None:
-            delimiter = await self._detect_delimiter(source, encoding)
+            delimiter = await self._detect_delimiter(string_io, encoding)
+            # Reset after detection
+            string_io.seek(0)
 
         # Read sample for schema detection
-        if hasattr(source, 'read'):
-            # StringIO or similar
-            sample_df = pd.read_csv(source, delimiter=delimiter, encoding=encoding, nrows=sample_rows, header=0 if has_header else None)
-        else:
-            sample_df = pd.read_csv(source, delimiter=delimiter, encoding=encoding, nrows=sample_rows, header=0 if has_header else None)
+        sample_df = pd.read_csv(
+            string_io,
+            delimiter=delimiter,
+            encoding=encoding,
+            nrows=sample_rows,
+            header=0 if has_header else None,
+        )
+        # Reset for reading the full data
+        string_io.seek(0)
 
-        # Detect full schema
-        if hasattr(source, 'read'):
-            full_df = pd.read_csv(source, delimiter=delimiter, encoding=encoding, header=0 if has_header else None)
-        else:
-            full_df = pd.read_csv(source, delimiter=delimiter, encoding=encoding, header=0 if has_header else None)
+        # Read the entire data for schema
+        full_df = pd.read_csv(
+            string_io,
+            delimiter=delimiter,
+            encoding=encoding,
+            header=0 if has_header else None,
+        )
 
         self._data = full_df
 
@@ -248,7 +282,6 @@ class CSVEngine:
         )
         self._schema = schema
         return schema
-
     async def _load_with_stdlib(
         self,
         source: Union[str, Path, io.StringIO, bytes],
@@ -317,56 +350,74 @@ class CSVEngine:
         except Exception:
             return ','
 
-    async def _profile_column(
-        self,
-        series: pd.Series,
-        name: str,
-        index: int,
-    ) -> ColumnProfile:
-        """Profile a pandas Series column."""
-        total = len(series)
-        null_count = series.isna().sum()
-        unique_count = series.nunique()
-
-        # Detect type
-        detected_type = self._detect_column_type(series)
-
-        # Get sample values
-        sample_values = series.dropna().head(10).tolist()
-
-        profile = ColumnProfile(
-            name=name,
-            index=index,
-            detected_type=detected_type,
-            sample_values=sample_values,
-            null_count=int(null_count),
-            unique_count=int(unique_count),
-            total_count=total,
+    async def _profile_column(self, series: pd.Series, col_name: str, idx: int) -> ColumnProfile:
+        # Get the column type
+        col_type = self._detect_column_type(series)
+        
+        # Get non-null values
+        non_null = series.dropna()
+        null_count = len(series) - len(non_null)
+        
+        # Initialize default values
+        min_val = None
+        max_val = None
+        mean_val = None
+        std_val = None
+        top_values = []
+        is_monotonic = False
+        is_unique = False
+        pattern = None
+        
+        if len(non_null) > 0:
+            # For numeric types, compute min, max, mean, std
+            if col_type in (ColumnType.INTEGER, ColumnType.FLOAT):
+                try:
+                    numeric_series = pd.to_numeric(non_null, errors='coerce')
+                    if not numeric_series.isnull().all():
+                        min_val = float(numeric_series.min())
+                        max_val = float(numeric_series.max())
+                        mean_val = float(numeric_series.mean())
+                        std_val = float(numeric_series.std()) if len(non_null) > 1 else 0.0
+                except (ValueError, TypeError):
+                    pass  # Keep defaults if conversion fails
+            
+            # Check if all values are unique
+            is_unique = len(non_null) == len(non_null.unique())
+            
+            # Check if the series is monotonic (increasing or decreasing)
+            try:
+                # Try to convert to numeric for monotonic check
+                numeric_for_monotonic = pd.to_numeric(non_null, errors='coerce')
+                if not numeric_for_monotonic.isnull().all():
+                    diff = numeric_for_monotonic.diff().dropna()
+                    if len(diff) > 0:
+                        is_monotonic = (diff > 0).all() or (diff < 0).all()
+            except (ValueError, TypeError):
+                pass  # Keep default if conversion fails
+            
+            # For categorical and string types, get top values
+            if col_type in (ColumnType.CATEGORICAL, ColumnType.STRING):
+                # Get the top 5 most common values
+                top_values = non_null.value_counts().head(5).index.tolist()
+                # Convert to strings for consistency
+                top_values = [str(v) for v in top_values]
+        
+        return ColumnProfile(
+            name=col_name,
+            index=idx,
+            detected_type=col_type,
+            sample_values=non_null.head(10).tolist() if len(non_null) > 0 else [],
+            null_count=null_count,
+            total_count=len(series),
+            min_value=min_val,
+            max_value=max_val,
+            mean_value=mean_val,
+            std_value=std_val,
+            top_values=top_values,
+            is_monotonic=is_monotonic,
+            is_unique=is_unique,
+            pattern=pattern
         )
-
-        # Type-specific profiling
-        if detected_type in (ColumnType.INTEGER, ColumnType.FLOAT, ColumnType.CURRENCY, ColumnType.PERCENTAGE):
-            numeric_series = pd.to_numeric(series, errors='coerce')
-            profile.min_value = float(numeric_series.min()) if not numeric_series.isna().all() else None
-            profile.max_value = float(numeric_series.max()) if not numeric_series.isna().all() else None
-            profile.mean_value = float(numeric_series.mean()) if not numeric_series.isna().all() else None
-            profile.std_value = float(numeric_series.std()) if not numeric_series.isna().all() else None
-            profile.is_monotonic = series.is_monotonic_increasing or series.is_monotonic_decreasing
-
-        elif detected_type in (ColumnType.DATE, ColumnType.DATETIME):
-            profile.is_monotonic = series.is_monotonic_increasing or series.is_monotonic_decreasing
-
-        # Categorical analysis - only for non-specific types
-        if detected_type not in (ColumnType.CURRENCY, ColumnType.PERCENTAGE, ColumnType.DATE, ColumnType.DATETIME, ColumnType.INTEGER, ColumnType.FLOAT, ColumnType.BOOLEAN):
-            if unique_count < total * 0.5 and unique_count < 100:
-                value_counts = series.value_counts().head(10)
-                profile.top_values = [(str(v), int(c)) for v, c in value_counts.items()]
-                profile.detected_type = ColumnType.CATEGORICAL
-
-        profile.is_unique = unique_count == total
-
-        return profile
-
     async def _profile_column_stdlib(
         self,
         values: list[Any],
@@ -421,23 +472,27 @@ class CSVEngine:
         return profile
 
     def _detect_column_type(self, series: pd.Series) -> ColumnType:
-        """Detect the data type of a pandas Series."""
-        # First check raw string values for currency/percentage/date patterns
-        # This must be done BEFORE pandas dtype inference
+        # Drop nulls and take a sample
         non_null = series.dropna()
-        if len(non_null) > 0:
-            sample = non_null.head(100)
-            # Check for currency patterns (before pandas infers float)
-            if all(self._is_currency(str(v)) for v in sample):
-                return ColumnType.CURRENCY
-            # Check for percentage patterns
-            if all(self._is_percentage(str(v)) for v in sample):
-                return ColumnType.PERCENTAGE
-            # Check for date patterns
-            if all(self._is_date(str(v)) for v in sample):
-                return ColumnType.DATE
+        if len(non_null) == 0:
+            return ColumnType.STRING
 
-        # Then check pandas inferred dtypes
+        # Take up to 100 non-null values
+        sample = non_null.head(100)
+        # Convert to string for consistency in checking
+        sample_str = [str(v) for v in sample]
+
+        # Check for currency
+        if all(self._is_currency(v) for v in sample_str):
+            return ColumnType.CURRENCY
+        # Check for percentage
+        if all(self._is_percentage(v) for v in sample_str):
+            return ColumnType.PERCENTAGE
+        # Check for date
+        if all(self._is_date(v) for v in sample_str):
+            return ColumnType.DATE
+
+        # Check pandas dtypes for numeric, boolean, datetime
         if series.dtype == 'bool':
             return ColumnType.BOOLEAN
         elif pd.api.types.is_integer_dtype(series):
@@ -447,8 +502,11 @@ class CSVEngine:
         elif pd.api.types.is_datetime64_any_dtype(series):
             return ColumnType.DATETIME
 
-        return ColumnType.STRING
+        # Check for categorical: if the number of unique strings is low and we have enough samples
+        if len(set(sample_str)) <= 10 and len(sample_str) >= 5:
+            return ColumnType.CATEGORICAL
 
+        return ColumnType.STRING
     def _is_int(self, value: str) -> bool:
         try:
             int(value)
@@ -473,7 +531,10 @@ class CSVEngine:
         return any(re.match(p, value.strip()) for p in date_patterns)
 
     def _is_currency(self, value: str) -> bool:
-        return bool(re.match(r'^[\\$\\£\\€]\\s*\\d{1,3}(?:,\\d{3})*(?:\\.\\d{2})?$', value.strip()))\n    # Public API methods
+        return bool(re.match(r'^[$£€]\s*\d{1,3}(?:,\d{3})*(?:\.\d{2})?$', value.strip()))
+
+    def _is_percentage(self, value: str) -> bool:
+        return bool(re.match(r'^\d+(?:\.\d+)?%$', value.strip()))
 
     async def filter(self, filters: list[CSVFilter]) -> 'CSVEngine':
         """Apply filters to the data."""
@@ -565,11 +626,12 @@ class CSVEngine:
         if self._data is None:
             raise ValueError("No data loaded")
 
-        if PANDAS_AVAILABLE:
+        if PANDAS_AVAILABLE and self._schema is not None:
+            # Use the schema for column type information
             null_counts = self._data.isnull().sum().to_dict()
-            numeric_cols = self._data.select_dtypes(include=['number']).columns.tolist()
-            cat_cols = self._data.select_dtypes(include=['object', 'category']).columns.tolist()
-            date_cols = self._data.select_dtypes(include=['datetime64']).columns.tolist()
+            numeric_columns = [col.name for col in self._schema.columns if col.detected_type in (ColumnType.INTEGER, ColumnType.FLOAT)]
+            categorical_columns = [col.name for col in self._schema.columns if col.detected_type in (ColumnType.STRING, ColumnType.CATEGORICAL)]
+            date_columns = [col.name for col in self._schema.columns if col.detected_type in (ColumnType.DATE, ColumnType.DATETIME)]
 
             profiles = {}
             for col in self._data.columns:
@@ -581,18 +643,33 @@ class CSVEngine:
                 column_count=len(self._data.columns),
                 memory_usage_mb=self._data.memory_usage(deep=True).sum() / (1024 * 1024),
                 null_counts=null_counts,
-                numeric_columns=numeric_cols,
-                categorical_columns=cat_cols,
-                date_columns=date_cols,
+                numeric_columns=numeric_columns,
+                categorical_columns=categorical_columns,
+                date_columns=date_columns,
                 column_profiles=profiles,
             )
 
-        return CSVStats(
-            row_count=0, column_count=0, memory_usage_mb=0,
-            null_counts={}, numeric_columns=[], categorical_columns=[],
-            date_columns=[], column_profiles={}
-        )
+        # Fallback to the original method if pandas is not available or schema is not ready
+        null_counts = self._data.isnull().sum().to_dict()
+        numeric_cols = self._data.select_dtypes(include=['number']).columns.tolist()
+        cat_cols = self._data.select_dtypes(include=['object', 'category']).columns.tolist()
+        date_cols = self._data.select_dtypes(include=['datetime64']).columns.tolist()
 
+        profiles = {}
+        for col in self._data.columns:
+            profile = await self._profile_column(self._data[col], col, 0)
+            profiles[col] = profile.to_dict()
+
+        return CSVStats(
+            row_count=len(self._data),
+            column_count=len(self._data.columns),
+            memory_usage_mb=self._data.memory_usage(deep=True).sum() / (1024 * 1024),
+            null_counts=null_counts,
+            numeric_columns=numeric_cols,
+            categorical_columns=cat_cols,
+            date_columns=date_cols,
+            column_profiles=profiles,
+        )
     async def export(
         self,
         format: str = "csv",
@@ -661,14 +738,56 @@ async def csv_to_sql(
     table_name: str,
     connection_string: str,
     if_exists: str = "replace",
-) -> int:
+) -> str:
     """Export CSV engine data to SQL database."""
     if engine.data is None:
         raise ValueError("No data in engine")
 
-    if PANDAS_AVAILABLE:
-        from sqlalchemy import create_engine
-        db_engine = create_engine(connection_string)
-        return engine.data.to_sql(table_name, db_engine, if_exists=if_exists, index=False)
+    if not PANDAS_AVAILABLE:
+        raise RuntimeError("pandas and sqlalchemy required for SQL export")
 
-    raise RuntimeError("pandas and sqlalchemy required for SQL export")
+    df = engine.data
+
+    # Generate CREATE TABLE statement
+    columns = []
+    for col in df.columns:
+        dtype = df[col].dtype
+        if dtype == 'int64':
+            col_type = 'INTEGER'
+        elif dtype == 'float64':
+            col_type = 'REAL'
+        else:
+            col_type = 'TEXT'
+        columns.append(f'"{col}" {col_type}')
+    create_table = f'CREATE TABLE {table_name} ({", ".join(columns)})'
+
+    # Generate INSERT statement
+    if len(df) == 0:
+        # If no data, we still return a valid INSERT statement (though it will insert nothing)
+        insert_statement = f'INSERT INTO {table_name} DEFAULT VALUES;'
+    else:
+        rows = []
+        for _, row in df.iterrows():
+            values = []
+            for val in row:
+                if pd.isna(val):
+                    values.append('NULL')
+                elif isinstance(val, str):
+                    # Escape single quotes by doubling them
+                    val = val.replace("'", "''")
+                    values.append(f"'{val}'")
+                elif isinstance(val, bool):
+                    values.append(str(int(val)))
+                elif isinstance(val, (int, float)):
+                    values.append(str(val))
+                else:
+                    # For datetime and other types, convert to string and escape quotes
+                    val = str(val)
+                    val = val.replace("'", "''")
+                    values.append(f"'{val}'")
+            rows.append(f"({', '.join(values)})")
+        insert_values = ', '.join(rows)
+        insert_statement = f'INSERT INTO {table_name} ({", ".join(df.columns)}) VALUES {insert_values};'
+
+    return f"{create_table};\n{insert_statement}"
+
