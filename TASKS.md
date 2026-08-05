@@ -15,7 +15,9 @@ Status key: `[x]` complete, `[ ]` not started, `[-]` intentionally deferred.
 - [x] Add service endpoint smoke tests
 - [x] Verify imports, dependency integrity, live startup, health, and MCP discovery
 - [x] Initialize Git on `main`
-- [-] Create initial commit (left to the project owner)
+- [x] Create the initial repository commit
+- [x] Configure the GitHub `origin` remote
+- [x] Synchronize local `main` with `origin/main`
 
 ## Documentation foundation
 
@@ -23,7 +25,7 @@ Status key: `[x]` complete, `[ ]` not started, `[-]` intentionally deferred.
 - [x] Add the `PROJECT_STATUS.md` text dashboard
 - [x] Receive owner approval to begin Phase 2
 
-## Phase 2 - MCP Core
+## Phase 2 - MCP Core (complete; awaiting owner acceptance)
 
 ### Contracts and registry
 
@@ -95,6 +97,6 @@ Do not begin until owner approval identifies the exact tool scope.
 
 - [ ] Accept Phase 2 and approve or revise Phase 3 scope
 - [ ] Identify the first approved production tool and data source
-- [ ] Choose repository hosting and review platform
+- [x] Repository hosting and review platform selected: GitHub
 - [ ] Choose a license
 - [ ] Decide initial deployment environment and trust boundary

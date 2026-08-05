@@ -9,17 +9,18 @@
 | **Completion Percentage** | **29% overall** - 2 of 7 roadmap phases complete; Phases 1 and 2 are 100% complete |
 | **Tests Passed** | **28 of 28** automated tests passing as of 2026-08-05 |
 | **Current Branch** | `main` |
+| **Repository** | Initialized Git repository with GitHub remote `origin` configured |
+| **Synchronization** | Local `main` is synchronized with and tracks `origin/main` |
 | **Next Milestone** | Owner acceptance of Phase 2 and approval of one specific Phase 3 production tool, data source, security boundary, and acceptance criteria |
 | **Last Updated** | 2026-08-05 (Asia/Calcutta) |
 
 ## Known Issues
 
-1. The Git repository has no initial commit; all project files are currently untracked.
-2. The test suite emits one third-party `StarletteDeprecationWarning` from FastAPI/Starlette's `TestClient` integration.
-3. Strict FastMCP argument validation uses one isolated SDK internal (`_tool_manager`) because version `1.29.0` has no public post-registration hook. MCP SDK upgrades require adapter and protocol regression tests.
-4. A timeout stops waiting for a synchronous handler but cannot forcibly terminate its worker thread. Blocking production tools should use cancellable async APIs or approved process isolation.
-5. `TOOLBRIDGE_HOST` and `TOOLBRIDGE_PORT` are modeled in settings but are not automatically applied by a project launcher.
-6. Authentication, authorization, rate limiting, readiness checks, provider routing, persistence, CI/CD, and production packaging are not implemented. The service remains suitable for local development only.
+1. The test suite emits one third-party `StarletteDeprecationWarning` from FastAPI/Starlette's `TestClient` integration.
+2. Strict FastMCP argument validation uses one isolated SDK internal (`_tool_manager`) because version `1.29.0` has no public post-registration hook. MCP SDK upgrades require adapter and protocol regression tests.
+3. A timeout stops waiting for a synchronous handler but cannot forcibly terminate its worker thread. Blocking production tools should use cancellable async APIs or approved process isolation.
+4. `TOOLBRIDGE_HOST` and `TOOLBRIDGE_PORT` are modeled in settings but are not automatically applied by a project launcher.
+5. Authentication, authorization, rate limiting, readiness checks, provider routing, persistence, CI/CD, and production packaging are not implemented. The service remains suitable for local development only.
 
 ## Completed in Phase 2
 
@@ -37,6 +38,7 @@
 - Phase and milestones: `ROADMAP.md` and `TASKS.md`
 - Test result: `python -m pytest -q -p no:cacheprovider`
 - Branch: `git branch --show-current`
+- Repository remote and synchronization: `git remote -v` and `git status --short --branch`
 - Architecture and constraints: `ARCHITECTURE.md`, `DECISIONS.md`, and `SECURITY_GUIDELINES.md`
 
 ## Update Rules
