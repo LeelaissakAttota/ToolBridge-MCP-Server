@@ -11,10 +11,12 @@ from toolbridge.adapters.logging import configure_execution_logging
 from toolbridge.adapters.mcp import MCPToolAdapter
 from toolbridge.bootstrap import build_core_runtime
 from toolbridge.config import get_settings
+from toolbridge.providers.infrastructure.logging import configure_provider_logging
 
 settings = get_settings()
 execution_logger = configure_execution_logging(settings.log_level)
-core = build_core_runtime(settings, execution_logger)
+provider_logger = configure_provider_logging(settings.log_level)
+core = build_core_runtime(settings, execution_logger, provider_logger)
 
 mcp = FastMCP(
     name=settings.app_name,
@@ -28,10 +30,14 @@ MCPToolAdapter(mcp, core.registry, core.executor).register_tools()
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    """Start and stop MCP transport resources with the API application."""
+    """Start and stop MCP and provider resources with the application."""
 
-    async with mcp.session_manager.run():
-        yield
+    await core.provider_router.initialize()
+    try:
+        async with mcp.session_manager.run():
+            yield
+    finally:
+        await core.provider_router.close()
 
 
 app = FastAPI(
@@ -58,7 +64,7 @@ async def service_info() -> dict[str, str]:
 
 @app.get("/health", tags=["service"])
 async def health() -> dict[str, str]:
-    """Report liveness for local development and deployment probes."""
+    """Report liveness without depending on optional external providers."""
 
     return {
         "status": "ok",
@@ -68,4 +74,3 @@ async def health() -> dict[str, str]:
 
 
 app.mount("/mcp", mcp.streamable_http_app(), name="mcp")
-

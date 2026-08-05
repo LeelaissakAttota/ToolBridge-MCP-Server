@@ -21,7 +21,7 @@ def test_service_info(client: TestClient) -> None:
     response = client.get("/")
 
     assert response.status_code == 200
-    assert response.json()["version"] == "0.2.0"
+    assert response.json()["version"] == "0.3.0"
     assert response.json()["status"] == "running"
     assert response.json()["mcp"] == "/mcp/"
 

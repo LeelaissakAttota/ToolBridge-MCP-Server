@@ -1,28 +1,28 @@
 # ToolBridge MCP Server
 
-ToolBridge is a Model Context Protocol (MCP) service that exposes typed, validated, observable tools through a single transport. Version `0.2.0` completes Phase 2: the original FastAPI/FastMCP foundation now runs through a framework-independent MCP Core.
+ToolBridge is a Model Context Protocol (MCP) service that exposes typed, validated, observable capabilities through a single transport. Version `0.3.0` completes Phase 3: a provider-neutral LLM router now supports Cerebras, NVIDIA, and OpenRouter behind replaceable adapters.
 
-Phase 3 has not started. Production data tools, provider routing, agent orchestration, persistence, authentication, the dashboard, and deployment packaging remain planned work.
+Provider-backed MCP tools have not been added. Phase 4 remains blocked on project-owner approval of a specific production tool and its data, cost, and security boundaries.
 
 ## Current capabilities
 
-- FastAPI control plane and generated OpenAPI documentation
-- Stateless MCP Streamable HTTP transport using JSON responses
-- Clean Architecture separation between core services and framework adapters
-- Immutable typed tool definitions and deterministic registry discovery
-- Strict request and per-tool argument validation
-- Validated, size-bounded structured responses
-- Tool execution with per-tool timeouts and cancellation propagation
-- Stable error categories with safe client messages and correlation identifiers
-- JSON execution lifecycle logs that exclude arguments, results, and exception messages
+- FastAPI control plane and stateless FastMCP Streamable HTTP transport
+- Framework-independent MCP tool contracts, registry, validation, and execution
+- Provider-neutral generation, streaming, model discovery, health, and lifecycle contracts
+- Configured provider priority: Cerebras, NVIDIA, then OpenRouter
+- Automatic retries and safe failover using normalized provider error categories
+- Health snapshots with status, latency, last success, and last failure timestamps
+- OpenAI-compatible HTTP adapters for all three providers
+- Structured provider logging that excludes API keys, prompts, and responses
+- Bounded provider timeouts, retries, prompt bytes, output tokens, and temperature
 - One MCP diagnostic tool: `system_status`
-- Automated unit, API, and MCP protocol tests
+- Offline automated tests using fakes and `httpx.MockTransport`
 
 ## Prerequisites
 
 - Python 3.12
-- Windows PowerShell commands are shown below
-- Internet access for the initial dependency installation
+- Internet access for initial dependency installation
+- A provider API key and approved model identifier only when enabling that provider
 
 ## Setup
 
@@ -35,7 +35,7 @@ Copy-Item .env.example .env
 python -m pytest
 ```
 
-The `.env` copy is optional because development defaults are built in. Local `.env` files are ignored by Git.
+The `.env` copy is optional. Every provider is disabled by default, so the service and default test suite run without credentials or network access. Local `.env` files are ignored by Git.
 
 ## Run locally
 
@@ -47,65 +47,95 @@ python -m uvicorn toolbridge.main:app --host 127.0.0.1 --port 8000
 | Purpose | URL |
 | --- | --- |
 | Service metadata | <http://127.0.0.1:8000/> |
-| Health check | <http://127.0.0.1:8000/health> |
+| Liveness check | <http://127.0.0.1:8000/health> |
 | OpenAPI documentation | <http://127.0.0.1:8000/docs> |
 | MCP Streamable HTTP | `http://127.0.0.1:8000/mcp/` |
 
-The trailing slash on the MCP URL is intentional.
+The trailing slash on the MCP URL is intentional. `/health` remains a cheap process-liveness endpoint and does not call external providers.
 
-## MCP Core flow
+## Provider routing
 
-1. FastMCP implements the Streamable HTTP protocol and discovers registered tools.
-2. The MCP adapter enforces strict generated input schemas and delegates calls.
-3. The executor validates the common request and resolves the tool through the registry.
-4. The selected Pydantic input model validates all arguments and forbids extras.
-5. The handler runs within its timeout and cancellation boundary.
-6. The declared output model validates the result and enforces the response-size limit.
-7. The adapter returns structured MCP content or a safe normalized error.
-8. Structured lifecycle events record tool name, correlation ID, duration, and outcome only.
+The application runtime constructs enabled providers from typed settings and owns their startup and shutdown. The router exposes:
 
-## Configuration
+- `initialize()` and `close()`
+- `health_check()` and `provider_status()`
+- `list_models()`
+- `generate()`
+- `stream_generate()`
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `TOOLBRIDGE_APP_NAME` | `ToolBridge MCP Server` | Displayed service and MCP name |
-| `TOOLBRIDGE_ENVIRONMENT` | `development` | Runtime environment label |
-| `TOOLBRIDGE_HOST` | `127.0.0.1` | Intended bind host |
-| `TOOLBRIDGE_PORT` | `8000` | Intended bind port |
-| `TOOLBRIDGE_LOG_LEVEL` | `INFO` | MCP Core execution log level |
-| `TOOLBRIDGE_TOOL_TIMEOUT_SECONDS` | `30` | Default per-tool timeout, maximum 300 seconds |
-| `TOOLBRIDGE_MAX_REQUEST_BYTES` | `65536` | Maximum encoded core execution request size |
-| `TOOLBRIDGE_MAX_RESPONSE_BYTES` | `262144` | Maximum encoded structured result size |
+A request begins with the active provider. Retryable failures use the configured retry policy. Authentication, timeout, rate-limit, unavailable, invalid-response, and internal provider failures may fail over when safe. Invalid requests are not retried or sent to another provider.
 
-Host and port are modeled in settings, but the current launch command still passes them directly to Uvicorn.
+Streaming retries and failover are allowed only before the first chunk. Once content has been emitted, a later error is returned immediately to avoid duplicated or conflicting partial output.
+
+## Provider configuration
+
+Provider priority and retry timing are application settings:
+
+| Variable | Default |
+| --- | --- |
+| `TOOLBRIDGE_PROVIDER_PRIORITY` | `cerebras,nvidia,openrouter` |
+| `TOOLBRIDGE_PROVIDER_RETRY_BACKOFF_SECONDS` | `0.25` |
+| `TOOLBRIDGE_PROVIDER_MAX_RETRY_BACKOFF_SECONDS` | `2` |
+| `TOOLBRIDGE_PROVIDER_MAX_REQUEST_BYTES` | `262144` |
+
+Each provider uses nested settings under `TOOLBRIDGE_CEREBRAS__`, `TOOLBRIDGE_NVIDIA__`, or `TOOLBRIDGE_OPENROUTER__`:
+
+| Suffix | Purpose |
+| --- | --- |
+| `ENABLED` | Load the provider when `true` |
+| `API_KEY` | Secret credential; required only when enabled |
+| `BASE_URL` | HTTPS API base URL |
+| `DEFAULT_MODEL` | Approved default model identifier; required when enabled |
+| `TIMEOUT_SECONDS` | Per-request HTTP timeout |
+| `RETRY_COUNT` | Additional attempts before failover |
+| `MAX_TOKENS` | Default and maximum request token limit |
+| `TEMPERATURE` | Default sampling temperature |
+| `MAX_PROMPT_BYTES` | Maximum encoded message payload |
+| `MODELS_PATH` | Model discovery path |
+| `CHAT_COMPLETIONS_PATH` | Generation and streaming path |
+
+OpenRouter additionally supports optional `HTTP_REFERER` and `APP_TITLE` attribution settings. See `.env.example` for the complete safe template. Never commit `.env` or real credentials.
+
+## Architecture
+
+```text
+MCP / application caller
+        |
+        v
+ProviderRouter (application)
+        |
+        +-- BaseProvider port
+                |
+                +-- CerebrasProvider
+                +-- NvidiaProvider
+                +-- OpenRouterProvider
+                        |
+                        v
+                 configured HTTPS APIs
+```
+
+Provider-domain and application modules do not import FastAPI, FastMCP, or vendor SDKs. Provider-specific HTTP behavior is isolated in adapters, while configuration, logging, and composition remain infrastructure concerns.
 
 ## Project layout
 
 ```text
 ToolBridge MCP Server/
 ├── toolbridge/
-│   ├── adapters/
-│   │   ├── logging.py       Safe structured logging adapter
-│   │   └── mcp.py           FastMCP discovery/execution adapter
-│   ├── core/
-│   │   ├── contracts.py     Tool, request, response, metadata, and error contracts
-│   │   ├── errors.py        Normalized core exceptions
-│   │   ├── executor.py      Timeout-aware validated execution service
-│   │   ├── ports.py         Infrastructure-facing protocols
-│   │   ├── registry.py      Registration, lookup, and discovery
-│   │   └── validation.py    Request, argument, and response validation
-│   ├── tools/
-│   │   ├── definitions.py   `system_status` core contract
-│   │   └── system.py        Original diagnostic implementation
-│   ├── bootstrap.py         MCP Core composition
-│   ├── config.py            Typed environment settings
-│   └── main.py              FastAPI/FastMCP composition root and Phase 1 routes
-├── tests/
-│   ├── unit/                MCP Core and adapter unit tests
-│   └── test_api.py          HTTP and full MCP protocol tests
-├── .env.example             Safe configuration example
-├── .python-version          Python 3.12 selection
-└── requirements.txt         Pinned direct dependencies
+│   ├── core/                    MCP Core contracts and services
+│   ├── adapters/                MCP and execution-logging adapters
+│   ├── providers/
+│   │   ├── domain/              Normalized requests, responses, health, errors
+│   │   ├── application/         Base provider port and router policy
+│   │   ├── adapters/            Cerebras, NVIDIA, OpenRouter HTTP adapters
+│   │   └── infrastructure/      Provider factory and structured logging
+│   ├── tools/                   Diagnostic MCP tool
+│   ├── bootstrap.py             Runtime composition
+│   ├── config.py                Typed service and provider settings
+│   └── main.py                  FastAPI/FastMCP composition root
+└── tests/
+    ├── unit/providers/          Provider configuration, routing, adapter, log tests
+    ├── unit/                    MCP Core unit tests
+    └── test_api.py              HTTP and MCP protocol tests
 ```
 
 ## Tests
@@ -115,7 +145,7 @@ python -m pytest -q -p no:cacheprovider
 python -m pip check
 ```
 
-The Phase 2 suite currently contains 28 passing tests. A third-party deprecation warning is emitted by FastAPI/Starlette's current `TestClient` integration.
+The Phase 3 suite contains 56 offline tests. The suite emits one documented third-party `StarletteDeprecationWarning` from FastAPI/Starlette's test-client integration.
 
 ## Documentation
 
@@ -132,9 +162,13 @@ The Phase 2 suite currently contains 28 passing tests. A third-party deprecation
 - [Security guidelines](SECURITY_GUIDELINES.md)
 - [Decision log](DECISIONS.md)
 
-## Project status
+## Current limitations
 
-Phases 1 and 2 are complete and locally verified. Phase 3 remains blocked on explicit owner approval. See [PROJECT_STATUS.md](PROJECT_STATUS.md) for the current snapshot and [TASKS.md](TASKS.md) for remaining work.
+- No provider-backed capability is exposed as an MCP tool.
+- Provider health checks are on demand; no background scheduler or readiness endpoint exists.
+- No authentication, authorization, inbound rate limiting, persistence, agent orchestration, UI, deployment packaging, or CI/CD is implemented.
+- External-provider contract tests with real credentials remain opt-in and are not part of the default suite.
+- The service remains intended for local development and must not be exposed to untrusted networks.
 
 ## License
 
