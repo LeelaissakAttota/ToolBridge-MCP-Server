@@ -2,7 +2,7 @@
 
 ## Purpose
 
-ToolBridge exposes validated, observable tools to MCP clients. Version `0.2.0` implements the Foundation and MCP Core while keeping production tools and providers outside the current boundary.
+ToolBridge exposes validated, observable capabilities to MCP clients and internal application callers. Version `0.3.0` implements the Foundation, MCP Core, and provider-neutral LLM routing. No provider-backed MCP production tool exists yet.
 
 ## Current architecture
 
@@ -10,126 +10,157 @@ ToolBridge exposes validated, observable tools to MCP clients. Version `0.2.0` i
 flowchart LR
     Client["MCP client"] --> Transport["FastMCP Streamable HTTP"]
     Client --> API["FastAPI service endpoints"]
-    Transport --> Adapter["MCP adapter"]
-    Adapter --> Executor["Tool executor"]
-    Executor --> RequestValidation["Request and input validation"]
-    RequestValidation --> Registry["Tool registry"]
-    Registry --> Handler["Tool handler"]
-    Handler --> ResponseValidation["Response validation"]
-    ResponseValidation --> Adapter
-    Executor --> LogPort["Execution logging port"]
-    LogPort --> JsonLogs["Safe JSON logging adapter"]
-    Config["Typed settings"] --> Executor
-    Config --> Transport
+    Transport --> MCPAdapter["MCP adapter"]
+    MCPAdapter --> Executor["Tool executor"]
+    Executor --> Registry["Tool registry"]
+    Registry --> Diagnostic["system_status"]
+
+    Caller["Approved application caller"] --> Router["ProviderRouter"]
+    Router --> Port["BaseProvider port"]
+    Port --> Cerebras["Cerebras adapter"]
+    Port --> Nvidia["NVIDIA adapter"]
+    Port --> OpenRouter["OpenRouter adapter"]
+    Cerebras --> HTTP["Configured HTTPS APIs"]
+    Nvidia --> HTTP
+    OpenRouter --> HTTP
+
+    Config["Typed settings"] --> Router
+    Router --> ProviderLogs["Allowlisted JSON provider logs"]
 ```
 
-One Python process still hosts FastAPI and FastMCP. The existing `/`, `/health`, `/docs`, and `/mcp/` interfaces are unchanged. The FastAPI lifespan starts the MCP session manager once and stops it with the application.
+One Python process still hosts FastAPI, FastMCP, the MCP Core, and the provider router. The existing `/`, `/health`, `/docs`, `/mcp/`, and `system_status` interfaces remain intact. Provider adapters are disabled by default and no network calls occur unless explicitly configured and invoked.
 
 ## Clean Architecture boundaries
 
-### Domain contracts
+### Domain
 
-`toolbridge/core/contracts.py` defines framework-independent tool input/output bases, immutable definitions, discovery metadata, execution requests/responses, and stable error codes. The core imports Pydantic for schema validation but does not import FastAPI or FastMCP.
+`toolbridge/providers/domain` contains provider-neutral request, response, stream, model, usage, health, status, and error contracts. It has no FastAPI, FastMCP, HTTP client, or vendor SDK dependency.
 
-`toolbridge/core/errors.py` defines normalized internal exceptions with safe public messages. Raw handler exceptions never become client messages.
+Normalized error categories are:
 
-### Application services
+- `timeout`
+- `authentication`
+- `rate_limit`
+- `unavailable`
+- `invalid_request`
+- `invalid_response`
+- `internal`
 
-- `ToolRegistry` owns unique registration, lookup, and deterministic discovery.
-- `RequestValidator` bounds JSON size, validates the execution envelope, applies strict tool schemas, and forbids extra fields.
-- `ResponseValidator` validates declared output models, converts them to JSON-compatible data, and enforces response limits.
-- `ToolExecutor` coordinates lookup, validation, timeout, invocation, output validation, normalized outcomes, correlation IDs, and logging.
+### Application
 
-### Ports and adapters
+`toolbridge/providers/application/ports.py` defines `BaseProvider`. Every provider implements `initialize()`, `health_check()`, `list_models()`, `generate()`, `stream_generate()`, and `close()`.
 
-- `ExecutionEventLogger` is the core logging port.
-- `StructuredExecutionEventLogger` is the standard-library JSON logging adapter. It emits only allowlisted metadata.
-- `MCPToolAdapter` maps registry definitions to FastMCP discovery schemas and delegates execution to the core.
-- `toolbridge/bootstrap.py` composes the registry, validators, executor, logger, and approved tool definitions.
+`ProviderRouter` owns:
 
-### Tools
+- configured provider ordering and active-provider state,
+- bounded retry and exponential backoff,
+- safe failover classification,
+- request identifiers and request-size enforcement,
+- provider status, latency, last-success, and last-failure state,
+- cancellation-preserving generation and streaming behavior.
 
-`toolbridge/tools/system.py` remains the Phase 1 diagnostic implementation. `toolbridge/tools/definitions.py` supplies its typed core input/output contract without changing the public tool name or output fields.
+The application layer does not depend on FastAPI or provider adapters.
 
-## Request lifecycle
+### Adapters
+
+`toolbridge/providers/adapters` implements Cerebras, NVIDIA, and OpenRouter through one shared OpenAI-compatible HTTP adapter. Provider classes remain independently replaceable behind `BaseProvider`. Vendor response bodies and exceptions are translated into domain contracts and never escape the adapter boundary.
+
+The shared adapter owns:
+
+- Bearer authentication,
+- model discovery,
+- chat-completion request mapping,
+- JSON response normalization,
+- server-sent event parsing,
+- HTTP and transport error classification,
+- provider-specific request limits.
+
+### Infrastructure
+
+`toolbridge/providers/infrastructure/factory.py` unwraps secrets only while composing enabled outbound adapters. It supplies typed provider configuration, priority, retry policy, and injectable HTTP transports.
+
+`toolbridge/providers/infrastructure/logging.py` implements the provider logging port. It emits only timestamp, level, provider, latency, status, request ID, and error category.
+
+`toolbridge/bootstrap.py` composes the unchanged MCP Core with the provider router. `toolbridge/main.py` starts and closes provider resources through the existing FastAPI lifespan but does not contain routing logic.
+
+## Provider request lifecycle
 
 ```mermaid
 sequenceDiagram
-    participant C as MCP Client
-    participant M as FastMCP
-    participant A as MCP Adapter
-    participant E as Executor
-    participant R as Registry
-    participant T as Tool
+    participant C as Application Caller
+    participant R as ProviderRouter
+    participant P as Active Provider
+    participant F as Fallback Provider
 
-    C->>M: tools/call(name, arguments)
-    M->>M: Protocol and strict schema validation
-    M->>A: Validated keyword arguments
-    A->>E: execute(name, arguments)
-    E->>E: Envelope and size validation
-    E->>R: get(name)
-    R-->>E: Immutable definition
-    E->>E: Tool input validation
-    E->>T: Invoke within timeout
-    T-->>E: Raw result
-    E->>E: Output schema and size validation
-    E-->>A: Normalized response
-    A-->>M: Typed structured output
-    M-->>C: MCP result
+    C->>R: generate(normalized request)
+    R->>R: assign request ID and enforce size
+    R->>P: generate()
+    alt success
+        P-->>R: normalized response
+        R-->>C: normalized response
+    else retryable failure
+        P-->>R: normalized error
+        R->>P: retry within configured limit
+        alt retry exhausted and failover safe
+            R->>F: generate()
+            F-->>R: normalized response or error
+            R-->>C: normalized outcome
+        end
+    else invalid request
+        P-->>R: invalid_request
+        R-->>C: error without retry or failover
+    end
 ```
 
-Cancellation is logged and propagated rather than converted into a normal response. Async handlers can be cancelled cooperatively. Synchronous handlers run in a worker thread; a timeout stops waiting for them but cannot forcibly terminate the Python thread.
+The default priority is Cerebras, NVIDIA, then OpenRouter. Priority is configuration, not router code. A successful request makes that provider active. On-demand health checks probe all enabled providers concurrently and restore the highest-priority healthy provider.
 
-## Discovery
+## Retry and failover policy
 
-The registry is the project source of truth. Definitions are returned alphabetically and contain name, description, input schema, output schema, and timeout. The MCP adapter projects the same fields into FastMCP.
-
-FastMCP currently creates its own argument model with permissive defaults. The adapter contains one isolated, tested compatibility seam that updates this generated model to strict, extra-forbidden, input-hidden validation. This uses the SDK's internal tool manager because version `1.29.0` has no public post-registration hook. Dependency upgrades must run adapter and protocol tests.
-
-## Error model
-
-| Code | Meaning | Retryable |
+| Category | Retry same provider | Fail over |
 | --- | --- | --- |
-| `invalid_request` | Envelope, JSON, size, or input-schema failure | No |
-| `tool_not_found` | No registered definition matches the name | No |
-| `duplicate_tool` | Startup registration conflict | No |
-| `execution_timeout` | Tool exceeded its configured time | Yes |
-| `execution_cancelled` | Caller or server cancelled execution | Not returned; propagated |
-| `execution_failed` | Unexpected handler failure | No |
-| `invalid_response` | Output violated schema, encoding, or size | No |
+| Timeout | Yes | Yes after exhaustion |
+| Rate limit | Yes | Yes after exhaustion |
+| Unavailable | Yes | Yes after exhaustion |
+| Authentication | No | Yes |
+| Invalid response | No | Yes |
+| Internal | No | Yes |
+| Invalid request | No | No |
 
-Client-visible errors contain a safe message, retryability, correlation ID, and bounded non-sensitive details. Logs contain error codes and exception type only, never exception messages.
+Backoff starts at the configured delay, doubles per retry, and is capped by configuration. A valid `Retry-After` duration is honored up to the same cap.
 
-## Configuration
+For streaming, retry and failover are permitted only before the first chunk. After any content is emitted, failures propagate without failover to prevent duplicated partial output.
 
-The MCP Core adds:
+## Health model
 
-- `TOOLBRIDGE_TOOL_TIMEOUT_SECONDS`
-- `TOOLBRIDGE_MAX_REQUEST_BYTES`
-- `TOOLBRIDGE_MAX_RESPONSE_BYTES`
+Each provider has an immutable public snapshot containing:
 
-Settings are typed and bounded. The default timeout is applied to the registered diagnostic tool and will become the default for approved future definitions.
+- provider identifier,
+- `uninitialized`, `healthy`, `degraded`, `unavailable`, or `closed` status,
+- latest observed latency,
+- last successful request timestamp,
+- last failed request timestamp,
+- last normalized error category.
 
-## Current interfaces
+Provider health is currently checked on demand. `/health` remains process liveness and deliberately does not call external providers. A readiness endpoint and background probe scheduler are deferred until deployment requirements are approved.
 
-| Interface | Behavior |
-| --- | --- |
-| `GET /` | Name, version, status, and endpoint locations |
-| `GET /health` | Cheap process-liveness response and environment label |
-| `GET /docs` | FastAPI-generated documentation |
-| `/mcp/` | Stateless MCP Streamable HTTP endpoint with JSON responses |
-| `system_status` | Validated service name, status, and UTC ISO timestamp |
+## Configuration boundary
+
+Provider keys, enabled state, HTTPS base URLs, model identifiers, endpoint paths, timeouts, retries, maximum tokens, temperature, prompt size, provider priority, and retry timing are typed settings. Enabled providers require an API key and explicit default model. Secrets are represented by `SecretStr` and unwrapped only in infrastructure composition.
+
+## Existing MCP Core
+
+The Phase 2 registry, validators, executor, error model, MCP adapter, and execution logging remain unchanged. The only MCP tool remains `system_status`; provider routing is an internal application service until an approved Phase 4 tool consumes it.
 
 ## Current constraints
 
-- Only the diagnostic tool exists; Phase 3 tools are not implemented.
-- No authentication, authorization, rate limiting, provider routing, or persistence.
-- No readiness endpoint because there are no required external dependencies.
-- No distributed traces or metrics; structured logs cover tool execution only.
-- No Docker or CI/CD artifacts.
-- The FastMCP strict-validation compatibility seam requires upgrade tests.
-- Timed-out synchronous handlers cannot be forcibly stopped after their worker thread begins.
+- Provider-backed MCP tools are not implemented.
+- Provider health monitoring is on demand rather than scheduled.
+- There is no provider readiness HTTP endpoint, circuit-breaker cooldown, global concurrency control, or budget ledger.
+- Real-provider contract tests require explicit credentials and remain outside the default offline suite.
+- Authentication, authorization, inbound rate limiting, persistence, agents, UI, Docker, and CI/CD remain unimplemented.
+- The FastMCP strict-validation compatibility seam still requires regression tests on SDK upgrades.
+- The service remains local-development only and must not be exposed to untrusted networks.
 
 ## Target direction
 
-Phase 3 may add approved deterministic tools through the existing definition and registry contracts. Later phases may add provider adapters, routing, optional agent orchestration, persistence, UI, production security, observability, and deployment artifacts. None are implemented in `0.2.0`.
+Phase 4 may add one owner-approved provider-backed or deterministic MCP tool through the existing MCP Core and provider contracts. Agent orchestration, production hardening, observability expansion, and deployment remain later phases and are not implemented in `0.3.0`.

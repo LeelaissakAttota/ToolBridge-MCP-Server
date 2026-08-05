@@ -113,15 +113,46 @@ This lightweight log records architectural decisions for the current foundation.
 - **Decision:** Apply an `asyncio.timeout` per tool. Propagate caller cancellation after logging it. Run synchronous handlers through `asyncio.to_thread` so they do not block the event loop.
 - **Consequences:** Async handlers can stop cooperatively. A timed-out synchronous handler's worker thread cannot be forcibly terminated, so future blocking tools should use cancellable async APIs or process isolation when required.
 
+## D-014 - Provider Router promoted to Phase 3
+
+- **Date:** 2026-08-06
+- **Status:** Accepted
+- **Context:** The roadmap placed Core Tools in Phase 3 and Provider Routing in Phase 4, but the project owner explicitly approved Provider Router as Phase 3 and prohibited later-phase implementation.
+- **Decision:** Swap the two outcomes: Provider Router is Phase 3 and Core Tools becomes Phase 4. Keep all Phase 4 tool work blocked pending separate approval.
+- **Consequences:** Version `0.3.0` contains routing but no provider-backed MCP tool. Roadmap, status, tasks, architecture, and tests must use the revised phase order.
+
+## D-015 - Project-owned provider port with HTTP adapters
+
+- **Date:** 2026-08-06
+- **Status:** Accepted
+- **Context:** Cerebras, NVIDIA, and OpenRouter expose compatible chat-completion APIs, but vendor SDK types would couple application policy to external libraries.
+- **Decision:** Define `BaseProvider` and normalized domain models under `toolbridge/providers`. Implement vendor adapters with the existing pinned `httpx` dependency and inject transports for offline tests.
+- **Consequences:** Providers are independently replaceable and application code has no FastAPI, FastMCP, or vendor SDK dependency. Provider API differences remain isolated in adapters. Official API changes require adapter contract tests.
+
+## D-016 - Retry, failover, and streaming boundary
+
+- **Date:** 2026-08-06
+- **Status:** Accepted
+- **Context:** Provider failures require bounded recovery without duplicating requests that are invalid or streams that already emitted content.
+- **Decision:** Retry timeout, rate-limit, and unavailable errors within the configured per-provider count using capped exponential backoff. Fail over for provider-local failures but never for invalid requests. Permit streaming retry or failover only before the first chunk.
+- **Consequences:** Recovery behavior is deterministic and bounded. Mid-stream failure returns immediately to avoid duplicate partial output. On-demand health checks can restore the highest-priority healthy provider.
+
+## D-017 - Provider secrets, logging, and lifecycle
+
+- **Date:** 2026-08-06
+- **Status:** Accepted
+- **Context:** Provider integration introduces outbound credentials, sensitive prompts, external responses, and long-lived HTTP clients.
+- **Decision:** Keep providers disabled by default; load keys through typed secret settings; require HTTPS; unwrap keys only during adapter construction; allowlist provider log fields; and initialize/close adapters through application lifespan.
+- **Consequences:** Keys, prompts, responses, authorization headers, and vendor error bodies are absent from ToolBridge provider logs and normalized errors. Deployment still requires an approved secret manager, identity controls, budgets, and outbound network policy.
+
 ## Open decisions
 
 The following require proposals before implementation:
 
-- Phase 3 first production tool and authoritative data source
+- Phase 4 first production tool and authoritative data or model source
 - Authentication and authorization approach
-- Provider interface and routing policy
 - Broader metrics, tracing, and telemetry stack
 - Packaging and hosting platform
 - Persistence and cache requirements
 - License and distribution terms
-- CI/CD and repository hosting platform
+- CI/CD automation

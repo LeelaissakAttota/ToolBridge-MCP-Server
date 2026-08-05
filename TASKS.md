@@ -4,7 +4,7 @@ This file tracks executable work. It does not authorize work by itself; phase ch
 
 Status key: `[x]` complete, `[ ]` not started, `[-]` intentionally deferred.
 
-## Phase 1 - Foundation
+## Phase 1 - Foundation (complete)
 
 - [x] Create Python 3.12 virtual environment
 - [x] Install and pin direct dependencies
@@ -21,82 +21,95 @@ Status key: `[x]` complete, `[ ]` not started, `[-]` intentionally deferred.
 
 ## Documentation foundation
 
-- [x] Add the requested project governance and engineering documents
+- [x] Add project governance and engineering documents
 - [x] Add the `PROJECT_STATUS.md` text dashboard
 - [x] Receive owner approval to begin Phase 2
 
-## Phase 2 - MCP Core (complete; awaiting owner acceptance)
+## Phase 2 - MCP Core (complete)
 
-### Contracts and registry
-
-- [x] Define stable tool name and metadata conventions
-- [x] Define typed input, output, request, response, and error contracts
-- [x] Create a project-owned tool definition independent of FastMCP
+- [x] Define typed tool, request, response, metadata, and error contracts
 - [x] Implement deterministic registration, lookup, and discovery
-- [x] Reject duplicate tool names with a clear startup error
-- [x] Project registry definitions into MCP discovery
-
-### Validation and execution
-
-- [x] Enforce strict execution-envelope and JSON validation
-- [x] Enforce request and response byte limits
-- [x] Enforce tool-specific input and output models
-- [x] Forbid unknown arguments and hide rejected values in transport errors
-- [x] Generate and return safe correlation identifiers
-- [x] Implement per-tool timeout boundaries
-- [x] Propagate cancellation and log it safely
-- [x] Normalize unknown, validation, timeout, internal, and response failures
-- [x] Prevent raw internal exceptions from reaching clients
-
-### Logging and configuration
-
-- [x] Define the execution logging port
-- [x] Implement structured JSON start, success, and failure events
-- [x] Exclude arguments, results, and exception messages from logs
-- [x] Apply `TOOLBRIDGE_LOG_LEVEL` to execution logs
-- [x] Add typed timeout and request/response-size settings
-- [-] Add readiness endpoint (deferred until required external dependencies exist)
-
-### Phase 2 tests and acceptance
-
-- [x] Test registration, lookup, discovery ordering, duplicates, and metadata
-- [x] Test valid, malformed, unknown, extra, non-JSON, and oversized input
-- [x] Test success, timeout, cancellation, and internal failure
-- [x] Test invalid and oversized output
-- [x] Test logging allowlist and secret-value exclusion
-- [x] Test MCP discovery schema and adapter execution
-- [x] Automate the full MCP initialize, list-tools, and call-tool path
+- [x] Enforce strict request, argument, response, and size validation
+- [x] Implement timeout-aware execution and cancellation propagation
+- [x] Normalize failures without leaking internal exceptions
+- [x] Implement safe structured execution logging
+- [x] Project registry definitions into FastMCP
+- [x] Add unit, adapter, API, and full MCP protocol tests
 - [x] Verify the suite without provider credentials
-- [x] Verify dependency integrity
-- [x] Update architecture, changelog, status, testing, security, and decisions
-- [ ] Project-owner acceptance of Phase 2
+- [x] Receive owner approval to begin the revised Phase 3 scope
 
-## Phase 3 - Core tools (not started)
+## Phase 3 - Provider Router (complete; awaiting owner acceptance)
+
+### Domain and application
+
+- [x] Define normalized generation, streaming, model, usage, health, and status contracts
+- [x] Define stable provider error categories and safe messages
+- [x] Define the replaceable `BaseProvider` lifecycle interface
+- [x] Implement configured priority and active-provider selection
+- [x] Implement bounded retries and capped exponential backoff
+- [x] Implement category-aware failover
+- [x] Prevent retry and failover for invalid requests
+- [x] Prevent streaming failover after the first emitted chunk
+
+### Provider adapters
+
+- [x] Implement Cerebras adapter
+- [x] Implement NVIDIA adapter
+- [x] Implement OpenRouter adapter
+- [x] Normalize model discovery, generation, streaming, usage, and errors
+- [x] Isolate provider HTTP behavior behind project-owned contracts
+- [x] Use injectable HTTP transports for offline tests
+
+### Health, configuration, security, and lifecycle
+
+- [x] Implement concurrent on-demand provider health checks
+- [x] Track status, latency, last success, last failure, and error category
+- [x] Move provider keys, URLs, models, timeouts, retries, tokens, temperature, paths, and priority into typed settings
+- [x] Require HTTPS and validate enabled-provider credentials and models
+- [x] Keep every provider disabled by default
+- [x] Add allowlisted JSON provider logging
+- [x] Exclude API keys, prompts, responses, and vendor error bodies from logs
+- [x] Initialize and close provider resources through application lifespan
+
+### Phase 3 tests and documentation
+
+- [x] Test provider selection, active state, failover, retries, and exhaustion
+- [x] Test health checks and status history
+- [x] Test nested configuration, bounds, HTTPS, and secret masking
+- [x] Test all three provider adapters offline
+- [x] Test HTTP error mapping, malformed responses, token limits, and prompt limits
+- [x] Test streaming normalization and failover boundary
+- [x] Test provider logging redaction
+- [x] Preserve the full Phase 1 and Phase 2 test suite
+- [x] Update architecture, roadmap, status, changelog, decisions, testing, security, and README documentation
+- [ ] Project-owner acceptance of Phase 3
+
+## Phase 4 - Core tools (not started)
 
 Do not begin until owner approval identifies the exact tool scope.
 
-- [ ] Select the first production tool and authoritative data source
-- [ ] Complete tool-specific threat and privacy review
+- [ ] Select the first production tool and authoritative data or model source
+- [ ] Complete tool-specific threat, privacy, licensing, and cost review
 - [ ] Define typed input/output contract and operational limits
 - [ ] Implement the tool behind the Phase 2 definition interface
-- [ ] Add unit, failure, security, and MCP protocol tests
+- [ ] Use the Phase 3 provider router only when the approved tool requires it
+- [ ] Add unit, failure, security, provider, and MCP protocol tests
 - [ ] Update documentation and status
 
 ## Later backlog (unapproved)
 
-- [ ] Define provider interface and routing policy
-- [ ] Evaluate live LLM providers and licensing
-- [ ] Evaluate agent orchestration after deterministic tools and routing
+- [ ] Evaluate agent orchestration after tools and routing stabilize
 - [ ] Define persistence requirements from actual use cases
 - [ ] Design authentication and authorization
-- [ ] Add rate limiting and security audit events
+- [ ] Add inbound rate limiting and security audit events
+- [ ] Add provider concurrency, budgets, scheduled health, and readiness
 - [ ] Add broader metrics, traces, alerts, and dashboards
 - [ ] Add packaging, CI/CD, deployment, rollback, and recovery workflows
 
 ## Open owner decisions
 
-- [ ] Accept Phase 2 and approve or revise Phase 3 scope
-- [ ] Identify the first approved production tool and data source
+- [ ] Accept Phase 3 and approve or revise Phase 4 scope
+- [ ] Identify the first approved production tool and source
 - [x] Repository hosting and review platform selected: GitHub
 - [ ] Choose a license
 - [ ] Decide initial deployment environment and trust boundary

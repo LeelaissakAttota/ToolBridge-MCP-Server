@@ -6,6 +6,46 @@ All notable changes to this project are recorded here. The format follows Keep a
 
 No unreleased changes.
 
+## [0.3.0] - 2026-08-06
+
+### Added
+
+- Provider-neutral domain contracts for generation, streaming, model discovery, token usage, health, status, and normalized errors
+- Replaceable `BaseProvider` lifecycle interface
+- Cerebras, NVIDIA, and OpenRouter HTTP adapters
+- Configuration-driven provider priority, endpoints, credentials, models, timeouts, retries, token limits, temperature, and prompt limits
+- Active-provider routing with bounded retries, capped exponential backoff, and category-aware failover
+- Concurrent on-demand provider health checks and immutable status snapshots
+- Safe streaming failover before the first emitted chunk
+- Structured provider JSON logging with a strict metadata allowlist
+- Offline provider configuration, routing, adapter, health, streaming, error, limit, and logging tests
+
+### Changed
+
+- Promoted provider routing to Phase 3 and moved Core Tools to Phase 4 by owner direction.
+- Promoted package version from `0.2.0` to `0.3.0`.
+- Extended application lifespan management to initialize and close provider resources.
+- Expanded the safe environment example with disabled provider configuration.
+
+### Security
+
+- Provider API keys use `SecretStr` and are unwrapped only at outbound adapter composition.
+- Enabled provider endpoints require HTTPS.
+- Keys, prompts, responses, authorization headers, and vendor error bodies are excluded from provider logs and normalized errors.
+- Provider request bytes, prompt bytes, maximum tokens, timeouts, and retries are bounded.
+- Every provider remains disabled by default.
+
+### Testing
+
+- Expanded the offline suite from 28 to 56 tests.
+- Added coverage for selection, failover, retry eligibility, health state, configuration, all provider adapters, streaming boundaries, error mapping, and log redaction.
+
+### Compatibility
+
+- Existing FastAPI paths, MCP transport, MCP schemas, and `system_status` behavior remain unchanged.
+- No dependency versions changed and no provider SDK was added.
+- No provider-backed MCP tool was introduced.
+
 ## [0.2.0] - 2026-08-05
 
 ### Added

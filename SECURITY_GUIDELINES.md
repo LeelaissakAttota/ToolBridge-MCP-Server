@@ -2,21 +2,21 @@
 
 ## Current security posture
 
-Version `0.2.0` remains a local-development service. It binds to `127.0.0.1` in documented commands and has no authentication, authorization, rate limiting, provider credentials, persistent data, or production tools. It must not be exposed to untrusted networks in its current form.
+Version `0.3.0` remains a local-development service. It has no inbound authentication, authorization, rate limiting, persistent data, production MCP tools, or deployment hardening and must not be exposed to untrusted networks.
 
-The MCP Core now implements these defense-in-depth controls:
+The Phase 3 provider router introduces optional outbound API credentials and model traffic. Every provider is disabled by default. When enabled, the current controls are:
 
-- strict typed request and tool-input validation,
-- unknown-field rejection with rejected values hidden from transport errors,
-- encoded request and response size limits,
-- strict declared output validation,
-- per-tool timeouts and cancellation propagation,
-- safe normalized errors with correlation identifiers,
-- structured logging that excludes arguments, results, and exception messages,
-- deterministic registry discovery and duplicate rejection.
+- typed `SecretStr` credentials loaded from environment configuration,
+- HTTPS-only provider base URLs,
+- credentials unwrapped only at outbound adapter composition,
+- bounded provider request bytes, prompt bytes, output tokens, timeouts, and retries,
+- normalized provider errors without response bodies or exception messages,
+- structured provider logs limited to provider, latency, status, request ID, and error category,
+- no logging of keys, authorization headers, prompts, model responses, or vendor error bodies,
+- streaming failover only before the first chunk,
+- credential-free and network-free default tests.
 
-These controls do not replace identity, authorization, network limits, or production hardening.
-
+Existing MCP Core validation, output limits, timeouts, cancellation, correlation identifiers, and safe execution logging remain in force. These controls do not replace identity, authorization, spend controls, outbound allowlists, secret management, or production monitoring.
 ## Trust boundaries
 
 Treat all of the following as untrusted:
