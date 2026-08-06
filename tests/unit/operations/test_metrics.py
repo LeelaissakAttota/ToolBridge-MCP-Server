@@ -63,4 +63,3 @@ def test_log_buffer_is_bounded_and_newest_first() -> None:
     logs = metrics.recent_logs(10)
 
     assert [entry.event for entry in logs] == ["event-2", "event-1"]
-

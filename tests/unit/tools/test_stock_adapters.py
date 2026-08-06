@@ -269,4 +269,4 @@ def test_stock_log_formatter_excludes_symbols_keys_urls_and_payloads() -> None:
     assert "test-alpha-key" not in output
     assert "stocks.test" not in output
     assert "private" not in output
-    assert "secret message" not in output
+    assert "secret message" not in output

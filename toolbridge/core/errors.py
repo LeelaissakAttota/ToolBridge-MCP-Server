@@ -79,4 +79,3 @@ class ResponseValidationError(ToolBridgeError):
 
     def __init__(self, message: str, *, details: dict[str, Any] | None = None) -> None:
         super().__init__(ErrorCode.INVALID_RESPONSE, message, details=details)
-

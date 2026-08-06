@@ -1,7 +1,7 @@
 """Frankfurter exchange-rate adapter with normalized safe failures."""
 
-from datetime import date
 import json
+from datetime import date
 
 import httpx
 

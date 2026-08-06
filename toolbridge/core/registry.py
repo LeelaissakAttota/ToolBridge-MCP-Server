@@ -39,4 +39,3 @@ class ToolRegistry:
         """Return the number of registered tools."""
 
         return len(self._tools)
-

@@ -113,9 +113,7 @@ def test_currency_converter_validates_input_and_normalizes_invalid_response() ->
         CurrencyConverterInput(amount=1, source_currency="USD", target_currencies=["EUR", "EUR"])
 
     with pytest.raises(ValidationError):
-        CurrencyConverterInput(
-            amount=1, source_currency="USD", target_currencies=["EU"]
-        )
+        CurrencyConverterInput(amount=1, source_currency="USD", target_currencies=["EU"])
 
     tool = build_tool(
         build_provider(

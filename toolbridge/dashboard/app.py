@@ -176,9 +176,7 @@ def render_dashboard(snapshot: OperationsSnapshot) -> None:
         st.subheader("Log Viewer")
         level = st.selectbox("Level", ("All", "INFO", "WARNING", "ERROR"))
         visible = tuple(
-            item
-            for item in snapshot.logs
-            if level == "All" or item.level.value == level
+            item for item in snapshot.logs if level == "All" or item.level.value == level
         )
         if visible:
             st.dataframe(

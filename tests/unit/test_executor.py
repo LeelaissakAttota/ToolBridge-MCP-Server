@@ -108,9 +108,7 @@ def build_executor(
 def test_executor_runs_sync_handler_and_validates_response() -> None:
     executor, logger = build_executor(lambda data: ValueOutput(value=data.value + 1))
 
-    response = asyncio.run(
-        executor.execute("value", {"value": 4}, correlation_id="correlation-1")
-    )
+    response = asyncio.run(executor.execute("value", {"value": 4}, correlation_id="correlation-1"))
 
     assert response.success is True
     assert response.result == {"value": 5}
@@ -199,4 +197,3 @@ def test_executor_propagates_cancellation_and_logs_it() -> None:
     asyncio.run(cancel_execution())
 
     assert logger.events[-1]["error_code"] is ErrorCode.EXECUTION_CANCELLED
-

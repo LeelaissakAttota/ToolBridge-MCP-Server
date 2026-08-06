@@ -91,10 +91,7 @@ class LocalCSVDataSource(CSVDataSource):
         except (OSError, UnicodeError, csv.Error) as error:
             raise FileAnalysisFailedError("invalid_file") from error
 
-        summaries = [
-            _summarize(column, values[column], missing[column])
-            for column in columns
-        ]
+        summaries = [_summarize(column, values[column], missing[column]) for column in columns]
         return CSVAnalysisOutput(
             file_name=path.name,
             delimiter=delimiter,
@@ -124,9 +121,9 @@ def _validate_columns(columns: list[str], maximum: int) -> None:
     if not columns or len(columns) > maximum:
         raise FileAnalysisFailedError("invalid_columns")
     normalized = [name.strip() for name in columns]
-    if any(not name or len(name) > 256 for name in normalized) or len(
-        normalized
-    ) != len(set(normalized)):
+    if any(not name or len(name) > 256 for name in normalized) or len(normalized) != len(
+        set(normalized)
+    ):
         raise FileAnalysisFailedError("invalid_columns")
     columns[:] = normalized
 

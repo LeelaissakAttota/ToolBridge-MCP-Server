@@ -21,7 +21,7 @@ def test_service_info(client: TestClient) -> None:
     response = client.get("/")
 
     assert response.status_code == 200
-    assert response.json()["version"] == "0.6.0"
+    assert response.json()["version"] == "1.0.0"
     assert response.json()["status"] == "running"
     assert response.json()["mcp"] == "/mcp/"
 
@@ -57,7 +57,7 @@ def test_operations_snapshot_is_safe_and_complete(client: TestClient) -> None:
 
     assert response.status_code == 200
     body = response.json()
-    assert body["system"]["version"] == "0.6.0"
+    assert body["system"]["version"] == "1.0.0"
     assert len(body["providers"]) == 3
     assert len(body["tools"]) == 7
     assert set(body) == {
@@ -107,9 +107,7 @@ def test_mcp_protocol_discovery_and_execution(client: TestClient) -> None:
     )
 
     assert initialize.status_code == 200
-    assert initialize.json()["result"]["capabilities"]["tools"] == {
-        "listChanged": False
-    }
+    assert initialize.json()["result"]["capabilities"]["tools"] == {"listChanged": False}
     assert discovered.status_code == 200
     tools = discovered.json()["result"]["tools"]
     assert [tool["name"] for tool in tools] == [

@@ -144,9 +144,7 @@ def test_llm_analysis_normalizes_unavailable_router() -> None:
         await router.initialize()
         await tool.initialize()
         with pytest.raises(LLMAnalysisUnavailableError) as captured:
-            await tool.execute(
-                LLMAnalysisInput(operation=AnalysisOperation.ANALYZE, text="text")
-            )
+            await tool.execute(LLMAnalysisInput(operation=AnalysisOperation.ANALYZE, text="text"))
         assert captured.value.details == {"error_category": "unavailable"}
         health = await tool.health_check()
         assert health.status.value == "unavailable"

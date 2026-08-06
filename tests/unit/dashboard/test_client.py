@@ -15,7 +15,7 @@ def test_dashboard_client_requests_only_the_safe_snapshot_endpoint() -> None:
             200,
             json={
                 "system": {
-                    "version": "0.6.0",
+                    "version": "1.0.0",
                     "uptime_seconds": 1.0,
                     "environment": "test",
                     "current_phase": "Phase 6",
@@ -59,7 +59,7 @@ def test_dashboard_client_requests_only_the_safe_snapshot_endpoint() -> None:
 
     snapshot = client.fetch_snapshot()
 
-    assert snapshot.system.version == "0.6.0"
+    assert snapshot.system.version == "1.0.0"
     assert len(requests) == 1
     assert requests[0].method == "GET"
     assert requests[0].url.path == "/operations/snapshot"
@@ -80,4 +80,3 @@ def test_dashboard_client_normalizes_transport_and_validation_errors() -> None:
         client.fetch_snapshot()
 
     assert "secret" not in str(caught.value)
-

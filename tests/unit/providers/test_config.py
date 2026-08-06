@@ -81,9 +81,7 @@ def test_factory_loads_enabled_provider_without_network_access() -> None:
             "retry_count": 0,
         },
     )
-    transport = httpx.MockTransport(
-        lambda _: httpx.Response(200, json={"data": []})
-    )
+    transport = httpx.MockTransport(lambda _: httpx.Response(200, json={"data": []}))
     router = build_provider_router(
         settings,
         transports={ProviderName.CEREBRAS: transport},

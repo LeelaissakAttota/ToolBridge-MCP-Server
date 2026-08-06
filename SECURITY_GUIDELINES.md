@@ -2,7 +2,7 @@
 
 ## Current security posture
 
-Version `0.6.0` remains a local-only service. It exposes seven read-only MCP tools plus a read-only monitoring dashboard, but it has no inbound authentication, authorization, tenant separation, rate limiting, persistent audit trail, deployment hardening, or approved production data contracts. Bind the API and dashboard to loopback; do not expose either to an untrusted network.
+Version `1.0.0` is packaged for a hardened loopback-only single-host deployment. It exposes seven read-only MCP tools plus a read-only monitoring dashboard, but it has no inbound authentication, authorization, tenant separation, application rate limiting, persistent audit trail, or approved production data contracts. Keep API and dashboard publication on loopback; do not expose either directly to an untrusted network.
 
 All Phase 2-5 validation, timeout, cancellation, secret, provider, tool, SSRF, SQL, filesystem, and logging controls remain in force.
 
@@ -97,4 +97,25 @@ Review sources, destinations, permissions, side effects, tenants, limits, cancel
 
 ## Phase gate
 
-Phase 6 is complete and awaits owner acceptance. Do not implement authentication, deployment, CI/CD, or Phase 7 without separate approval.
+Phase 7 deployment and v1.0.0 release preparation are complete. No post-v1 security architecture or public exposure is approved.
+
+## v1.0.0 deployment controls
+
+- The image uses a fixed non-root identity and contains only runtime dependencies plus application source.
+- Compose drops all Linux capabilities, enables `no-new-privileges`, uses read-only roots, and limits writable temporary space.
+- Published API and dashboard ports are explicitly bound to host `127.0.0.1`; direct public exposure is unsupported.
+- The dashboard shares the API network namespace so its configured API URL remains loopback and passes existing application validation.
+- `.env`, Git metadata, tests, caches, local data, and generated artifacts are excluded from image context.
+- Provider secrets remain `SecretStr` environment configuration and must be injected at runtime; no Compose or workflow secret values are defined.
+- The release verifier recursively rejects monitoring keys that imply credentials, authorization, prompts, or tool payloads.
+- Health and readiness checks use local non-sensitive endpoints and perform no paid provider probe.
+
+## CI and supply-chain boundary
+
+The workflow uses read-only repository contents permission, pinned direct Python dependencies, dependency integrity checks, formatting/lint/tests, image build, and runtime smoke validation. Release-tag artifacts include a SHA-256 file. The workflow does not publish, sign, deploy, or receive production credentials.
+
+Before an operator accepts a deployment, separately perform current base-image/dependency vulnerability, license, SBOM, provenance, and platform-policy review. Major GitHub Actions are referenced by reviewed major tags; organizations needing immutable supply-chain pinning should replace them with approved commit SHAs.
+
+## Residual risk
+
+The application still lacks inbound identity, authorization, tenancy, and rate limiting. Host-loopback publication is a compensating boundary, not an authentication system. A public or multi-user topology requires an explicit identity-aware proxy/network design and application authorization review. Other authoritative residual risks are in `KNOWN_LIMITATIONS.md`.

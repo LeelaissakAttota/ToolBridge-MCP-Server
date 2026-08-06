@@ -96,4 +96,3 @@ class MCPToolAdapter:
             parameters=parameters,
             return_annotation=definition.output_model,
         )
-

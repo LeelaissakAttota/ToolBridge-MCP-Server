@@ -14,8 +14,8 @@ from pydantic import (
 )
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from toolbridge.providers.domain.models import ProviderName
 from toolbridge.phase5_config import Phase5ToolSettings
+from toolbridge.providers.domain.models import ProviderName
 from toolbridge.tools.domain.models import StockProviderName
 
 
@@ -94,7 +94,6 @@ class OpenRouterSettings(LLMProviderSettings):
             return None
         normalized = value.strip()
         return normalized or None
-
 
 
 class YahooFinanceSettings(BaseModel):
@@ -241,9 +240,7 @@ class StockPriceToolSettings(BaseModel):
 
         if self.max_retry_backoff_seconds < self.retry_backoff_seconds:
             raise ValueError("stock max retry backoff cannot be smaller than initial")
-        if self.enabled and not (
-            self.yahoo_finance.enabled or self.alpha_vantage.enabled
-        ):
+        if self.enabled and not (self.yahoo_finance.enabled or self.alpha_vantage.enabled):
             raise ValueError("enabled Stock Price Tool requires a provider")
         return self
 
@@ -251,9 +248,7 @@ class StockPriceToolSettings(BaseModel):
     def provider_priority_order(self) -> tuple[StockProviderName, ...]:
         """Return stable configured provider identifiers."""
 
-        return tuple(
-            StockProviderName(name) for name in self.provider_priority.split(",")
-        )
+        return tuple(StockProviderName(name) for name in self.provider_priority.split(","))
 
 
 class OperationsSettings(BaseModel):
@@ -262,7 +257,7 @@ class OperationsSettings(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     current_phase: str = Field(
-        default="Phase 6 - Dashboard & Production Readiness",
+        default="Phase 7 - Deployment & v1.0.0 Release",
         min_length=1,
         max_length=128,
     )

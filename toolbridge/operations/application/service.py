@@ -63,9 +63,7 @@ class OperationsService:
         self._enabled_providers = enabled_providers
         self._recent_log_limit = recent_log_limit
         self._readiness_require_provider = readiness_require_provider
-        self._readiness_require_all_tools_healthy = (
-            readiness_require_all_tools_healthy
-        )
+        self._readiness_require_all_tools_healthy = readiness_require_all_tools_healthy
         self._started_at = datetime.now(UTC)
         self._started_counter = perf_counter()
         self._lifecycle = LifecycleState.STARTING
@@ -142,19 +140,13 @@ class OperationsService:
             ReadinessCheck(
                 name="tool_lifecycle",
                 ready=self._tool_manager.is_initialized,
-                status=(
-                    "initialized"
-                    if self._tool_manager.is_initialized
-                    else "not_initialized"
-                ),
+                status=("initialized" if self._tool_manager.is_initialized else "not_initialized"),
             ),
             ReadinessCheck(
                 name="provider_router",
                 ready=self._provider_router.is_initialized,
                 status=(
-                    "initialized"
-                    if self._provider_router.is_initialized
-                    else "not_initialized"
+                    "initialized" if self._provider_router.is_initialized else "not_initialized"
                 ),
             ),
         ]
@@ -172,8 +164,7 @@ class OperationsService:
             )
         if self._readiness_require_all_tools_healthy:
             all_healthy = all(
-                item.health.status is ToolHealthState.HEALTHY
-                for item in tool_statuses
+                item.health.status is ToolHealthState.HEALTHY for item in tool_statuses
             )
             checks.append(
                 ReadinessCheck(
@@ -197,9 +188,7 @@ class OperationsService:
         providers = self._provider_monitors()
         tool_statuses = self._tool_manager.monitoring_statuses()
         tools = self._tool_monitors(tool_statuses)
-        total_requests = sum(
-            item.metrics.total_executions for item in tool_statuses
-        )
+        total_requests = sum(item.metrics.total_executions for item in tool_statuses)
         completed = sum(
             item.metrics.successful_executions + item.metrics.failed_executions
             for item in tool_statuses
@@ -209,9 +198,7 @@ class OperationsService:
             * (item.metrics.successful_executions + item.metrics.failed_executions)
             for item in tool_statuses
         )
-        successful = sum(
-            item.metrics.successful_executions for item in tool_statuses
-        )
+        successful = sum(item.metrics.successful_executions for item in tool_statuses)
         failed = sum(item.metrics.failed_executions for item in tool_statuses)
         provider_usage = {item.provider: item.requests for item in providers}
         tool_usage = {item.tool_name: item.execution_count for item in tools}
@@ -220,8 +207,7 @@ class OperationsService:
         lifecycle = self._lifecycle_value()
         health_status = "healthy" if readiness.ready else "not_ready"
         if readiness.ready and any(
-            item.health
-            in {ToolHealthState.DEGRADED.value, ToolHealthState.UNAVAILABLE.value}
+            item.health in {ToolHealthState.DEGRADED.value, ToolHealthState.UNAVAILABLE.value}
             for item in tools
         ):
             health_status = "degraded"
@@ -253,17 +239,13 @@ class OperationsService:
                 estimated_token_usage=estimated_tokens,
                 estimated_api_cost_usd=estimated_cost,
                 requests_per_provider=provider_usage,
-                cost_per_provider={
-                    item.provider: item.estimated_cost_usd for item in providers
-                },
+                cost_per_provider={item.provider: item.estimated_cost_usd for item in providers},
             ),
             logs=self._metrics.recent_logs(self._recent_log_limit),
         )
 
     def _provider_monitors(self) -> tuple[ProviderMonitor, ...]:
-        statuses = {
-            item.provider: item for item in self._provider_router.provider_status()
-        }
+        statuses = {item.provider: item for item in self._provider_router.provider_status()}
         active = self._provider_router.active_provider
         enabled_order = tuple(
             name for name in self._provider_priority if name in self._enabled_providers
@@ -296,8 +278,7 @@ class OperationsService:
                     ),
                     error_category=(
                         status.last_error_category.value
-                        if status is not None
-                        and status.last_error_category is not None
+                        if status is not None and status.last_error_category is not None
                         else None
                     ),
                     requests=usage.requests,

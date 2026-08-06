@@ -15,3 +15,7 @@ htmlcov/
 .vscode/
 dist/
 build/
+test-results.xml
+*.tar.gz
+*.sha256
+data/

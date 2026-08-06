@@ -51,9 +51,7 @@ def build_provider_router(
             provider = OpenRouterProvider(
                 adapter_config,
                 http_referer=(
-                    str(openrouter.http_referer)
-                    if openrouter.http_referer is not None
-                    else None
+                    str(openrouter.http_referer) if openrouter.http_referer is not None else None
                 ),
                 app_title=openrouter.app_title,
                 transport=transport,

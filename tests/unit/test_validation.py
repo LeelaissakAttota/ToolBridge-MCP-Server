@@ -120,4 +120,3 @@ def test_response_validator_enforces_size_limit() -> None:
         validator.validate(large_definition, LargeOutput(text="x" * 100))
 
     assert caught.value.details == {"max_response_bytes": 50}
-

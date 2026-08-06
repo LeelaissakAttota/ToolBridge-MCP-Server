@@ -154,18 +154,13 @@ class StockPriceService:
 
         if last_error is not None and not saw_non_invalid_error:
             raise InvalidStockSymbolError(symbol)
-        raise StockDataUnavailableError(
-            last_error.category if last_error is not None else None
-        )
+        raise StockDataUnavailableError(last_error.category if last_error is not None else None)
 
     async def health_check(self) -> tuple[ProviderHealthStatus, ...]:
         """Probe all configured providers concurrently."""
 
         results = await asyncio.gather(
-            *(
-                provider.health_check(self._health_check_symbol)
-                for provider in self._providers
-            ),
+            *(provider.health_check(self._health_check_symbol) for provider in self._providers),
             return_exceptions=True,
         )
         normalized: list[ProviderHealthStatus] = []
@@ -255,8 +250,7 @@ class StockPriceTool(BaseTool):
         self._definition = ToolDefinition(
             name="stock_price",
             description=(
-                "Return a validated current stock quote from configured market "
-                "data providers."
+                "Return a validated current stock quote from configured market data providers."
             ),
             input_model=StockPriceInput,
             output_model=StockPriceOutput,
@@ -307,9 +301,7 @@ class StockPriceTool(BaseTool):
 
         started_at = perf_counter()
         providers = await self._service.health_check()
-        healthy_count = sum(
-            value.status is ToolHealthState.HEALTHY for value in providers
-        )
+        healthy_count = sum(value.status is ToolHealthState.HEALTHY for value in providers)
         if healthy_count == len(providers):
             state = ToolHealthState.HEALTHY
         elif healthy_count:
@@ -328,9 +320,7 @@ class StockPriceTool(BaseTool):
             latency_ms=StockPriceService._duration_ms(started_at),
             last_success_at=self._last_success_at,
             last_failure_at=self._last_failure_at,
-            providers={
-                value.provider.value: value.status.value for value in providers
-            },
+            providers={value.provider.value: value.status.value for value in providers},
         )
 
     async def close(self) -> None:

@@ -82,9 +82,7 @@ def test_tool_manager_lifecycle_and_status_are_independently_testable() -> None:
         "system_status",
         "stock_price",
     ]
-    assert all(
-        value.health.status is ToolHealthState.HEALTHY for value in statuses
-    )
+    assert all(value.health.status is ToolHealthState.HEALTHY for value in statuses)
 
 
 def test_stock_configuration_defaults_are_bounded_and_explicit() -> None:
@@ -114,9 +112,7 @@ def test_stock_configuration_rejects_insecure_or_unusable_values() -> None:
         Settings(
             _env_file=None,
             stock_price={
-                "yahoo_finance": {
-                    "quote_path_template": "//evil.test/{symbol}"
-                },
+                "yahoo_finance": {"quote_path_template": "//evil.test/{symbol}"},
             },
         )
 
@@ -125,7 +121,6 @@ def test_stock_configuration_rejects_insecure_or_unusable_values() -> None:
             _env_file=None,
             stock_price={"alpha_vantage": {"query_path": "//evil.test/query"}},
         )
-
 
     with pytest.raises(ValidationError, match="requires a provider"):
         Settings(
@@ -157,8 +152,5 @@ def test_alpha_vantage_secret_loads_from_nested_environment_and_is_masked(
     settings = Settings(_env_file=None)
 
     assert settings.stock_price.alpha_vantage.api_key is not None
-    assert (
-        settings.stock_price.alpha_vantage.api_key.get_secret_value()
-        == "test-alpha-secret"
-    )
+    assert settings.stock_price.alpha_vantage.api_key.get_secret_value() == "test-alpha-secret"
     assert "test-alpha-secret" not in repr(settings)

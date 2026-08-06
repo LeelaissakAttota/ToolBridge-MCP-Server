@@ -1,6 +1,7 @@
 """Provider-neutral contracts for bounded read-only SQL queries."""
 
-from re import IGNORECASE, compile as compile_pattern
+from re import IGNORECASE
+from re import compile as compile_pattern
 
 from pydantic import Field, field_validator
 

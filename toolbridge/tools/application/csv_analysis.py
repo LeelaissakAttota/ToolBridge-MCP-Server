@@ -24,8 +24,7 @@ class CSVAnalysisTool(BaseTool):
         self._definition = ToolDefinition(
             name="csv_analysis",
             description=(
-                "Analyze a configured CSV file with schema, summary, missing values, "
-                "and preview."
+                "Analyze a configured CSV file with schema, summary, missing values, and preview."
             ),
             input_model=CSVAnalysisInput,
             output_model=CSVAnalysisOutput,

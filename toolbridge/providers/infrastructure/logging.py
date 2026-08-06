@@ -61,9 +61,7 @@ class StructuredProviderEventLogger:
                 "latency_ms": latency_ms,
                 "status": status.value,
                 "request_id": request_id,
-                "error_category": (
-                    error_category.value if error_category is not None else None
-                ),
+                "error_category": (error_category.value if error_category is not None else None),
             },
         )
 
@@ -76,8 +74,7 @@ def configure_provider_logging(log_level: str) -> StructuredProviderEventLogger:
     logger.setLevel(level)
     logger.propagate = False
     if not any(
-        getattr(handler, "toolbridge_provider_handler", False)
-        for handler in logger.handlers
+        getattr(handler, "toolbridge_provider_handler", False) for handler in logger.handlers
     ):
         handler = logging.StreamHandler()
         handler.setFormatter(ProviderJsonFormatter())

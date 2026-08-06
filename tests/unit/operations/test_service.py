@@ -26,8 +26,8 @@ def test_operations_snapshot_is_read_only_complete_and_network_free() -> None:
     snapshot = asyncio.run(run())
 
     assert snapshot.readiness.ready is True
-    assert snapshot.system.version == "0.6.0"
-    assert snapshot.system.current_phase.startswith("Phase 6")
+    assert snapshot.system.version == "1.0.0"
+    assert snapshot.system.current_phase.startswith("Phase 7")
     assert len(snapshot.tools) == 7
     assert all(item.registered for item in snapshot.tools)
     assert [item.provider for item in snapshot.providers] == [
@@ -50,4 +50,3 @@ def test_readiness_is_false_before_and_after_managed_lifecycle() -> None:
     runtime.operations.mark_stopped()
 
     assert runtime.operations.readiness().ready is False
-

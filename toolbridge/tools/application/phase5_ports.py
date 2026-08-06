@@ -2,8 +2,8 @@
 
 from abc import ABC, abstractmethod
 
-from toolbridge.tools.domain.currency import CurrencyProviderName, CurrencyRateSet
 from toolbridge.tools.domain.csv_analysis import CSVAnalysisOutput
+from toolbridge.tools.domain.currency import CurrencyProviderName, CurrencyRateSet
 from toolbridge.tools.domain.sql_query import SQLQueryOutput, SqlValue
 from toolbridge.tools.domain.website import WebsiteDocument
 
