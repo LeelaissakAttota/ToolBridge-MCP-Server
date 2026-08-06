@@ -12,7 +12,9 @@ from uuid import uuid4
 from toolbridge.providers.application.ports import (
     BaseProvider,
     NullProviderEventLogger,
+    NullProviderUsageRecorder,
     ProviderEventLogger,
+    ProviderUsageRecorder,
 )
 from toolbridge.providers.domain.errors import ProviderError, ProviderRoutingError
 from toolbridge.providers.domain.models import (
@@ -62,6 +64,7 @@ class ProviderRouter:
         max_retry_backoff_seconds: float,
         max_request_bytes: int,
         event_logger: ProviderEventLogger | None = None,
+        usage_recorder: ProviderUsageRecorder | None = None,
     ) -> None:
         if retry_backoff_seconds < 0:
             raise ValueError("retry_backoff_seconds cannot be negative")
@@ -84,6 +87,7 @@ class ProviderRouter:
         self._max_retry_backoff_seconds = max_retry_backoff_seconds
         self._max_request_bytes = max_request_bytes
         self._event_logger = event_logger or NullProviderEventLogger()
+        self._usage_recorder = usage_recorder or NullProviderUsageRecorder()
         self._states = {name: _ProviderState() for name in priority}
         self._active_provider: ProviderName | None = None
         self._initialized = False
@@ -95,6 +99,18 @@ class ProviderRouter:
         """Return the currently selected provider, if any."""
 
         return self._active_provider
+
+    @property
+    def is_initialized(self) -> bool:
+        """Return whether router lifecycle startup completed and remains open."""
+
+        return self._initialized and not self._closed
+
+    @property
+    def priority(self) -> tuple[ProviderName, ...]:
+        """Return enabled providers in configured routing order."""
+
+        return self._priority
 
     async def initialize(self) -> None:
         """Initialize configured providers and select the highest-priority candidate."""
@@ -191,10 +207,17 @@ class ProviderRouter:
 
         prepared = self._prepare_request(request)
         assert prepared.request_id is not None
-        return await self._route(
+        response = await self._route(
             lambda provider: lambda: provider.generate(prepared),
             request_id=prepared.request_id,
         )
+        self._usage_recorder.record_generation(
+            provider=response.provider,
+            input_tokens=response.usage.input_tokens,
+            output_tokens=response.usage.output_tokens,
+            total_tokens=response.usage.total_tokens,
+        )
+        return response
 
     async def stream_generate(
         self,
@@ -235,6 +258,12 @@ class ProviderRouter:
                     raise
                 continue
 
+            self._usage_recorder.record_generation(
+                provider=first.provider,
+                input_tokens=0,
+                output_tokens=0,
+                total_tokens=0,
+            )
             yield first
             stream_started_at = perf_counter()
             try:

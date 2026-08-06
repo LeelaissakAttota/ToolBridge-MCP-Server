@@ -209,14 +209,54 @@ This lightweight log records architectural decisions for the current foundation.
 - **Context:** Text analysis is required without duplicating vendor routing, credentials, retries, failover, or logging, and without introducing agent autonomy.
 - **Decision:** Build one non-streaming analyze/summarize tool that constructs a provider-neutral request, wraps source text as untrusted document data, and calls the existing Provider Router. Return structured provider-neutral content and token usage. Do not add tool calling, chaining, memory, or agents.
 - **Consequences:** Provider-specific behavior and secrets remain hidden. The tool is discoverable but unavailable when no LLM provider is enabled. Model output remains untrusted and production use requires data-processing, retention, model, cost, and review policies.
+
+## D-026 - Read-only operational snapshot separates monitoring from execution
+
+- **Date:** 2026-08-06
+- **Status:** Accepted for Phase 6
+- **Context:** A separate Streamlit process needs system, provider, tool, metric, cost, and log data without importing the running server, sharing mutable globals, or gaining tool-execution authority.
+- **Decision:** Expose one strict, bounded `OperationsSnapshot` through local `GET /operations/snapshot`. Aggregate it in an application service from registry, manager, router, and safe observer state. The dashboard validates this JSON and renders it without mutation controls.
+- **Consequences:** UI and server lifecycles are independent; domain/application layers remain FastAPI/Streamlit-independent. The endpoint must remain local until identity and authorization are approved.
+
+## D-027 - Readiness uses local lifecycle state and cached tool monitoring
+
+- **Date:** 2026-08-06
+- **Status:** Accepted for Phase 6
+- **Context:** Dashboard polling and readiness checks must not create network traffic, provider cost, stock requests, or slow external dependencies.
+- **Decision:** Keep `/health` as cheap liveness. Make `/ready` check lifecycle, registry composition, ToolManager initialization, and Provider Router initialization using local state. Cache tool lifecycle health for monitoring. Optional active-provider and all-tool-health gates are typed configuration.
+- **Consequences:** Reads are deterministic, fast, and side-effect free. Provider/tool health is last-known or lifecycle state, not a scheduled live probe. A future scheduled probe system requires a separate decision.
+
+## D-028 - Bounded safe operational metrics and recent logs
+
+- **Date:** 2026-08-06
+- **Status:** Accepted for Phase 6
+- **Context:** The dashboard requires request outcomes, timings, error categories, provider/tool usage, and recent logs without retaining high-cardinality or sensitive payloads.
+- **Decision:** Compose existing structured loggers with a thread-safe process-local observer. Retain fixed-label aggregates and a configured-capacity deque of allowlisted metadata only. Add tool last-completion timestamps and a provider usage observer that receives provider identity and normalized token counts.
+- **Consequences:** Memory is bounded and prompts, arguments, results, URLs, SQL, paths, provider bodies, secrets, and exception text remain absent. Metrics reset on restart and are not persistent audit evidence or cross-worker telemetry.
+
+## D-029 - Provider cost values are configuration-driven estimates
+
+- **Date:** 2026-08-06
+- **Status:** Accepted for Phase 6
+- **Context:** Provider prices change and vary by model/contract; hardcoded prices would become inaccurate and could be mistaken for billing truth.
+- **Decision:** Configure input/output USD-per-million-token rates per provider with zero defaults. Estimate from normalized token usage. Count streaming requests but keep token/cost increments at zero when the stream contract supplies no usage.
+- **Consequences:** Operators control assumptions and the system never invents token counts or prices. Values are estimates only; production billing reconciliation and model-specific price catalogs remain open.
+
+## D-030 - Streamlit is a pinned local read-only adapter
+
+- **Date:** 2026-08-06
+- **Status:** Accepted for Phase 6
+- **Context:** Phase 6 explicitly requires a professional Streamlit dashboard while prohibiting authentication and deployment work.
+- **Decision:** Pin `streamlit==1.60.0`, run it as a separate loopback-bound process, allow only manual refresh, and keep all UI operations read-only. Validate the configured API URL as loopback without credentials/query/fragment.
+- **Consequences:** Dashboard implementation is replaceable and cannot mutate server state. Public/shared access is prohibited until authentication, authorization, TLS, and operator permissions are approved. The larger dependency tree requires supply-chain review before production.
+
 ## Open decisions
 
 The following require proposals before implementation:
 
 - Supported and licensed production stock-data contract
-- Exact Phase 6 scope and acceptance criteria
 - Authentication and authorization approach
-- Broader metrics, tracing, and telemetry stack
+- Persistent metrics/audit backend, tracing, scheduled probes, retention, and alert delivery
 - Packaging and hosting platform
 - Persistence and cache requirements
 - License and distribution terms

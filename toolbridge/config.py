@@ -32,6 +32,8 @@ class LLMProviderSettings(BaseModel):
     retry_count: int = Field(default=2, ge=0, le=5)
     max_tokens: int = Field(default=1_024, ge=1, le=131_072)
     temperature: float = Field(default=0.2, ge=0, le=2)
+    input_cost_per_million_tokens_usd: float = Field(default=0.0, ge=0)
+    output_cost_per_million_tokens_usd: float = Field(default=0.0, ge=0)
     max_prompt_bytes: int = Field(default=131_072, ge=1_024, le=10_485_760)
     models_path: str = Field(default="/models", pattern=r"^/[A-Za-z0-9_./-]+$")
     chat_completions_path: str = Field(
@@ -254,6 +256,53 @@ class StockPriceToolSettings(BaseModel):
         )
 
 
+class OperationsSettings(BaseModel):
+    """Configuration for bounded, read-only operational monitoring."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    current_phase: str = Field(
+        default="Phase 6 - Dashboard & Production Readiness",
+        min_length=1,
+        max_length=128,
+    )
+    log_capacity: int = Field(default=500, ge=10, le=10_000)
+    recent_log_limit: int = Field(default=100, ge=1, le=1_000)
+    dashboard_api_url: HttpUrl = HttpUrl("http://127.0.0.1:8000")
+    dashboard_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
+    readiness_require_provider: bool = False
+    readiness_require_all_tools_healthy: bool = False
+
+    @field_validator("current_phase")
+    @classmethod
+    def normalize_phase(cls, value: str) -> str:
+        """Trim the display phase while rejecting an empty value."""
+
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("current phase cannot be empty")
+        return normalized
+
+    @field_validator("dashboard_api_url")
+    @classmethod
+    def require_local_dashboard_api(cls, value: HttpUrl) -> HttpUrl:
+        """Keep the unauthenticated dashboard connection on the local host."""
+
+        if value.host not in {"127.0.0.1", "localhost", "::1"}:
+            raise ValueError("dashboard API URL must use a loopback host")
+        if any((value.username, value.password, value.query, value.fragment)):
+            raise ValueError("dashboard API URL must not include credentials or query data")
+        return value
+
+    @model_validator(mode="after")
+    def validate_log_limits(self) -> "OperationsSettings":
+        """Keep dashboard log reads within the bounded in-memory buffer."""
+
+        if self.recent_log_limit > self.log_capacity:
+            raise ValueError("recent log limit cannot exceed log capacity")
+        return self
+
+
 class Settings(BaseSettings):
     """Runtime settings loaded from environment variables and `.env`."""
 
@@ -292,6 +341,7 @@ class Settings(BaseSettings):
     )
     stock_price: StockPriceToolSettings = StockPriceToolSettings()
     phase5: Phase5ToolSettings = Phase5ToolSettings()
+    operations: OperationsSettings = OperationsSettings()
 
     @field_validator("provider_priority")
     @classmethod

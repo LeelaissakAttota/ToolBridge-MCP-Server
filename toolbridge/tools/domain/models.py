@@ -60,6 +60,7 @@ class ToolMetricsSnapshot(BaseModel):
     average_duration_ms: float = Field(ge=0)
     last_duration_ms: float | None = Field(default=None, ge=0)
     last_error_code: str | None = None
+    last_execution_at: datetime | None = None
 
 
 class ToolHealthStatus(BaseModel):

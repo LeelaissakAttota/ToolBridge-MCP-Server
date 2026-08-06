@@ -9,7 +9,10 @@ from toolbridge.providers.adapters.cerebras import CerebrasProvider
 from toolbridge.providers.adapters.nvidia import NvidiaProvider
 from toolbridge.providers.adapters.openai_compatible import OpenAICompatibleConfig
 from toolbridge.providers.adapters.openrouter import OpenRouterProvider
-from toolbridge.providers.application.ports import ProviderEventLogger
+from toolbridge.providers.application.ports import (
+    ProviderEventLogger,
+    ProviderUsageRecorder,
+)
 from toolbridge.providers.application.router import ProviderRegistration, ProviderRouter
 from toolbridge.providers.domain.models import ProviderName
 
@@ -17,6 +20,7 @@ from toolbridge.providers.domain.models import ProviderName
 def build_provider_router(
     settings: Settings,
     event_logger: ProviderEventLogger | None = None,
+    usage_recorder: ProviderUsageRecorder | None = None,
     *,
     transports: Mapping[ProviderName, httpx.AsyncBaseTransport] | None = None,
 ) -> ProviderRouter:
@@ -65,6 +69,7 @@ def build_provider_router(
         max_retry_backoff_seconds=settings.provider_max_retry_backoff_seconds,
         max_request_bytes=settings.provider_max_request_bytes,
         event_logger=event_logger,
+        usage_recorder=usage_recorder,
     )
 
 

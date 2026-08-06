@@ -77,3 +77,58 @@ class NullProviderEventLogger:
         error_category: ProviderErrorCategory | None = None,
     ) -> None:
         """Discard an event."""
+
+
+class CompositeProviderEventLogger:
+    """Forward provider events to ordered safe observers."""
+
+    def __init__(self, observers: tuple[ProviderEventLogger, ...]) -> None:
+        self._observers = observers
+
+    def record(
+        self,
+        *,
+        provider: ProviderName,
+        latency_ms: float,
+        status: ProviderStatus,
+        request_id: str,
+        error_category: ProviderErrorCategory | None = None,
+    ) -> None:
+        """Forward one provider event without adding payload fields."""
+
+        for observer in self._observers:
+            observer.record(
+                provider=provider,
+                latency_ms=latency_ms,
+                status=status,
+                request_id=request_id,
+                error_category=error_category,
+            )
+
+
+class ProviderUsageRecorder(Protocol):
+    """Record normalized generation usage without content or prompts."""
+
+    def record_generation(
+        self,
+        *,
+        provider: ProviderName,
+        input_tokens: int,
+        output_tokens: int,
+        total_tokens: int,
+    ) -> None:
+        """Record one completed generation and its normalized token counts."""
+
+
+class NullProviderUsageRecorder:
+    """No-op provider usage observer for isolated router tests."""
+
+    def record_generation(
+        self,
+        *,
+        provider: ProviderName,
+        input_tokens: int,
+        output_tokens: int,
+        total_tokens: int,
+    ) -> None:
+        """Discard generation usage."""

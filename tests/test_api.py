@@ -21,7 +21,7 @@ def test_service_info(client: TestClient) -> None:
     response = client.get("/")
 
     assert response.status_code == 200
-    assert response.json()["version"] == "0.5.0"
+    assert response.json()["version"] == "0.6.0"
     assert response.json()["status"] == "running"
     assert response.json()["mcp"] == "/mcp/"
 
@@ -35,6 +35,41 @@ def test_health(client: TestClient) -> None:
         "service": "toolbridge-mcp",
         "environment": "development",
     }
+
+
+def test_readiness(client: TestClient) -> None:
+    response = client.get("/ready")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ready"
+    assert body["ready"] is True
+    assert {item["name"] for item in body["checks"]} >= {
+        "lifecycle",
+        "registry",
+        "tool_lifecycle",
+        "provider_router",
+    }
+
+
+def test_operations_snapshot_is_safe_and_complete(client: TestClient) -> None:
+    response = client.get("/operations/snapshot")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["system"]["version"] == "0.6.0"
+    assert len(body["providers"]) == 3
+    assert len(body["tools"]) == 7
+    assert set(body) == {
+        "system",
+        "readiness",
+        "providers",
+        "tools",
+        "metrics",
+        "costs",
+        "logs",
+    }
+
 
 def test_mcp_protocol_discovery_and_execution(client: TestClient) -> None:
     headers = {

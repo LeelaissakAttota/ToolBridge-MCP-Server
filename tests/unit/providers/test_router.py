@@ -100,6 +100,16 @@ class RecordingProviderLogger:
         self.events.append(event)
 
 
+class RecordingUsageRecorder:
+    """Capture normalized generation usage without request content."""
+
+    def __init__(self) -> None:
+        self.events: list[dict[str, Any]] = []
+
+    def record_generation(self, **event: Any) -> None:
+        self.events.append(event)
+
+
 def request() -> GenerationRequest:
     """Build a valid provider-neutral test request."""
 
@@ -114,6 +124,7 @@ def build_router(
     *,
     retry_counts: tuple[int, ...] | None = None,
     logger: RecordingProviderLogger | None = None,
+    usage: RecordingUsageRecorder | None = None,
 ) -> ProviderRouter:
     """Build an isolated router in the supplied priority order."""
 
@@ -128,6 +139,7 @@ def build_router(
         max_retry_backoff_seconds=0,
         max_request_bytes=4_096,
         event_logger=logger,
+        usage_recorder=usage,
     )
 
 
@@ -148,6 +160,37 @@ def test_router_selects_primary_provider() -> None:
     assert nvidia.generate_calls == 0
 
 
+
+def test_router_records_normalized_generation_usage() -> None:
+    cerebras = FakeProvider(ProviderName.CEREBRAS)
+    usage = RecordingUsageRecorder()
+    cerebras.generate_actions.append(
+        GenerationResponse(
+            provider=ProviderName.CEREBRAS,
+            request_id="request-1",
+            model="test-model",
+            content="safe response",
+            usage={
+                "input_tokens": 12,
+                "output_tokens": 8,
+                "total_tokens": 20,
+            },
+        )
+    )
+    router = build_router((cerebras,), usage=usage)
+
+    async def run() -> None:
+        await router.initialize()
+        await router.generate(request())
+
+    asyncio.run(run())
+
+    assert usage.events == [{
+        "provider": ProviderName.CEREBRAS,
+        "input_tokens": 12,
+        "output_tokens": 8,
+        "total_tokens": 20,
+    }]
 def test_router_fails_over_when_active_provider_is_unavailable() -> None:
     cerebras = FakeProvider(ProviderName.CEREBRAS)
     nvidia = FakeProvider(ProviderName.NVIDIA)
@@ -249,6 +292,26 @@ def test_stream_fails_over_before_first_chunk() -> None:
 
     assert [chunk.delta for chunk in chunks] == ["fallback"]
     assert router.active_provider is ProviderName.NVIDIA
+
+
+
+def test_stream_records_provider_request_without_inventing_token_usage() -> None:
+    cerebras = FakeProvider(ProviderName.CEREBRAS)
+    usage = RecordingUsageRecorder()
+    router = build_router((cerebras,), usage=usage)
+
+    async def run() -> None:
+        await router.initialize()
+        _ = [chunk async for chunk in router.stream_generate(request())]
+
+    asyncio.run(run())
+
+    assert usage.events == [{
+        "provider": ProviderName.CEREBRAS,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0,
+    }]
 
 
 def test_stream_does_not_fail_over_after_emitting_content() -> None:
