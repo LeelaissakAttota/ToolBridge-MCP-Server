@@ -2,84 +2,99 @@
 
 ## Current security posture
 
-Version `0.5.0` remains a local-development service. It exposes seven read-only MCP tools but has no inbound authentication, authorization, tenant separation, rate limiting, persistent audit trail, deployment hardening, or approved production data contracts. Do not expose it to untrusted networks.
+Version `0.6.0` remains a local-only service. It exposes seven read-only MCP tools plus a read-only monitoring dashboard, but it has no inbound authentication, authorization, tenant separation, rate limiting, persistent audit trail, deployment hardening, or approved production data contracts. Bind the API and dashboard to loopback; do not expose either to an untrusted network.
 
-Phase 2 validation/cancellation controls, Phase 3 LLM secret/routing controls, and Phase 4 stock controls remain in force.
+All Phase 2-5 validation, timeout, cancellation, secret, provider, tool, SSRF, SQL, filesystem, and logging controls remain in force.
 
-## Phase 5 controls
+## Phase 6 controls
 
-- strict extra-forbidden input and output schemas with core request/response byte limits,
-- common whole-tool timeouts, structured allowlisted execution logs, aggregate metrics, and normalized client errors,
-- configuration-driven external origins, timeouts, retries, caches, file/database roots, rows, columns, fields, and response limits,
-- no Phase 5 secret committed or logged; LLM credentials remain isolated in Provider Router adapters,
-- offline tests without live credentials, production data, or provider traffic.
+- dashboard configuration accepts only a loopback API origin with no credentials, query, or fragment
+- dashboard performs only `GET /operations/snapshot` and exposes no mutations
+- `/ready` evaluates local cached/lifecycle state and performs no external probe
+- operational snapshots use strict immutable models and bounded containers
+- lifecycle/startup failures are reduced to safe categories; exception messages are not retained
+- tool/provider observers receive allowlisted metadata, not arguments or results
+- recent logs are bounded and process-local, preventing unbounded memory retention
+- provider token cost is computed only from normalized counts and configured rates
+- disabled providers remain visible without requiring or exposing credentials
+- all Phase 6 tests run offline without credentials or live provider traffic
+
+## Operational data allowlist
+
+The operations endpoint and dashboard may display only:
+
+- version, environment, phase, uptime, lifecycle, and readiness decisions
+- tool/provider stable names, registration/configuration status, health state, priority, active/failover state
+- counts, durations, safe timestamps, normalized error categories, and safe request/correlation identifiers
+- normalized token totals and configured cost estimates
+- safe event name, source, component, status, level, and latency
+
+Never store, log, return, or display:
+
+- API keys, passwords, access tokens, authorization headers, cookies, connection strings, or secrets
+- prompts, tool arguments, instructions, source text, outputs, responses, provider bodies, or exception messages
+- URLs, query strings, SQL, parameters, database paths, filenames, CSV cells/statistics/previews, or website content
+- environment dumps, network topology, stack traces, or customer/tenant identifiers
+
+Request IDs are operational correlators only. Do not embed user content or secrets in identifiers.
 
 ## Trust boundaries
 
-Treat MCP arguments, URLs, DNS, website content, SQL, parameters, SQLite values, paths, CSV cells, exchange-rate payloads, provider/model output, environment settings, and external errors as untrusted. Validate every crossing into a more privileged component.
+Treat MCP arguments, URLs, DNS, website content, SQL, parameters, SQLite values, paths, CSV cells, exchange-rate payloads, provider/model output, dashboard JSON, environment settings, and external errors as untrusted. Validate every crossing into a more privileged component.
 
-## Website Reader threat review
+## Dashboard threat review
 
-- Require credential-free HTTPS on standard port 443.
-- Optionally enforce an exact hostname allowlist; production must configure one.
-- Reject localhost, `.local`, and any resolved non-global address.
-- Refuse redirects, unsupported content types, status errors, and oversized streamed responses.
-- Remove scripts and common navigation/layout boilerplate; still treat returned text as untrusted.
-- Never log URLs, query strings, content, or exception messages.
-- Residual risk: DNS may change between validation and connection. Production requires outbound firewall/DNS policy and re-evaluation before public exposure.
-- Review robots, copyright, site terms, privacy, personal data, and retention before use.
+- Keep Streamlit on `127.0.0.1`; no authentication was authorized in Phase 6.
+- Use only the typed local API URL. The dashboard client refuses redirects and sends no credentials.
+- Treat operational JSON as untrusted and validate it with strict models before rendering.
+- Keep the UI read-only; refresh is the only interactive server-related control and only reruns the page.
+- Do not add raw log-file access, environment display, arbitrary URLs, query tools, shell commands, or configuration mutation.
+- Do not present cost estimates as authoritative billing data.
+- Before public or shared access, add approved authentication, authorization, CSRF/session controls where applicable, TLS termination, headers, rate limits, and an operator permission model.
 
-## SQL Query threat review
+## Readiness and monitoring threat review
 
-- Accept only one conservatively validated `SELECT` or `WITH` statement.
-- Reject separators, comments, transaction commands, pragmas, attachment, schema changes, and data mutation keywords.
-- Pass named parameters separately; never interpolate values.
-- Open configured SQLite files in URI read-only mode and enable SQLite query-only mode.
-- Enforce row caps, JSON-safe scalars, duplicate-column rejection, progress-handler timeout, and outer tool timeout.
-- Keep database paths in configuration beneath a root; never accept paths or connection strings from MCP input.
-- Production still requires authenticated per-tool authorization, least-privileged database roles/files, tenant isolation, query governance, and audit.
-- A future PostgreSQL adapter must use a read-only transaction, statement timeout, parameter binding, and a least-privileged account.
+- `/health` proves process liveness only; it must remain cheap and independent of optional systems.
+- `/ready` reveals only stable local check names and states. It must not expose paths, provider endpoints, credentials, or exception text.
+- optional provider/tool readiness gates are explicit configuration decisions.
+- monitoring reads must not generate stock/provider traffic or create billing/cost side effects.
+- bounded in-memory logs are diagnostic, not tamper-evident audit evidence.
+- multi-worker/process deployments would fragment metrics and must not sum them without a designed backend.
 
-## CSV Analysis threat review
+## Existing tool controls
 
-- Accept only relative `.csv` paths and verify the resolved file remains beneath the configured root.
-- Bound file bytes, rows, columns, field characters, preview rows, and total execution time.
-- Parse outside the event loop; normalize filesystem and parse errors without returning paths.
-- Do not log filenames, cells, statistics, or previews.
-- Treat formula-like cells and all returned values as untrusted if exported to spreadsheet or HTML destinations.
-- Production requires tenant authorization, file permissions, malware/content handling policy, retention, and personal-data governance.
+### Website Reader
 
-## Currency Converter threat review
+Require credential-free HTTPS, reject local/non-global destinations, refuse redirects and unsupported/oversized content, and use an explicit production allowlist plus outbound firewall. DNS rebinding remains a residual risk.
 
-- Validate finite positive bounded amounts and distinct uppercase ISO currency codes.
-- Require a safe HTTPS provider origin and path; disable redirects.
-- Stream and bound provider responses, validate requested base/targets, reject non-finite or extreme rates, and normalize errors.
-- Retry only timeout, network, rate-limit, and unavailable categories with capped backoff.
-- Cache only successful normalized rate sets with TTL and entry bounds; no customer account or payment data is used.
-- Returned rates are informational, not financial advice or a settlement guarantee.
-- Production requires provider terms, attribution, freshness, currency coverage, outage, and fallback decisions.
+### SQL Query
 
-## HCL Curie / LLM Analysis threat review
+Accept one conservative `SELECT`/`WITH`, bind named parameters separately, use SQLite URI read-only and query-only modes, and enforce row/query/outer time limits. Production requires least-privileged identities, authorization, tenants, governance, and audit.
 
-- Bound source text, optional instructions, provider request bytes, output tokens, temperature, execution time, and response bytes.
-- Use the existing Provider Router for secrets, HTTPS, retry, failover, safe errors, and allowlisted logs.
-- Place supplied text inside an explicitly untrusted document wrapper with a fixed system instruction.
-- Never log source text, prompts, instructions, responses, keys, authorization headers, or vendor bodies.
-- Treat output as untrusted and potentially inaccurate. Do not execute it, grant it authority, or chain tools automatically.
-- Production requires approved provider/model, data-processing terms, residency, retention, sensitive-data policy, cost controls, and human review rules.
+### CSV Analysis
 
-## Logging, metrics, and privacy
+Confine relative `.csv` paths beneath the configured root; bound bytes, rows, columns, fields, preview, and execution time. Never log filenames or cells. Treat formula-like values as untrusted on export.
 
-Core logs may contain only tool name, correlation identifier, duration, status, safe error code, and approved exception type. Provider logs retain only provider, latency, status, request identifier, and safe error category. Metrics use bounded tool-name aggregates. Never log arguments, URLs, SQL, parameters, paths, filenames, cells, prompts, content, results, credentials, or provider bodies.
+### Currency Converter
+
+Validate finite bounded amounts/codes, require configured HTTPS, disable redirects, validate/bound responses, retry only normalized transient failures, and cache only successful normalized rates.
+
+### HCL Curie / LLM Analysis
+
+Bound source/instructions/tokens/time/bytes, use only Provider Router secret/failover controls, wrap source as untrusted document data, never log content, and treat output as untrusted. Human review and provider data-processing approval remain required.
 
 ## Authentication and authorization
 
-Before non-local exposure, authenticate every MCP request; authorize by client, tenant, tool, operation, database/file resource, and outbound destination; deny by default; separate operator and client privileges; and add inbound request, connection, rate, concurrency, size, and cost controls.
+Before any non-local exposure, authenticate every MCP and operations request; authorize by client, tenant, tool, resource, operation, and operator role; deny by default; separate dashboard/operator and MCP-client privileges; and add request, connection, rate, concurrency, size, and cost controls.
 
 ## Dependencies and supply chain
 
-No dependency was added in Phase 5. Standard-library HTML, SQLite, CSV, DNS, and statistics capabilities plus the existing pinned `httpx` client are used. Continue pinning direct dependencies; add approved secret, dependency, license, and vulnerability scanning before production.
+Phase 6 adds pinned `streamlit==1.60.0`. Continue pinning direct dependencies and verify with the full suite and `pip check`. Secret, dependency, license, provenance, and vulnerability scanning remain future approved workflow work. Streamlit and its transitive dependencies must be included in production supply-chain review.
 
 ## Incident and change checklist
 
-Review sources, destinations, permissions, side effects, tenants, limits, cancellation, audit, abuse, privacy, licensing, and cost for every change. Client errors must never reveal stack traces, queries, paths, environment values, provider bodies, credentials, or topology. Before production, define credential revocation, data containment/deletion, evidence handling, provider escalation, notifications, recovery, and post-incident review.
+Review sources, destinations, permissions, side effects, tenants, limits, cancellation, audit, abuse, privacy, licensing, retention, and cost for every change. Client/dashboard errors must never reveal stack traces, queries, paths, environment values, provider bodies, credentials, or topology. Before production, define credential revocation, containment/deletion, evidence handling, provider escalation, notification, recovery, and post-incident review.
+
+## Phase gate
+
+Phase 6 is complete and awaits owner acceptance. Do not implement authentication, deployment, CI/CD, or Phase 7 without separate approval.

@@ -6,6 +6,52 @@ All notable changes to this project are recorded here. The format follows Keep a
 
 No unreleased changes.
 
+## [0.6.0] - 2026-08-06
+
+### Added
+
+- professional read-only Streamlit dashboard with System, Provider, MCP Tool, Metrics, Cost, and Log sections
+- lifecycle-aware `/ready` endpoint with `200`/`503` responses and no external probes
+- bounded secret-free `/operations/snapshot` endpoint for local dashboard consumption
+- startup registry/version validation and categorized lifecycle error reporting
+- process-local operational models/service for system, provider, tool, request, cost, readiness, and safe-log views
+- provider generation usage observer for non-streaming token totals and streaming request counts
+- configurable per-provider input/output token cost rates
+- configurable log capacity, recent-log limit, local dashboard API URL/timeout, and readiness policy
+- cached tool lifecycle monitoring and last-execution timestamps
+- dashboard client, metrics, configuration, readiness, provider/tool monitoring, and component tests
+
+### Changed
+
+- promoted package version from `0.5.0` to `0.6.0`
+- composed console logging, framework metrics, and bounded operational observers without changing tool execution contracts
+- extended application lifespan to validate startup, mark readiness, enter stopping state before closure, and report safe failure categories
+- exposed Provider Router lifecycle/priority state and normalized generation usage through replaceable ports
+- added pinned `streamlit==1.60.0`
+- preserved existing `/health`, `/mcp/`, seven-tool discovery, and all Phase 1-5 behavior
+
+### Security
+
+- restricted dashboard API configuration to loopback origins without embedded credentials, query data, or fragments
+- dashboard uses only a credential-free, redirect-disabled local `GET`
+- operational output uses explicit safe models and excludes arguments, prompts, content, URLs, SQL, paths, secrets, provider bodies, and exception messages
+- bounded recent logs retain only timestamp, level, source, event, component, status, latency, safe request identifier, and error category
+- readiness and dashboard snapshots perform no external provider/tool health probes
+- cost estimates use only normalized token counts and configured prices; missing streaming usage is never invented
+
+### Testing
+
+- expanded the offline suite from 98 to 112 tests
+- added tests for dashboard composition/client behavior, readiness, operations API, tool/provider monitoring, bounded safe logs, token/cost metrics, and configuration validation
+- verified 112 tests pass, compilation succeeds, and `pip check` reports no broken requirements
+- retained one non-failing third-party `StarletteDeprecationWarning`
+
+### Compatibility
+
+- no MCP tool name, input schema, output schema, execution behavior, provider priority, or existing HTTP path was removed or changed incompatibly
+- no live external request is required for startup or default tests
+- no authentication, agent, CI/CD, deployment pipeline, or Phase 7 capability was implemented
+
 ## [0.5.0] - 2026-08-06
 
 ### Added

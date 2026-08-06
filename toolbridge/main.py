@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from mcp.server.fastmcp import FastMCP
 
 from toolbridge import __version__
@@ -11,6 +12,7 @@ from toolbridge.adapters.logging import configure_execution_logging
 from toolbridge.adapters.mcp import MCPToolAdapter
 from toolbridge.bootstrap import build_core_runtime
 from toolbridge.config import get_settings
+from toolbridge.operations.domain.models import OperationsSnapshot, ReadinessSnapshot
 from toolbridge.providers.infrastructure.logging import configure_provider_logging
 from toolbridge.tools.infrastructure.logging import configure_stock_logging
 
@@ -39,16 +41,33 @@ MCPToolAdapter(mcp, core.registry, core.executor).register_tools()
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     """Start and stop MCP, provider-router, and managed-tool resources."""
 
-    await core.tool_manager.initialize()
+    failed = False
     try:
+        core.operations.validate_startup()
+        await core.tool_manager.initialize()
         await core.provider_router.initialize()
         try:
             async with mcp.session_manager.run():
-                yield
+                core.operations.mark_ready()
+                try:
+                    yield
+                finally:
+                    core.operations.mark_stopping()
         finally:
             await core.provider_router.close()
+    except BaseException:
+        failed = True
+        core.operations.mark_failed("application_lifecycle")
+        raise
     finally:
-        await core.tool_manager.close()
+        try:
+            await core.tool_manager.close()
+        except BaseException:
+            core.operations.mark_failed("tool_shutdown")
+            raise
+        else:
+            if not failed:
+                core.operations.mark_stopped()
 
 
 app = FastAPI(
@@ -68,6 +87,8 @@ async def service_info() -> dict[str, str]:
         "version": __version__,
         "status": "running",
         "health": "/health",
+        "readiness": "/ready",
+        "operations": "/operations/snapshot",
         "mcp": "/mcp/",
         "docs": "/docs",
     }
@@ -82,6 +103,30 @@ async def health() -> dict[str, str]:
         "service": "toolbridge-mcp",
         "environment": settings.environment,
     }
+
+
+@app.get("/ready", tags=["service"], response_model=ReadinessSnapshot)
+async def readiness() -> ReadinessSnapshot | JSONResponse:
+    """Report local traffic readiness without external provider probes."""
+
+    snapshot = core.operations.readiness()
+    if snapshot.ready:
+        return snapshot
+    return JSONResponse(
+        status_code=503,
+        content=snapshot.model_dump(mode="json"),
+    )
+
+
+@app.get(
+    "/operations/snapshot",
+    tags=["operations"],
+    response_model=OperationsSnapshot,
+)
+async def operations_snapshot() -> OperationsSnapshot:
+    """Return bounded, read-only, secret-free monitoring data."""
+
+    return core.operations.snapshot()
 
 
 app.mount("/mcp", mcp.streamable_http_app(), name="mcp")

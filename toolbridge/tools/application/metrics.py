@@ -1,6 +1,7 @@
 """Thread-safe in-process metrics observer for tool executions."""
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from threading import Lock
 
 from toolbridge.core.contracts import ErrorCode
@@ -15,6 +16,7 @@ class _MutableMetrics:
     total_duration_ms: float = 0.0
     last_duration_ms: float | None = None
     last_error_code: str | None = None
+    last_execution_at: datetime | None = None
 
 
 class InMemoryToolMetrics:
@@ -47,6 +49,7 @@ class InMemoryToolMetrics:
             value.total_duration_ms += duration_ms
             value.last_duration_ms = duration_ms
             value.last_error_code = None
+            value.last_execution_at = datetime.now(UTC)
 
     def failed(
         self,
@@ -68,6 +71,7 @@ class InMemoryToolMetrics:
             value.total_duration_ms += duration_ms
             value.last_duration_ms = duration_ms
             value.last_error_code = error_code.value
+            value.last_execution_at = datetime.now(UTC)
 
     def snapshot(self, tool_name: str) -> ToolMetricsSnapshot:
         """Return an immutable metrics snapshot for one tool."""
@@ -84,6 +88,7 @@ class InMemoryToolMetrics:
                 average_duration_ms=round(average, 3),
                 last_duration_ms=value.last_duration_ms,
                 last_error_code=value.last_error_code,
+                last_execution_at=value.last_execution_at,
             )
 
     def _entry(self, tool_name: str) -> _MutableMetrics:

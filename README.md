@@ -1,21 +1,22 @@
 # ToolBridge MCP Server
 
-ToolBridge is a Model Context Protocol service with typed, validated, observable, read-only tools. Version `0.5.0` completes the approved Phase 5 implementation by adding the five remaining Core MCP Tools to the reusable framework delivered in Phase 4.
+ToolBridge is a Python 3.12 Model Context Protocol service with typed, validated, observable, read-only tools. Version `0.6.0` completes the approved Phase 6 Dashboard & Production Readiness scope while preserving all Phase 1-5 application behavior.
 
-Phase 5 is implemented and tested but remains uncommitted pending project-owner approval. Dashboard, agents, authentication, CI/CD, deployment, and later-phase work are not implemented.
+Phase 6 is implemented and tested but is intentionally uncommitted and unpushed pending project-owner approval. Authentication, agents, CI/CD, deployment pipelines, and Phase 7 work are not implemented.
 
 ## Current capabilities
 
 - FastAPI control plane and stateless FastMCP Streamable HTTP transport
-- Framework-independent registry, discovery, strict validation, bounded execution, safe errors, structured logs, and aggregate metrics
+- Framework-independent MCP contracts, registry, discovery, strict validation, bounded execution, safe errors, and structured logs
 - Configuration-driven LLM Provider Router for Cerebras, NVIDIA, and OpenRouter
+- Seven tools: `system_status`, `stock_price`, `website_reader`, `sql_query`, `csv_analysis`, `currency_converter`, and `hcl_curie_analysis`
 - Common `BaseTool` and `ToolManager` lifecycle with automatic MCP registration
-- Seven discoverable tools: `system_status`, `stock_price`, `website_reader`, `sql_query`, `csv_analysis`, `currency_converter`, and `hcl_curie_analysis`
-- Offline test suite using fakes, temporary fixtures, and `httpx.MockTransport`
+- Liveness, readiness, startup validation, graceful shutdown, and safe operational snapshots
+- Process-local tool/provider timing, request outcomes, token usage, configured cost estimates, error categories, and bounded recent logs
+- Read-only Streamlit dashboard for system, provider, tool, metrics, cost, and log views
+- Offline automated suite with 112 tests
 
-## Setup and local run
-
-Requirements: Python 3.12 and internet access only for installation or explicitly invoked live provider tools.
+## Setup
 
 ```powershell
 py -3.12 -m venv .venv
@@ -23,95 +24,100 @@ py -3.12 -m venv .venv
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 Copy-Item .env.example .env
-python -m pytest -q -p no:cacheprovider
-python -m uvicorn toolbridge.main:app --host 127.0.0.1 --port 8000
+python -m pytest -q -p no:cacheprovider tests
+python -m pip check
 ```
 
-The `.env` copy is optional. Startup and default tests make no external provider request. Keep the service bound to localhost; authentication and inbound rate limiting are not implemented.
+The `.env` copy is optional. Defaults keep LLM providers disabled and require no credentials. Startup and default tests perform no live stock, website, currency, or LLM request.
+
+## Run the API and MCP server
+
+```powershell
+python -m uvicorn toolbridge.main:app --host 127.0.0.1 --port 8000
+```
 
 | Purpose | URL |
 | --- | --- |
 | Service metadata | <http://127.0.0.1:8000/> |
 | Liveness | <http://127.0.0.1:8000/health> |
+| Readiness | <http://127.0.0.1:8000/ready> |
+| Safe operational snapshot | <http://127.0.0.1:8000/operations/snapshot> |
 | OpenAPI | <http://127.0.0.1:8000/docs> |
 | MCP Streamable HTTP | `http://127.0.0.1:8000/mcp/` |
 
-## MCP tools
+`/health` is a cheap liveness response. `/ready` verifies local lifecycle, registry, managed tools, and Provider Router state without performing external probes. Optional provider and all-tool-health readiness requirements are configuration controlled.
 
-### `system_status`
+## Run the dashboard
 
-Returns the local service status and timestamp without external I/O.
+Start this in a second terminal after the API:
 
-### `stock_price`
+```powershell
+.\.venv\Scripts\Activate.ps1
+python -m streamlit run toolbridge/dashboard/app.py --server.address 127.0.0.1
+```
 
-Accepts a stock symbol and returns a normalized quote through Yahoo Finance with optional Alpha Vantage fallback. Provider timeouts, retries, cache, priority, response size, and health probe are configured under `TOOLBRIDGE_STOCK_PRICE__`.
+Open <http://127.0.0.1:8501>. The dashboard makes only a local `GET` request to `/operations/snapshot`; it has no mutation controls and sends no credentials. Keep both services on localhost because inbound authentication and authorization are outside Phase 6.
 
-### `website_reader`
+## Tool summary
 
-Accepts a credential-free HTTPS URL and returns the final URL, title, clean visible text, content type, word count, timestamp, and truncation state. It removes common scripts and boilerplate, refuses redirects, blocks non-public destinations, streams within a response-size limit, and supports an exact host allowlist.
+| Tool | Purpose | Primary boundary |
+| --- | --- | --- |
+| `system_status` | Local diagnostic status | No external I/O |
+| `stock_price` | Normalized current quote | Yahoo primary, optional Alpha Vantage |
+| `website_reader` | Clean public HTTPS page text | SSRF-aware bounded HTTP |
+| `sql_query` | One safe read-only query | SQLite; PostgreSQL-ready port only |
+| `csv_analysis` | Schema, statistics, missing values, preview | Confined local CSV root |
+| `currency_converter` | Multi-currency conversion | Configured Frankfurter-compatible provider |
+| `hcl_curie_analysis` | Analyze or summarize text | Existing LLM Provider Router |
 
-Configuration prefix: `TOOLBRIDGE_PHASE5__WEBSITE_READER__`.
-
-### `sql_query`
-
-Executes one parameterized `SELECT` or read-only `WITH` query against the configured SQLite database. Statement separators, comments, and mutating keywords are rejected. SQLite runs in query-only mode with a progress-handler timeout and bounded rows. The application depends on a database-neutral port so a future PostgreSQL adapter can be added without changing the tool contract.
-
-Configuration prefix: `TOOLBRIDGE_PHASE5__SQL_QUERY__`. The default `:memory:` database supports safe diagnostic queries; configure a relative database file beneath `DATABASE_ROOT` for application data.
-
-### `csv_analysis`
-
-Reads a `.csv` file beneath the configured root and returns detected columns, inferred types, numeric summary statistics, missing and unique counts, a bounded preview, row counts, delimiter, and truncation state. Paths, file bytes, rows, columns, fields, preview size, and execution time are bounded.
-
-Configuration prefix: `TOOLBRIDGE_PHASE5__CSV_ANALYSIS__`.
-
-### `currency_converter`
-
-Converts one positive finite amount into multiple distinct ISO currencies through the configured Frankfurter-compatible provider. It uses bounded streaming responses, normalized failures, safe retries, successful-response caching, and request coalescing.
-
-Configuration prefix: `TOOLBRIDGE_PHASE5__CURRENCY_CONVERTER__`.
-
-### `hcl_curie_analysis`
-
-Analyzes or summarizes bounded text through the existing LLM Provider Router and returns provider-neutral content, provider, model, request identifier, and token usage. Text is wrapped as untrusted document data. The tool is discoverable when no LLM provider is enabled but reports unavailable until at least one configured provider can route requests.
-
-Configuration prefix: `TOOLBRIDGE_PHASE5__LLM_ANALYSIS__`. Provider credentials and models remain under the Phase 3 provider settings shown in `.env.example`.
+All tools use the same registry, request validation, timeout, execution, response validation, safe logging, metrics, health, and lifecycle pipeline.
 
 ## Architecture
 
 ```text
 MCP client
-   -> FastMCP adapter
-   -> ToolRegistry
-   -> request validation
-   -> ToolExecutor timeout boundary
-   -> BaseTool application service
-   -> project-owned port
-   -> HTTP / SQLite / filesystem / Provider Router adapter
-   -> response validation
-   -> structured logs and aggregate metrics
+  -> FastMCP adapter
+  -> ToolRegistry and ToolExecutor
+  -> BaseTool application service
+  -> project-owned port
+  -> HTTP / SQLite / filesystem / Provider Router adapter
+
+Streamlit dashboard
+  -> local read-only HTTP client
+  -> OperationsService
+  -> immutable bounded snapshot
 ```
 
-Domain and application modules do not import FastAPI or FastMCP. External details stay in adapters; configuration and object composition stay in infrastructure. See `ARCHITECTURE.md` for boundaries and data flows.
+Domain and application code do not depend on FastAPI, FastMCP, or Streamlit. Transport and UI code depend inward. See `ARCHITECTURE.md`.
 
-## Tests
+## Configuration
 
-```powershell
-python -m pytest -q -p no:cacheprovider
-python -m pip check
-```
+All settings use the `TOOLBRIDGE_` prefix and are documented in `.env.example`. Phase 6 settings are under `TOOLBRIDGE_OPERATIONS__...`. Provider token prices are optional per-provider settings; zero values produce a `$0` estimate rather than inventing a price.
 
-Current result: **98 passed** on 2026-08-06. One third-party `StarletteDeprecationWarning` remains. No line-coverage dependency is installed, so no numerical coverage percentage is claimed.
+## Verification
+
+Verified on 2026-08-06:
+
+- **112 passed**
+- `python -m pip check`: no broken requirements
+- application compilation/import and FastAPI lifespan startup succeed
+- existing seven-tool MCP discovery remains unchanged
+- one third-party `StarletteDeprecationWarning` remains
+
+No numerical line-coverage claim is made because no coverage dependency is installed.
 
 ## Current limitations
 
-- The service is local-development only; no inbound identity, authorization, rate limiting, or production hardening exists.
-- Website DNS validation has a residual time-of-check/time-of-use rebinding risk; production deployments also need outbound firewall policy and an explicit host allowlist.
-- SQL is SQLite-only at runtime; PostgreSQL has a replaceable port but no adapter.
-- CSV and SQL data are local and process-scoped; no tenant authorization model exists.
-- Frankfurter availability, supported currencies, terms, and rate freshness remain external dependencies.
-- LLM output is untrusted and can be incomplete or incorrect; no tool chaining or agent autonomy is implemented.
-- Yahoo Finance remains an undocumented stock-data contract requiring licensing review.
-- Caches and metrics are process-local and reset on restart.
+- Local-only: no inbound authentication, authorization, tenancy, or rate limiting
+- Metrics, uptime, logs, and caches are process-local and reset on restart
+- Dashboard refresh is manual; no external telemetry backend, tracing, alert delivery, or persistence
+- Cost values are estimates based on configured per-million-token rates; streaming responses report request count but cannot invent unavailable token totals
+- Website DNS validation retains a documented rebinding risk and needs an outbound firewall/allowlist for production
+- SQL is SQLite-only at runtime; CSV and SQL lack tenant authorization and production data governance
+- External provider availability, terms, licenses, data processing, and cost controls require approval
+- LLM output remains untrusted; no agent or tool chaining is implemented
+- Yahoo Finance remains an undocumented contract requiring licensing review
+- CI/CD, deployment automation, authentication, and Phase 7 capabilities are not implemented
 
 ## Documentation
 

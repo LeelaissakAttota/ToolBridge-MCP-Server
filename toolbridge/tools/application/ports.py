@@ -86,3 +86,30 @@ class NullStockProviderEventLogger:
         error_category: str | None = None,
     ) -> None:
         """Discard an attempt event."""
+
+
+class CompositeStockProviderEventLogger:
+    """Forward stock provider events to ordered safe observers."""
+
+    def __init__(self, observers: tuple[StockProviderEventLogger, ...]) -> None:
+        self._observers = observers
+
+    def completed(
+        self,
+        *,
+        provider: StockProviderName,
+        operation_id: str,
+        latency_ms: float,
+        status: str,
+        error_category: str | None = None,
+    ) -> None:
+        """Forward one stock attempt without adding request data."""
+
+        for observer in self._observers:
+            observer.completed(
+                provider=provider,
+                operation_id=operation_id,
+                latency_ms=latency_ms,
+                status=status,
+                error_category=error_category,
+            )
