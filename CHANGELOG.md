@@ -6,6 +6,48 @@ All notable changes to this project are recorded here. The format follows Keep a
 
 No unreleased changes.
 
+## [0.5.0] - 2026-08-06
+
+### Added
+
+- `website_reader` with public-destination validation, bounded HTTPS streaming, HTML boilerplate removal, and structured clean text
+- `sql_query` with a database-neutral port, SQLite read-only/query-only execution, named parameters, row bounds, and progress timeout
+- `csv_analysis` with confined paths, delimiter and column detection, inferred types, statistics, missing-value analysis, and preview
+- `currency_converter` with configurable Frankfurter integration, multi-target conversion, bounded retries, cache, and request coalescing
+- `hcl_curie_analysis` with analyze/summarize operations and existing LLM Provider Router integration
+- Typed Phase 5 configuration and safe environment examples for every new tool
+- Stable MCP error categories for website, database, file, currency-rate, and LLM-analysis failures
+- Offline unit and protocol tests for all Phase 5 tools
+
+### Changed
+
+- Promoted package version from `0.4.0` to `0.5.0`.
+- Expanded automatic MCP discovery from two to seven tools.
+- Composed the Provider Router before managed tools so the LLM Analysis Tool can receive it without owning its lifecycle.
+- Added Phase 5 as Remaining Core MCP Tools and moved the unimplemented agent/dashboard outcome to Phase 6.
+- Preserved the Phase 4 framework architecture and all Phase 1-4 interfaces.
+
+### Security
+
+- Website URLs require credential-free HTTPS; non-public destinations, redirects, unsupported content, and oversized responses are rejected.
+- SQL accepts only one conservative read-only statement, uses named parameters, opens SQLite files read-only, enables query-only mode, and interrupts long queries.
+- CSV paths are confined beneath a configured root and file bytes, rows, columns, fields, and previews are bounded.
+- Currency amounts and ISO codes are validated; provider responses and rates are bounded and only successful normalized rates are cached.
+- LLM source text is treated as untrusted document data and remains excluded from logs.
+- URLs, SQL, parameters, paths, filenames, CSV cells, prompts, content, provider bodies, and results remain outside structured logs and metrics.
+
+### Testing
+
+- Expanded the offline suite from 75 to 98 tests.
+- Added registration, discovery, success, invalid-input, error, timeout, cache, response-contract, configuration, and security coverage for all five tools.
+- Verified 98 tests pass, compilation succeeds, and `pip check` reports no broken requirements.
+
+### Compatibility
+
+- Existing HTTP routes, MCP transport, `system_status`, `stock_price`, MCP Core, Provider Router, and Phase 4 lifecycle behavior remain compatible.
+- No dependency version changed and no dependency was added.
+- No Dashboard, agent, authentication, CI/CD, deployment, or Phase 6 capability was implemented.
+
 ## [0.4.0] - 2026-08-06
 
 ### Added

@@ -2,19 +2,19 @@
 
 ## Objectives
 
-Testing must show that ToolBridge starts, preserves interfaces, validates requests and responses, routes providers predictably, protects secrets, bounds external work, preserves cancellation, and runs offline without credentials.
+Testing must show that ToolBridge starts, preserves interfaces, validates requests and responses, bounds external work, protects secrets and sensitive inputs, routes providers predictably, preserves cancellation, and runs offline without credentials.
 
 ## Current state
 
-Version `0.4.0` has **75 automated tests** across five layers:
+Version `0.5.0` has **98 automated tests** across these layers:
 
-- API and MCP protocol: service routes, initialize, discovery, and execution
-- MCP Core: contracts, registry, validation, execution, timeout, cancellation, errors, and logs
-- LLM Provider Router: selection, retries, failover, health, lifecycle, streaming, adapters, configuration, and logs
-- Tool framework: registration, discovery, lifecycle, health, metrics, and automatic composition
-- Stock Price Tool: routing, caching, retries, failover, adapters, invalid symbols, network and timeout failures, response validation, configuration, and log redaction
+- API and MCP protocol: service routes, initialize, discovery of seven tools, and execution
+- MCP Core: contracts, registry, strict input/output validation, sizes, timeout, cancellation, safe errors, and logs
+- LLM Provider Router: selection, retries, failover, health, lifecycle, streaming, adapters, configuration, and redaction
+- Tool framework and Stock Price: automatic registration, lifecycle, metrics, providers, cache, retries, failover, adapters, and security
+- Phase 5 tools: Website Reader, SQL Query, CSV Analysis, Currency Converter, and HCL Curie / LLM Analysis
 
-The API `TestClient` shares one application lifespan because the MCP session manager starts once per process. Default tests use fakes and `httpx.MockTransport`; they perform no stock or LLM provider network request.
+Default tests use fakes, `httpx.MockTransport`, temporary SQLite databases, and temporary CSV files. They perform no live website, stock, exchange-rate, or LLM request.
 
 ## Running tests
 
@@ -24,72 +24,44 @@ python -m pytest -q -p no:cacheprovider
 python -m pip check
 ```
 
-Current verified result: **75 passed** and no broken requirements on 2026-08-06. One third-party `StarletteDeprecationWarning` does not fail the suite.
+Current verified result: **98 passed** and no broken requirements on 2026-08-06. One third-party `StarletteDeprecationWarning` does not fail the suite.
 
 ## Current behavioral coverage
 
 | Responsibility | Covered behavior |
 | --- | --- |
-| Phase 1 compatibility | `/`, `/health`, `/docs`, lifespan, and `system_status` |
-| MCP Core | Registry, discovery, strict input/output validation, sizes, timeout, cancellation, safe errors |
-| LLM routing | Priority, retries, failover, health, streaming boundary, adapters, configuration, redaction |
-| Tool framework | Base lifecycle, automatic registration, deterministic discovery, health, metrics, shutdown |
-| Stock configuration | Defaults, environment nesting, priority, bounds, HTTPS, paths, required secret, masking |
-| Stock routing | Primary success, authentication failover, retry exhaustion, invalid symbol, cache hit |
-| Stock adapters | Yahoo normalization, Alpha normalization, status mapping, malformed and oversized responses |
-| Resilience | Network errors, HTTP timeout, whole-tool timeout, response-contract violation |
-| Security | Unsafe symbol rejection, response bounds, log allowlists, secret and payload absence |
-| Health | Healthy, degraded, unavailable, and provider detail snapshots |
-
-## Test layers and rules
-
-### Unit and application tests
-
-Use project-owned fakes for domain contracts, error mapping, routing, retry classification, cache behavior, metrics, and lifecycle. Keep clock, sleep, and provider outcomes deterministic.
-
-### Adapter component tests
-
-Use `httpx.MockTransport` to verify URL paths, query parameters, headers, payload normalization, status classification, timeouts, malformed responses, and response-size bounds. Never use real credentials.
-
-### API and MCP protocol tests
-
-Run the ASGI application in-process. Verify service paths, version, MCP initialization, discovery schemas, existing tool execution, and lifespan compatibility. Do not call live stock data from the default protocol suite.
-
-### External contract tests
-
-Real Yahoo, Alpha Vantage, Cerebras, NVIDIA, and OpenRouter tests remain opt-in, credential/network-gated, cost-bounded, and excluded from the default suite. Yahoo contract testing also requires an approved usage and licensing basis.
+| Compatibility | Existing HTTP paths, MCP initialize, deterministic discovery, `system_status`, Stock Price, and Provider Router tests |
+| Website Reader | HTML extraction, boilerplate removal, URL normalization, public-IP/allowlist control, status errors, oversized response, lifecycle |
+| SQL Query | Parameterized success, row truncation, forbidden statements/comments/separators, missing database, duplicate columns, progress timeout |
+| CSV Analysis | Columns, delimiter, types, numeric statistics, missing values, preview, traversal, missing/malformed files, scan limit |
+| Currency Converter | Multi-target conversion, request mapping, retry, cache, input validation, malformed provider response |
+| LLM Analysis | Provider Router use, structured output, untrusted-document wrapper, configured input limit, unavailable routing, health |
+| Framework | Automatic registration and strict discovery schemas for all seven tools |
+| Configuration | Defaults, nested environment models, HTTPS origins, safe paths, bounds, enablement, and provider selection |
+| Security | SSRF checks, read-only SQL, path confinement, bounded data, safe errors, secret/payload logging exclusions |
 
 ## Required coverage by risk
 
-| Change | Minimum tests |
-| --- | --- |
-| New tool | Registration, discovery, input, success, output, error, timeout, health, logging |
-| Stock adapter | Request mapping, success, invalid symbol, timeout/network, status errors, malformed/oversized response |
-| Retry/cache policy | Eligibility, attempt count, failover, cache hit/expiry, cancellation |
-| Configuration | Environment parsing, secrets, HTTPS origin, safe paths, bounds, priority |
-| Security control | Rejected abuse input, bounded data, safe errors, forbidden fields absent |
-| MCP change | Discovery schema, execution path, protocol compatibility |
-| Deployment change | Startup, liveness, readiness, shutdown, rollback smoke test |
+Every new tool must cover registration, discovery schema, success, invalid input, normalized errors, timeout or bounded cancellation behavior, response contract, health, logs, and metrics. Adapter tests must verify request mapping, status/transport failures, malformed/oversized responses, and no live credentials. Configuration tests must reject insecure origins, paths, duplicates, missing required values, and out-of-bound settings.
 
 ## Design rules
 
-- Keep default tests deterministic, isolated, repeatable, credential-free, and offline.
-- Assert both returned behavior and absence of sensitive fields.
-- Never log or fixture real keys, customer data, investment accounts, or production prompts.
-- Prove syntactically invalid inputs never reach an adapter.
-- Prove retries and failover occur only for classified safe failures.
-- Validate timestamp awareness or presence rather than wall-clock equality.
-- Propagate cancellation.
-- Re-run MCP protocol tests for every MCP SDK upgrade.
+- Keep default tests deterministic, isolated, credential-free, network-free, and cost-free.
+- Assert returned behavior and the absence of sensitive fields.
+- Prove invalid input does not reach network, database, or filesystem adapters.
+- Retry only failures classified safe; preserve cancellation.
+- Use temporary files and databases with no customer or production data.
+- Treat website, CSV, database, exchange-rate, and LLM output as untrusted test data.
+- Re-run MCP protocol tests for any MCP SDK change.
 
 ## Coverage interpretation
 
-The suite behaviorally covers every Phase 4 requirement: registration, discovery, successful execution, invalid symbols, network failures, timeout handling, response validation, configuration, providers, health, logs, and metrics. A line-coverage dependency is not installed, so no percentage is claimed. Adding pinned coverage, formatter, linter, or type-checker tooling remains a separate workflow decision.
+The suite behaviorally covers every Phase 5 requirement. No line-coverage package is installed, so no numerical code-coverage claim is made. Adding coverage, formatting, linting, typing, secret scanning, or vulnerability tooling remains a separately approved workflow decision.
+
+## External contract tests
+
+Live Yahoo, Alpha Vantage, Frankfurter, website, Cerebras, NVIDIA, and OpenRouter tests remain opt-in, network/credential/terms-gated, cost-bounded, and excluded from the default suite. Production database and CSV tests require approved synthetic data and permissions.
 
 ## Phase gate
 
-Phase 4 implementation is complete and awaits owner acceptance. Phase 5 must not begin without explicit scope approval.
-
-## Future automation
-
-CI is not implemented. When approved, it should create a clean Python 3.12 environment, install `requirements.txt`, run the offline suite and `pip check`, then add approved formatting, typing, coverage, secret, dependency, and vulnerability checks.
+Phase 5 implementation is complete and awaits owner acceptance. Phase 6 must not begin without explicit scope approval.

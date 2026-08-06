@@ -21,7 +21,7 @@ def test_service_info(client: TestClient) -> None:
     response = client.get("/")
 
     assert response.status_code == 200
-    assert response.json()["version"] == "0.4.0"
+    assert response.json()["version"] == "0.5.0"
     assert response.json()["status"] == "running"
     assert response.json()["mcp"] == "/mcp/"
 
@@ -77,10 +77,23 @@ def test_mcp_protocol_discovery_and_execution(client: TestClient) -> None:
     }
     assert discovered.status_code == 200
     tools = discovered.json()["result"]["tools"]
-    assert [tool["name"] for tool in tools] == ["stock_price", "system_status"]
+    assert [tool["name"] for tool in tools] == [
+        "csv_analysis",
+        "currency_converter",
+        "hcl_curie_analysis",
+        "sql_query",
+        "stock_price",
+        "system_status",
+        "website_reader",
+    ]
     by_name = {tool["name"]: tool for tool in tools}
     assert set(by_name["stock_price"]["inputSchema"]["required"]) == {"symbol"}
     assert "current_price" in by_name["stock_price"]["outputSchema"]["properties"]
+    assert "summaries" in by_name["csv_analysis"]["outputSchema"]["properties"]
+    assert "conversions" in by_name["currency_converter"]["outputSchema"]["properties"]
+    assert "content" in by_name["hcl_curie_analysis"]["outputSchema"]["properties"]
+    assert "rows" in by_name["sql_query"]["outputSchema"]["properties"]
+    assert "text" in by_name["website_reader"]["outputSchema"]["properties"]
     assert by_name["system_status"]["inputSchema"]["properties"] == {}
     assert executed.status_code == 200
     result = executed.json()["result"]

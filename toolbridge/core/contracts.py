@@ -40,6 +40,11 @@ class ErrorCode(StrEnum):
     INVALID_RESPONSE = "invalid_response"
     INVALID_SYMBOL = "invalid_symbol"
     DATA_SOURCE_UNAVAILABLE = "data_source_unavailable"
+    WEBSITE_UNAVAILABLE = "website_unavailable"
+    DATABASE_QUERY_FAILED = "database_query_failed"
+    FILE_ANALYSIS_FAILED = "file_analysis_failed"
+    CURRENCY_RATE_UNAVAILABLE = "currency_rate_unavailable"
+    LLM_ANALYSIS_UNAVAILABLE = "llm_analysis_unavailable"
 
 
 class ToolErrorDetail(BaseModel):

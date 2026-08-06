@@ -1,196 +1,131 @@
 # Architecture
 
-## Purpose
+## Purpose and current state
 
-ToolBridge exposes validated, observable capabilities to MCP clients and internal callers. Version `0.4.0` implements the Foundation, MCP Core, LLM Provider Router, reusable Core Tool Framework, and the read-only Stock Price Tool.
+ToolBridge exposes validated, observable capabilities to MCP clients. Version `0.5.0` implements the Foundation, MCP Core, LLM Provider Router, reusable Core Tool Framework, Stock Price Tool, and the five remaining approved Core MCP Tools.
 
-## Current architecture
+One Python process hosts FastAPI, FastMCP, MCP Core, managed tools, and the Provider Router. Existing `/`, `/health`, `/docs`, `/mcp/`, and Phase 1–4 tool interfaces remain compatible. Startup creates local clients and resources but performs no provider, website, database, or file request.
 
 ```mermaid
 flowchart LR
     Client["MCP client"] --> Transport["FastMCP Streamable HTTP"]
-    Client --> API["FastAPI service endpoints"]
-    Transport --> MCPAdapter["MCP adapter"]
-    MCPAdapter --> Executor["ToolExecutor"]
-    Executor --> Validators["Request and response validation"]
+    Transport --> Adapter["MCP adapter"]
+    Adapter --> Executor["ToolExecutor"]
+    Executor --> Validation["Request and response validation"]
     Executor --> Registry["ToolRegistry"]
-    Registry --> System["system_status"]
-    Registry --> Stock["stock_price"]
+    Manager["ToolManager"] --> Registry
+    Registry --> Tools["Seven managed tools"]
 
-    ToolManager["ToolManager lifecycle"] --> Registry
-    Stock --> StockService["StockPriceService"]
-    StockService --> Cache["Bounded in-memory cache"]
-    StockService --> Yahoo["Yahoo Finance adapter"]
-    StockService --> Alpha["Alpha Vantage adapter"]
+    Tools --> Stock["Stock provider port"]
+    Tools --> Web["Website fetcher port"]
+    Tools --> SQL["Read-only query port"]
+    Tools --> CSV["CSV data-source port"]
+    Tools --> FX["Exchange-rate port"]
+    Tools --> Router["LLM Provider Router"]
 
-    Caller["Approved application caller"] --> Router["ProviderRouter"]
-    Router --> Cerebras["Cerebras adapter"]
-    Router --> Nvidia["NVIDIA adapter"]
-    Router --> OpenRouter["OpenRouter adapter"]
+    Stock --> Yahoo["Yahoo / Alpha adapters"]
+    Web --> HTTP["Bounded HTTP adapter"]
+    SQL --> SQLite["SQLite query-only adapter"]
+    CSV --> Files["Confined local CSV adapter"]
+    FX --> Frankfurter["Frankfurter adapter"]
+    Router --> LLMs["Cerebras / NVIDIA / OpenRouter"]
 
-    Executor --> ToolLogs["Allowlisted execution logs"]
-    Executor --> Metrics["In-memory tool metrics"]
-    StockService --> StockLogs["Allowlisted stock logs"]
-    Config["Typed settings"] --> StockService
-    Config --> Router
+    Executor --> Logs["Allowlisted structured logs"]
+    Executor --> Metrics["Process-local aggregate metrics"]
 ```
-
-One Python process hosts FastAPI, FastMCP, MCP Core, the managed tools, and the LLM Provider Router. The existing `/`, `/health`, `/docs`, `/mcp/`, and `system_status` interfaces remain compatible. `stock_price` is registered automatically. Startup creates HTTP clients but performs no external health probe or quote request.
 
 ## Clean Architecture boundaries
 
 ### Domain
 
-`toolbridge/tools/domain` contains provider-neutral tool health, metric, stock quote, market status, provider identifier, and safe error contracts. It has no FastAPI, FastMCP, HTTP client, or provider SDK dependency.
+`toolbridge/tools/domain` owns strict input/output models, health and metric states, normalized identifiers, and safe tool errors. It contains no FastAPI, FastMCP, HTTP client, SQLite connection, or filesystem implementation.
 
-`toolbridge/providers/domain` retains the Phase 3 LLM contracts.
+`toolbridge/providers/domain` remains the provider-neutral LLM contract.
 
 ### Application
 
-`toolbridge/tools/application/ports.py` defines:
+`BaseTool` and `ToolManager` remain unchanged. Each Phase 5 tool supplies an immutable `ToolDefinition`, lifecycle methods, health status, and a small handler that delegates to a project-owned port.
 
-- `BaseTool`: definition, initialize, health check, and close lifecycle
-- `StockQuoteProvider`: provider-neutral quote and health behavior
-- `StockProviderEventLogger`: safe logging boundary
+`phase5_ports.py` defines replaceable boundaries for website retrieval, database querying, CSV analysis, and exchange rates. `LLMAnalysisTool` delegates to the existing Provider Router, which hides all vendor adapters.
 
-`ToolManager` owns automatic registration, ordered initialization, rollback, concurrent health inspection, metrics snapshots, and reverse-order shutdown.
-
-`StockPriceService` owns provider priority, bounded retries, capped backoff, safe failover, per-symbol request coalescing, and the bounded time-based cache. `StockPriceTool` owns the MCP definition and typed input/output boundary. Neither depends on FastAPI or FastMCP.
-
-`ProviderRouter` remains the Phase 3 LLM application service and is independent of the Stock Price Tool.
+The existing Phase 2 executor remains the only validation, timeout, response, normalized-error, logging, and metrics pipeline.
 
 ### Adapters
 
-`toolbridge/tools/adapters` implements Yahoo Finance and Alpha Vantage with the existing asynchronous `httpx` dependency. Both translate external status codes, transport errors, and payloads into project-owned contracts.
-
-The shared HTTP adapter owns:
-
-- explicit client initialization and shutdown,
-- configured timeouts and safe HTTPS origins,
-- redirect refusal,
-- response-size bounds,
-- timeout, network, authentication, rate-limit, unavailable, invalid-symbol, and invalid-response normalization.
-
-Yahoo mapping supplies the broad stock output when present. Alpha Vantage `GLOBAL_QUOTE` is an optional fallback and intentionally returns null company, currency, and exchange fields plus `unknown` market status because that endpoint does not supply them.
+- `HttpWebsiteFetcher` validates public destinations, refuses redirects, streams bounded text responses, and removes common HTML boilerplate.
+- `SQLiteReadOnlyQueryExecutor` opens only the configured database, sets SQLite query-only mode, runs in a worker thread, uses a progress-handler deadline, and bounds rows and JSON-safe values.
+- `LocalCSVDataSource` confines resolved paths beneath one root and bounds bytes, rows, columns, fields, and previews before returning summaries.
+- `FrankfurterExchangeRateProvider` maps configured HTTPS responses into normalized rate sets with bounded streaming and stable error categories.
+- Existing stock and LLM adapters are unchanged.
 
 ### Infrastructure
 
-`toolbridge/tools/infrastructure/factory.py` builds enabled provider adapters from typed settings, unwraps the optional Alpha Vantage secret only at composition, orders providers, and returns managed tools.
+`phase5_config.py` contains typed settings. `phase5_factory.py` composes Phase 1–5 tools and injects the process-owned Provider Router. `bootstrap.py` creates the Provider Router before constructing its dependent LLM tool, then registers every enabled tool through the unchanged manager.
 
-`toolbridge/tools/infrastructure/logging.py` emits only timestamp, level, event, tool name, provider, operation ID, latency, status, and error category. Symbols, API keys, URLs, payloads, and exception messages are excluded.
-
-`toolbridge/bootstrap.py` composes tools, registry, validators, executor, execution logger, metrics observer, provider router, and tool manager. `toolbridge/main.py` only owns transport and process lifespan.
-
-## Tool lifecycle
+## Common tool lifecycle
 
 ```mermaid
 sequenceDiagram
     participant M as ToolManager
     participant R as ToolRegistry
-    participant V as Validators
     participant E as ToolExecutor
     participant T as BaseTool
-    participant L as Structured Logs
-    participant X as Metrics
+    participant P as Port or Provider Router
+    participant O as Logs and Metrics
 
     M->>R: register immutable definition
-    E->>R: resolve tool
-    E->>V: validate request and arguments
-    E->>T: execute typed input
-    T-->>E: typed output or safe error
-    E->>V: validate and bound response
-    E->>L: emit allowlisted outcome
-    E->>X: update aggregate metrics
-    E-->>M: normalized execution response
+    E->>E: validate request and typed arguments
+    E->>T: execute within timeout
+    T->>P: invoke bounded read-only operation
+    P-->>T: normalized typed result or safe error
+    T-->>E: typed output
+    E->>E: validate schema and response bytes
+    E->>O: record allowlisted outcome
+    E-->>R: normalized execution response
 ```
 
-The Phase 2 executor remains the single execution pipeline. The Phase 4 framework composes tools into it rather than duplicating validation, errors, or transport behavior.
+## Tool-specific flows and controls
 
-## Stock request lifecycle
+### Website Reader
 
-```mermaid
-sequenceDiagram
-    participant C as MCP Client
-    participant E as MCP Core
-    participant S as StockPriceService
-    participant P as Primary Provider
-    participant F as Fallback Provider
+Input requires credential-free HTTPS on port 443. Optional exact-host allowlisting and public-address resolution reduce SSRF risk. Local, private, link-local, reserved, multicast, and unspecified destinations are rejected before HTTP. Redirects and non-text content are refused. Response bytes and extracted characters are bounded.
 
-    C->>E: stock_price(symbol)
-    E->>E: strict schema and size validation
-    E->>S: normalized symbol
-    alt valid cache entry
-        S-->>E: cached normalized quote
-    else cache miss
-        S->>P: bounded quote request
-        alt success
-            P-->>S: normalized quote
-        else retryable failure
-            S->>P: retry with capped backoff
-            alt exhausted
-                S->>F: configured fallback
-                F-->>S: normalized quote or error
-            end
-        else non-retryable provider-local failure
-            S->>F: configured fallback
-        end
-        S->>S: cache successful quote
-        S-->>E: normalized outcome
-    end
-    E->>E: response schema and size validation
-    E-->>C: structured result or safe error
-```
+DNS resolution and connection are separate operations, leaving a documented DNS-rebinding time-of-check/time-of-use risk. Production requires outbound firewall enforcement and an explicit host allowlist.
 
-Syntactically unsafe symbols are rejected before network access. A symbol reported invalid by every attempted source returns `invalid_symbol`. Retryable provider failures are retried per provider and then failed over; exhaustion returns `data_source_unavailable`. Caller cancellation propagates.
+### SQL Query
 
-## Retry, cache, and failover policy
+The domain validator accepts one `SELECT` or `WITH` statement and rejects comments, separators, and mutating or transaction keywords. Named parameters are passed separately. SQLite opens configured files in URI read-only mode and also enables `PRAGMA query_only`. A progress callback interrupts long computation; the executor supplies an outer timeout. The port is database-neutral, but PostgreSQL has no runtime adapter in Phase 5.
 
-| Category | Retry same source | Fail over |
-| --- | --- | --- |
-| Timeout | Yes | Yes |
-| Network | Yes | Yes |
-| Rate limit | Yes | Yes |
-| Unavailable | Yes | Yes |
-| Authentication | No | Yes |
-| Invalid response | No | Yes |
-| Invalid symbol | No | Yes to check provider coverage |
+### CSV Analysis
 
-Backoff, retry count, timeout, cache duration, cache size, provider priority, health symbol, provider paths, origins, and response limits are typed configuration. Cache entries are per-process, successful responses only, time-bounded, and size-count-bounded. The cache is not persistent or shared across workers.
+Only relative `.csv` paths are accepted. Resolved paths must remain under the configured root. Analysis occurs in a worker thread. File size, scan rows, columns, field characters, and preview rows are bounded. Returned cells remain untrusted data.
 
-## Health and metrics
+### Currency Converter
 
-Every managed tool exposes a typed health snapshot. `system_status` reports local lifecycle health. `stock_price` explicitly probes each enabled provider with the configured non-secret health symbol and reports healthy, degraded, or unavailable. Probes are on demand and never run from `/health`.
+Validated ISO codes and finite positive amounts enter a cache keyed by source and ordered targets. Cache misses are coalesced. The provider is retried only for normalized retryable failures with capped exponential backoff. Only successful, bounded, schema-valid rate sets are cached.
 
-Metrics retain only bounded aggregates by registered tool name:
+### HCL Curie / LLM Analysis
 
-- total executions,
-- successes and failures,
-- average and last duration,
-- last error category.
-
-Correlation identifiers, symbols, arguments, responses, and credentials are not retained in metrics.
+The tool constructs a provider-neutral `GenerationRequest`, uses a fixed system safety instruction, treats supplied text as document data, and delegates retries, priority, failover, secrets, and provider logs to the existing Provider Router. It does not expose streaming, tool calls, agents, or provider-specific types. Model output remains untrusted.
 
 ## Configuration and trust boundaries
 
-Stock configuration is nested under `TOOLBRIDGE_STOCK_PRICE__`. External origins must be HTTPS without credentials, query strings, fragments, or embedded paths. Relative request paths cannot override an authority or traverse directories. Symbols and output values are schema-validated, response bodies are bounded, redirects are disabled, and upstream errors never escape.
+Phase 5 settings use `TOOLBRIDGE_PHASE5__<TOOL>__...`. No Phase 5 tool requires a secret. LLM providers retain their existing secret settings. External origins require HTTPS; local database and CSV paths are configuration-controlled and confined.
 
-Yahoo Finance is enabled by default without a credential. Its chart feed is undocumented, so schema availability and production licensing remain explicit risks. Alpha Vantage is disabled by default and requires a secret key.
-
-## Existing LLM Provider Router
-
-The Phase 3 Provider Router remains unchanged in behavior. Cerebras, NVIDIA, and OpenRouter are disabled by default and remain available only to approved application callers. The Stock Price Tool does not invoke an LLM.
+Core logs contain only tool name, correlation identifier, duration, status, error code, and safe exception type. Provider logs retain their Phase 3 allowlist. URLs, queries, SQL, parameters, filenames, CSV cells, prompts, source text, results, credentials, and provider bodies are excluded.
 
 ## Current constraints
 
-- Yahoo Finance chart behavior is undocumented and production use requires legal and licensing approval.
-- Alpha Vantage standard quotes may be end-of-day and omit some normalized metadata.
-- Tool cache and metrics are process-local and reset on restart.
-- Stock and LLM provider health monitoring is on demand.
-- There is no readiness endpoint, scheduler, circuit breaker, global concurrency control, or budget ledger.
-- Live external contract tests require separately approved credentials or network access.
-- Authentication, authorization, inbound rate limiting, persistence, agents, dashboard, Docker, CI/CD, and deployment are unimplemented.
-- The service is local-development only and must not be exposed to untrusted networks.
+- Local-development only; no inbound authentication, authorization, rate limiting, tenancy, or production network policy
+- Runtime SQL adapter is SQLite-only
+- No shared cache, persistence layer, scheduled health, circuit breaker, readiness endpoint, global concurrency control, or budget ledger
+- Website DNS-rebinding residual risk and external content licensing/privacy obligations
+- CSV and database files require operator-controlled permissions and data governance
+- Exchange-rate coverage, freshness, availability, and terms depend on the configured provider
+- LLM output is untrusted and provider use can incur cost
+- Live external contract tests remain opt-in and excluded from the offline suite
+- Dashboard, agents, CI/CD, packaging, deployment, and later phases are unimplemented
 
 ## Target direction
 
-Phase 5 may begin only after project-owner acceptance of Phase 4 and explicit scope approval. No Phase 5 implementation is part of version `0.4.0`.
+Phase 6 may begin only after project-owner acceptance of Phase 5 and explicit scope approval. No Phase 6 functionality is part of version `0.5.0`.
