@@ -2,7 +2,7 @@
 
 ## Purpose
 
-ToolBridge exposes validated, observable capabilities to MCP clients and internal application callers. Version `0.3.0` implements the Foundation, MCP Core, and provider-neutral LLM routing. No provider-backed MCP production tool exists yet.
+ToolBridge exposes validated, observable capabilities to MCP clients and internal callers. Version `0.4.0` implements the Foundation, MCP Core, LLM Provider Router, reusable Core Tool Framework, and the read-only Stock Price Tool.
 
 ## Current architecture
 
@@ -11,156 +11,186 @@ flowchart LR
     Client["MCP client"] --> Transport["FastMCP Streamable HTTP"]
     Client --> API["FastAPI service endpoints"]
     Transport --> MCPAdapter["MCP adapter"]
-    MCPAdapter --> Executor["Tool executor"]
-    Executor --> Registry["Tool registry"]
-    Registry --> Diagnostic["system_status"]
+    MCPAdapter --> Executor["ToolExecutor"]
+    Executor --> Validators["Request and response validation"]
+    Executor --> Registry["ToolRegistry"]
+    Registry --> System["system_status"]
+    Registry --> Stock["stock_price"]
+
+    ToolManager["ToolManager lifecycle"] --> Registry
+    Stock --> StockService["StockPriceService"]
+    StockService --> Cache["Bounded in-memory cache"]
+    StockService --> Yahoo["Yahoo Finance adapter"]
+    StockService --> Alpha["Alpha Vantage adapter"]
 
     Caller["Approved application caller"] --> Router["ProviderRouter"]
-    Router --> Port["BaseProvider port"]
-    Port --> Cerebras["Cerebras adapter"]
-    Port --> Nvidia["NVIDIA adapter"]
-    Port --> OpenRouter["OpenRouter adapter"]
-    Cerebras --> HTTP["Configured HTTPS APIs"]
-    Nvidia --> HTTP
-    OpenRouter --> HTTP
+    Router --> Cerebras["Cerebras adapter"]
+    Router --> Nvidia["NVIDIA adapter"]
+    Router --> OpenRouter["OpenRouter adapter"]
 
-    Config["Typed settings"] --> Router
-    Router --> ProviderLogs["Allowlisted JSON provider logs"]
+    Executor --> ToolLogs["Allowlisted execution logs"]
+    Executor --> Metrics["In-memory tool metrics"]
+    StockService --> StockLogs["Allowlisted stock logs"]
+    Config["Typed settings"] --> StockService
+    Config --> Router
 ```
 
-One Python process still hosts FastAPI, FastMCP, the MCP Core, and the provider router. The existing `/`, `/health`, `/docs`, `/mcp/`, and `system_status` interfaces remain intact. Provider adapters are disabled by default and no network calls occur unless explicitly configured and invoked.
+One Python process hosts FastAPI, FastMCP, MCP Core, the managed tools, and the LLM Provider Router. The existing `/`, `/health`, `/docs`, `/mcp/`, and `system_status` interfaces remain compatible. `stock_price` is registered automatically. Startup creates HTTP clients but performs no external health probe or quote request.
 
 ## Clean Architecture boundaries
 
 ### Domain
 
-`toolbridge/providers/domain` contains provider-neutral request, response, stream, model, usage, health, status, and error contracts. It has no FastAPI, FastMCP, HTTP client, or vendor SDK dependency.
+`toolbridge/tools/domain` contains provider-neutral tool health, metric, stock quote, market status, provider identifier, and safe error contracts. It has no FastAPI, FastMCP, HTTP client, or provider SDK dependency.
 
-Normalized error categories are:
-
-- `timeout`
-- `authentication`
-- `rate_limit`
-- `unavailable`
-- `invalid_request`
-- `invalid_response`
-- `internal`
+`toolbridge/providers/domain` retains the Phase 3 LLM contracts.
 
 ### Application
 
-`toolbridge/providers/application/ports.py` defines `BaseProvider`. Every provider implements `initialize()`, `health_check()`, `list_models()`, `generate()`, `stream_generate()`, and `close()`.
+`toolbridge/tools/application/ports.py` defines:
 
-`ProviderRouter` owns:
+- `BaseTool`: definition, initialize, health check, and close lifecycle
+- `StockQuoteProvider`: provider-neutral quote and health behavior
+- `StockProviderEventLogger`: safe logging boundary
 
-- configured provider ordering and active-provider state,
-- bounded retry and exponential backoff,
-- safe failover classification,
-- request identifiers and request-size enforcement,
-- provider status, latency, last-success, and last-failure state,
-- cancellation-preserving generation and streaming behavior.
+`ToolManager` owns automatic registration, ordered initialization, rollback, concurrent health inspection, metrics snapshots, and reverse-order shutdown.
 
-The application layer does not depend on FastAPI or provider adapters.
+`StockPriceService` owns provider priority, bounded retries, capped backoff, safe failover, per-symbol request coalescing, and the bounded time-based cache. `StockPriceTool` owns the MCP definition and typed input/output boundary. Neither depends on FastAPI or FastMCP.
+
+`ProviderRouter` remains the Phase 3 LLM application service and is independent of the Stock Price Tool.
 
 ### Adapters
 
-`toolbridge/providers/adapters` implements Cerebras, NVIDIA, and OpenRouter through one shared OpenAI-compatible HTTP adapter. Provider classes remain independently replaceable behind `BaseProvider`. Vendor response bodies and exceptions are translated into domain contracts and never escape the adapter boundary.
+`toolbridge/tools/adapters` implements Yahoo Finance and Alpha Vantage with the existing asynchronous `httpx` dependency. Both translate external status codes, transport errors, and payloads into project-owned contracts.
 
-The shared adapter owns:
+The shared HTTP adapter owns:
 
-- Bearer authentication,
-- model discovery,
-- chat-completion request mapping,
-- JSON response normalization,
-- server-sent event parsing,
-- HTTP and transport error classification,
-- provider-specific request limits.
+- explicit client initialization and shutdown,
+- configured timeouts and safe HTTPS origins,
+- redirect refusal,
+- response-size bounds,
+- timeout, network, authentication, rate-limit, unavailable, invalid-symbol, and invalid-response normalization.
+
+Yahoo mapping supplies the broad stock output when present. Alpha Vantage `GLOBAL_QUOTE` is an optional fallback and intentionally returns null company, currency, and exchange fields plus `unknown` market status because that endpoint does not supply them.
 
 ### Infrastructure
 
-`toolbridge/providers/infrastructure/factory.py` unwraps secrets only while composing enabled outbound adapters. It supplies typed provider configuration, priority, retry policy, and injectable HTTP transports.
+`toolbridge/tools/infrastructure/factory.py` builds enabled provider adapters from typed settings, unwraps the optional Alpha Vantage secret only at composition, orders providers, and returns managed tools.
 
-`toolbridge/providers/infrastructure/logging.py` implements the provider logging port. It emits only timestamp, level, provider, latency, status, request ID, and error category.
+`toolbridge/tools/infrastructure/logging.py` emits only timestamp, level, event, tool name, provider, operation ID, latency, status, and error category. Symbols, API keys, URLs, payloads, and exception messages are excluded.
 
-`toolbridge/bootstrap.py` composes the unchanged MCP Core with the provider router. `toolbridge/main.py` starts and closes provider resources through the existing FastAPI lifespan but does not contain routing logic.
+`toolbridge/bootstrap.py` composes tools, registry, validators, executor, execution logger, metrics observer, provider router, and tool manager. `toolbridge/main.py` only owns transport and process lifespan.
 
-## Provider request lifecycle
+## Tool lifecycle
 
 ```mermaid
 sequenceDiagram
-    participant C as Application Caller
-    participant R as ProviderRouter
-    participant P as Active Provider
-    participant F as Fallback Provider
+    participant M as ToolManager
+    participant R as ToolRegistry
+    participant V as Validators
+    participant E as ToolExecutor
+    participant T as BaseTool
+    participant L as Structured Logs
+    participant X as Metrics
 
-    C->>R: generate(normalized request)
-    R->>R: assign request ID and enforce size
-    R->>P: generate()
-    alt success
-        P-->>R: normalized response
-        R-->>C: normalized response
-    else retryable failure
-        P-->>R: normalized error
-        R->>P: retry within configured limit
-        alt retry exhausted and failover safe
-            R->>F: generate()
-            F-->>R: normalized response or error
-            R-->>C: normalized outcome
-        end
-    else invalid request
-        P-->>R: invalid_request
-        R-->>C: error without retry or failover
-    end
+    M->>R: register immutable definition
+    E->>R: resolve tool
+    E->>V: validate request and arguments
+    E->>T: execute typed input
+    T-->>E: typed output or safe error
+    E->>V: validate and bound response
+    E->>L: emit allowlisted outcome
+    E->>X: update aggregate metrics
+    E-->>M: normalized execution response
 ```
 
-The default priority is Cerebras, NVIDIA, then OpenRouter. Priority is configuration, not router code. A successful request makes that provider active. On-demand health checks probe all enabled providers concurrently and restore the highest-priority healthy provider.
+The Phase 2 executor remains the single execution pipeline. The Phase 4 framework composes tools into it rather than duplicating validation, errors, or transport behavior.
 
-## Retry and failover policy
+## Stock request lifecycle
 
-| Category | Retry same provider | Fail over |
+```mermaid
+sequenceDiagram
+    participant C as MCP Client
+    participant E as MCP Core
+    participant S as StockPriceService
+    participant P as Primary Provider
+    participant F as Fallback Provider
+
+    C->>E: stock_price(symbol)
+    E->>E: strict schema and size validation
+    E->>S: normalized symbol
+    alt valid cache entry
+        S-->>E: cached normalized quote
+    else cache miss
+        S->>P: bounded quote request
+        alt success
+            P-->>S: normalized quote
+        else retryable failure
+            S->>P: retry with capped backoff
+            alt exhausted
+                S->>F: configured fallback
+                F-->>S: normalized quote or error
+            end
+        else non-retryable provider-local failure
+            S->>F: configured fallback
+        end
+        S->>S: cache successful quote
+        S-->>E: normalized outcome
+    end
+    E->>E: response schema and size validation
+    E-->>C: structured result or safe error
+```
+
+Syntactically unsafe symbols are rejected before network access. A symbol reported invalid by every attempted source returns `invalid_symbol`. Retryable provider failures are retried per provider and then failed over; exhaustion returns `data_source_unavailable`. Caller cancellation propagates.
+
+## Retry, cache, and failover policy
+
+| Category | Retry same source | Fail over |
 | --- | --- | --- |
-| Timeout | Yes | Yes after exhaustion |
-| Rate limit | Yes | Yes after exhaustion |
-| Unavailable | Yes | Yes after exhaustion |
+| Timeout | Yes | Yes |
+| Network | Yes | Yes |
+| Rate limit | Yes | Yes |
+| Unavailable | Yes | Yes |
 | Authentication | No | Yes |
 | Invalid response | No | Yes |
-| Internal | No | Yes |
-| Invalid request | No | No |
+| Invalid symbol | No | Yes to check provider coverage |
 
-Backoff starts at the configured delay, doubles per retry, and is capped by configuration. A valid `Retry-After` duration is honored up to the same cap.
+Backoff, retry count, timeout, cache duration, cache size, provider priority, health symbol, provider paths, origins, and response limits are typed configuration. Cache entries are per-process, successful responses only, time-bounded, and size-count-bounded. The cache is not persistent or shared across workers.
 
-For streaming, retry and failover are permitted only before the first chunk. After any content is emitted, failures propagate without failover to prevent duplicated partial output.
+## Health and metrics
 
-## Health model
+Every managed tool exposes a typed health snapshot. `system_status` reports local lifecycle health. `stock_price` explicitly probes each enabled provider with the configured non-secret health symbol and reports healthy, degraded, or unavailable. Probes are on demand and never run from `/health`.
 
-Each provider has an immutable public snapshot containing:
+Metrics retain only bounded aggregates by registered tool name:
 
-- provider identifier,
-- `uninitialized`, `healthy`, `degraded`, `unavailable`, or `closed` status,
-- latest observed latency,
-- last successful request timestamp,
-- last failed request timestamp,
-- last normalized error category.
+- total executions,
+- successes and failures,
+- average and last duration,
+- last error category.
 
-Provider health is currently checked on demand. `/health` remains process liveness and deliberately does not call external providers. A readiness endpoint and background probe scheduler are deferred until deployment requirements are approved.
+Correlation identifiers, symbols, arguments, responses, and credentials are not retained in metrics.
 
-## Configuration boundary
+## Configuration and trust boundaries
 
-Provider keys, enabled state, HTTPS base URLs, model identifiers, endpoint paths, timeouts, retries, maximum tokens, temperature, prompt size, provider priority, and retry timing are typed settings. Enabled providers require an API key and explicit default model. Secrets are represented by `SecretStr` and unwrapped only in infrastructure composition.
+Stock configuration is nested under `TOOLBRIDGE_STOCK_PRICE__`. External origins must be HTTPS without credentials, query strings, fragments, or embedded paths. Relative request paths cannot override an authority or traverse directories. Symbols and output values are schema-validated, response bodies are bounded, redirects are disabled, and upstream errors never escape.
 
-## Existing MCP Core
+Yahoo Finance is enabled by default without a credential. Its chart feed is undocumented, so schema availability and production licensing remain explicit risks. Alpha Vantage is disabled by default and requires a secret key.
 
-The Phase 2 registry, validators, executor, error model, MCP adapter, and execution logging remain unchanged. The only MCP tool remains `system_status`; provider routing is an internal application service until an approved Phase 4 tool consumes it.
+## Existing LLM Provider Router
+
+The Phase 3 Provider Router remains unchanged in behavior. Cerebras, NVIDIA, and OpenRouter are disabled by default and remain available only to approved application callers. The Stock Price Tool does not invoke an LLM.
 
 ## Current constraints
 
-- Provider-backed MCP tools are not implemented.
-- Provider health monitoring is on demand rather than scheduled.
-- There is no provider readiness HTTP endpoint, circuit-breaker cooldown, global concurrency control, or budget ledger.
-- Real-provider contract tests require explicit credentials and remain outside the default offline suite.
-- Authentication, authorization, inbound rate limiting, persistence, agents, UI, Docker, and CI/CD remain unimplemented.
-- The FastMCP strict-validation compatibility seam still requires regression tests on SDK upgrades.
-- The service remains local-development only and must not be exposed to untrusted networks.
+- Yahoo Finance chart behavior is undocumented and production use requires legal and licensing approval.
+- Alpha Vantage standard quotes may be end-of-day and omit some normalized metadata.
+- Tool cache and metrics are process-local and reset on restart.
+- Stock and LLM provider health monitoring is on demand.
+- There is no readiness endpoint, scheduler, circuit breaker, global concurrency control, or budget ledger.
+- Live external contract tests require separately approved credentials or network access.
+- Authentication, authorization, inbound rate limiting, persistence, agents, dashboard, Docker, CI/CD, and deployment are unimplemented.
+- The service is local-development only and must not be exposed to untrusted networks.
 
 ## Target direction
 
-Phase 4 may add one owner-approved provider-backed or deterministic MCP tool through the existing MCP Core and provider contracts. Agent orchestration, production hardening, observability expansion, and deployment remain later phases and are not implemented in `0.3.0`.
+Phase 5 may begin only after project-owner acceptance of Phase 4 and explicit scope approval. No Phase 5 implementation is part of version `0.4.0`.

@@ -38,6 +38,8 @@ class ErrorCode(StrEnum):
     EXECUTION_CANCELLED = "execution_cancelled"
     EXECUTION_FAILED = "execution_failed"
     INVALID_RESPONSE = "invalid_response"
+    INVALID_SYMBOL = "invalid_symbol"
+    DATA_SOURCE_UNAVAILABLE = "data_source_unavailable"
 
 
 class ToolErrorDetail(BaseModel):
@@ -137,4 +139,3 @@ class ToolDefinition:
             output_schema=self.output_model.model_json_schema(),
             timeout_seconds=self.timeout_seconds,
         )
-

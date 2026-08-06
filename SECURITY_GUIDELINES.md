@@ -2,133 +2,142 @@
 
 ## Current security posture
 
-Version `0.3.0` remains a local-development service. It has no inbound authentication, authorization, rate limiting, persistent data, production MCP tools, or deployment hardening and must not be exposed to untrusted networks.
+Version `0.4.0` remains a local-development service. It now exposes the read-only `stock_price` MCP tool, but it still has no inbound authentication, authorization, rate limiting, persistent data, deployment hardening, or production market-data agreement. Do not expose it to untrusted networks.
 
-The Phase 3 provider router introduces optional outbound API credentials and model traffic. Every provider is disabled by default. When enabled, the current controls are:
+Current Phase 4 controls:
 
-- typed `SecretStr` credentials loaded from environment configuration,
-- HTTPS-only provider base URLs,
-- credentials unwrapped only at outbound adapter composition,
-- bounded provider request bytes, prompt bytes, output tokens, timeouts, and retries,
-- normalized provider errors without response bodies or exception messages,
-- structured provider logs limited to provider, latency, status, request ID, and error category,
-- no logging of keys, authorization headers, prompts, model responses, or vendor error bodies,
-- streaming failover only before the first chunk,
+- strict, extra-forbidden tool input and output schemas,
+- bounded symbol syntax, request size, response size, timeout, retries, backoff, cache duration, and cache entries,
+- safe HTTPS stock provider origins without credentials, query strings, fragments, or embedded paths,
+- relative path validation against authority overrides and traversal,
+- disabled HTTP redirects,
+- normalized stock provider errors without response bodies or exception messages,
+- successful normalized responses only in process-local cache,
+- Alpha Vantage keys loaded as `SecretStr` and unwrapped only during adapter composition,
+- allowlisted execution and provider logs without symbols, keys, URLs, payloads, or results,
+- aggregate metrics without arguments, results, or correlation identifiers,
 - credential-free and network-free default tests.
 
-Existing MCP Core validation, output limits, timeouts, cancellation, correlation identifiers, and safe execution logging remain in force. These controls do not replace identity, authorization, spend controls, outbound allowlists, secret management, or production monitoring.
+Phase 2 MCP validation and cancellation controls and Phase 3 LLM secret/routing controls remain in force.
+
 ## Trust boundaries
 
 Treat all of the following as untrusted:
 
-- MCP tool arguments and HTTP request data
-- Website, file, CSV, document, database, and API content
-- Provider and model output
-- Environment values supplied by deployment systems
-- Agent-generated tool choices or parameters
-- Error messages from external services
+- MCP arguments and HTTP request data
+- Stock symbols and external market-data payloads
+- Website, file, document, database, and API content
+- LLM provider and model output
+- Environment configuration
+- Agent-selected tools or parameters
+- External error messages
 
-Validate data each time it crosses from a less-trusted component into a more-privileged one.
+Validate every crossing from a less-trusted component into a more-privileged one.
+
+## Stock tool threat review
+
+The Stock Price Tool is read-only but introduces outbound network access and market-data governance obligations.
+
+- Data sources: configured Yahoo Finance and optional Alpha Vantage HTTPS origins
+- Destination: one structured MCP response; successful values may enter a bounded in-memory cache
+- Side effects: outbound GET requests, provider quota/cost usage, and memory use
+- Input controls: one normalized ticker with length and character bounds
+- Output controls: typed finite non-negative prices, bounded strings, timezone-aware timestamp, response-size limit
+- Availability controls: explicit timeouts, retry cap, exponential-backoff cap, provider failover, cache bounds
+- Privacy: no customer, portfolio, or account data is required or retained
+- Logging: no symbol, query URL, API key, provider body, quote result, or exception message
+- Licensing: Yahoo's undocumented chart feed is not production-approved; Alpha Vantage use must comply with the selected entitlement and terms
+- Advice boundary: returned values are informational data, not financial or investment advice
 
 ## Secrets
 
 - Never commit secrets or real credentials.
-- Keep `.env` local and use `.env.example` only for safe placeholders.
+- Keep `.env` local and safe placeholders in `.env.example`.
 - Use an approved secret manager in shared environments.
-- Pass secrets only to the adapter that needs them.
-- Never include secrets in URLs, logs, traces, exception text, metrics labels, MCP results, or test fixtures.
-- Support rotation without code changes and revoke credentials after suspected exposure.
+- Pass each secret only to its adapter.
+- Never put secrets in logs, errors, metrics, MCP results, traces, or test fixtures.
+- Alpha Vantage requires a query parameter key under its documented protocol; never emit the resulting URL.
+- Support rotation without code changes and revoke suspected exposures.
 
 ## Authentication and authorization
 
 Before non-local exposure:
 
-- Authenticate every MCP and administrative request.
-- Authorize by user/client, tool, operation, and resource where applicable.
-- Deny by default.
-- Separate operator capabilities from normal client capabilities.
-- Validate token issuer, audience, signature, expiry, and relevant claims.
-- Do not rely on dashboard visibility or network obscurity as authorization.
+- authenticate every MCP and administrative request,
+- authorize by client, tool, operation, and resource,
+- deny by default,
+- separate operator and client capabilities,
+- validate token issuer, audience, signature, expiry, and claims,
+- add inbound rate and concurrency limits.
 
-The specific identity system is undecided and requires an architectural decision.
+The identity system remains undecided and requires an architectural decision.
 
 ## Input and output safety
 
-- Enforce typed schemas, bounds, allowed formats, and maximum payload sizes.
+- Enforce typed schemas, bounds, allowed formats, and payload limits.
 - Reject unknown or dangerous parameters.
-- Normalize paths and prevent traversal for future filesystem tools.
-- Allowlist destinations and defend against SSRF for future web/API tools.
-- Parameterize SQL and restrict database roles for future query tools.
-- Treat document and website contents as data, not trusted instructions.
-- Escape output for its destination and avoid returning raw internal exceptions.
-- Apply output size limits and safe truncation.
+- Normalize paths and prevent traversal.
+- Restrict outbound destinations and prevent SSRF.
+- Parameterize future database access and use least-privileged roles.
+- Treat provider and model content as data, not instructions.
+- Escape output for its destination and never return raw exceptions.
+- Reject non-finite financial values and naive timestamps.
 
-## Tool safety
+## Tool and provider safety
 
-Every new tool requires a threat review covering:
+Every new tool requires a review of sources, destinations, permissions, side effects, tenants, limits, timeout, cancellation, audit, abuse, privacy, licensing, and cost.
 
-- data sources and destinations,
-- required permissions,
-- destructive or irreversible effects,
-- tenant and user isolation,
-- input and output limits,
-- timeout and cancellation,
-- audit requirements,
-- abuse cases and cost exposure.
-
-Prefer read-only, deterministic tools first. Require explicit confirmation and stronger authorization for future write, financial, messaging, deletion, or external side-effect tools.
-
-## Provider and agent safety
-
-- Place provider SDKs behind least-privileged adapters.
-- Set timeouts, concurrency limits, request-size limits, and spend limits.
-- Fail over only for errors classified as safe to retry.
-- Do not send sensitive data to a provider without an approved data-processing basis.
-- Treat model output as untrusted and validate it before tool execution.
-- Do not let prompts override system authorization or project policies.
-- Keep agent memory scoped and apply explicit retention rules before persistence.
+- Prefer read-only deterministic tools.
+- Use replaceable project-owned ports.
+- Retry only failures classified as safe.
+- Bound requests, responses, time, retries, backoff, concurrency, memory, and spend.
+- Fail over invalid symbols only to check provider coverage; never repeatedly retry them.
+- Treat output as untrusted before later tool or agent use.
+- Require confirmation and stronger authorization for future side-effecting tools.
 
 ## Network security
 
-- Use TLS for all non-local traffic.
+- Use TLS for non-local traffic.
 - Bind only to required interfaces.
-- Restrict outbound network access to approved destinations.
-- Configure trusted proxies explicitly; do not trust forwarded headers from arbitrary clients.
-- Apply rate limits, connection limits, timeouts, and request-body limits.
+- Restrict outbound network access to approved provider origins.
+- Do not follow provider redirects unless separately threat-reviewed.
+- Configure trusted proxies explicitly.
 - Keep management endpoints private.
+- Add rate, connection, timeout, and body controls before exposure.
 
-## Logging and privacy
+## Logging, metrics, and privacy
 
-- Log identity references, tool name, outcome, timing, and correlation identifier when approved.
-- Do not log raw tokens, authorization headers, prompts, files, database results, or full tool arguments by default.
-- Redact known secret patterns before emission.
-- Define retention, access, deletion, and residency requirements before collecting user data.
-- Separate security audit events from verbose debugging logs.
+- Use structured allowlists.
+- Log tool/provider, outcome, latency, safe error category, and correlation/operation identifier only where approved.
+- Do not log symbols, arguments, prompts, files, SQL results, stock quotes, URLs, tokens, or authorization headers.
+- Do not use high-cardinality or sensitive metric labels.
+- Define retention, access, deletion, and residency before collecting user data.
+- Separate security audit events from debugging logs.
 
 ## Dependencies and supply chain
 
 - Pin direct dependencies and review upgrades.
-- Use trusted package indexes and verify artifact provenance where supported.
-- Add automated vulnerability and secret scanning before production deployment.
-- Generate a software bill of materials for releases when packaging is implemented.
-- Remove unused packages and avoid unmaintained libraries.
-- Review licenses before distribution.
+- Prefer trusted indexes and maintained packages.
+- Add vulnerability and secret scanning before production.
+- Generate an SBOM for releases.
+- Remove unused packages and review licenses.
 
-## Error handling
+No dependency was added for Phase 4; the existing pinned `httpx` client is reused.
 
-Client errors should be stable and minimal. Internal logs may contain actionable technical context only after redaction. Do not reveal stack traces, filesystem paths, environment values, provider credentials, or internal topology to clients.
+## Error and incident handling
 
-## Incident handling
+Client errors must be stable and minimal. Do not reveal stack traces, filesystem paths, environment values, provider bodies, credentials, or internal topology.
 
-Before production, define contacts and procedures for detection, containment, credential revocation, evidence preservation, recovery, user notification, and post-incident review. Security fixes require regression tests and changelog entries that do not expose exploitable detail prematurely.
+Before production, define incident contacts, credential revocation, evidence preservation, recovery, notifications, market-data-provider escalation, and post-incident review.
 
-## Security checklist for every change
+## Change checklist
 
-- What new trust boundary or privilege is introduced?
-- Can the input trigger network, filesystem, database, cost, or external side effects?
-- Are authorization and tenant boundaries enforced?
-- Are sizes, time, concurrency, and destinations bounded?
-- Could logs or results leak sensitive data?
-- Are failure and retry behavior safe?
-- Are tests included for abuse and denial cases?
-- Does the deployment need a new secret or permission?
+- What trust boundary, privilege, provider, quota, or cost is introduced?
+- Can input trigger network, filesystem, database, financial, or external effects?
+- Are identity and tenant boundaries sufficient?
+- Are destinations, redirects, sizes, time, retries, concurrency, and memory bounded?
+- Could logs, metrics, cache, or results leak sensitive data?
+- Are failure, retry, failover, and cancellation safe?
+- Are licensing, entitlement, freshness, and advice boundaries documented?
+- Are abuse and denial tests present?
+- Does deployment require a new secret or permission?

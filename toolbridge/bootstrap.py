@@ -1,16 +1,22 @@
-"""Composition helpers for the MCP core and provider router runtime."""
+"""Composition helpers for the MCP core and managed runtime."""
 
 from dataclasses import dataclass
 
 from toolbridge.config import Settings
 from toolbridge.core.executor import ToolExecutor
-from toolbridge.core.ports import ExecutionEventLogger
+from toolbridge.core.ports import (
+    CompositeExecutionEventLogger,
+    ExecutionEventLogger,
+)
 from toolbridge.core.registry import ToolRegistry
 from toolbridge.core.validation import RequestValidator, ResponseValidator
 from toolbridge.providers.application.ports import ProviderEventLogger
 from toolbridge.providers.application.router import ProviderRouter
 from toolbridge.providers.infrastructure.factory import build_provider_router
-from toolbridge.tools.definitions import system_status_definition
+from toolbridge.tools.application.manager import ToolManager
+from toolbridge.tools.application.metrics import InMemoryToolMetrics
+from toolbridge.tools.application.ports import StockProviderEventLogger
+from toolbridge.tools.infrastructure.factory import build_managed_tools
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,26 +26,35 @@ class CoreRuntime:
     registry: ToolRegistry
     executor: ToolExecutor
     provider_router: ProviderRouter
+    tool_manager: ToolManager
+    tool_metrics: InMemoryToolMetrics
 
 
 def build_core_runtime(
     settings: Settings,
     event_logger: ExecutionEventLogger,
     provider_event_logger: ProviderEventLogger | None = None,
+    stock_event_logger: StockProviderEventLogger | None = None,
 ) -> CoreRuntime:
-    """Build the approved MCP Core and Phase 3 provider router."""
+    """Build the MCP Core, provider router, and approved managed tools."""
 
     registry = ToolRegistry()
-    registry.register(system_status_definition(settings.tool_timeout_seconds))
+    metrics = InMemoryToolMetrics()
+    tools = build_managed_tools(settings, stock_event_logger)
+    tool_manager = ToolManager(tools, metrics)
+    tool_manager.register_all(registry)
+    observers = CompositeExecutionEventLogger((event_logger, metrics))
     executor = ToolExecutor(
         registry=registry,
         request_validator=RequestValidator(settings.max_request_bytes),
         response_validator=ResponseValidator(settings.max_response_bytes),
-        event_logger=event_logger,
+        event_logger=observers,
     )
     provider_router = build_provider_router(settings, provider_event_logger)
     return CoreRuntime(
         registry=registry,
         executor=executor,
         provider_router=provider_router,
+        tool_manager=tool_manager,
+        tool_metrics=metrics,
     )
