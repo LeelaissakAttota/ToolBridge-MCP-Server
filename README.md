@@ -1,24 +1,21 @@
 # ToolBridge MCP Server
 
-ToolBridge is a Model Context Protocol (MCP) service with typed, validated, observable tools. Version `0.4.0` completes Phase 4 implementation: a reusable tool framework and the first read-only production tool, `stock_price`.
+ToolBridge is a Model Context Protocol service with typed, validated, observable, read-only tools. Version `0.5.0` completes the approved Phase 5 implementation by adding the five remaining Core MCP Tools to the reusable framework delivered in Phase 4.
 
-Phase 4 is implemented and tested but remains uncommitted and awaits project-owner acceptance. Dashboard, agents, authentication, CI/CD, deployment, and later phases are not implemented.
+Phase 5 is implemented and tested but remains uncommitted pending project-owner approval. Dashboard, agents, authentication, CI/CD, deployment, and later-phase work are not implemented.
 
 ## Current capabilities
 
 - FastAPI control plane and stateless FastMCP Streamable HTTP transport
-- Framework-independent MCP registry, discovery, validation, execution, and normalized errors
-- Reusable `BaseTool` lifecycle and automatic registry integration
-- Structured allowlisted logging, in-process metrics, and typed health snapshots
-- `system_status` diagnostic tool
-- `stock_price` with Yahoo Finance primary and optional Alpha Vantage fallback
-- Bounded per-symbol caching, retries, exponential backoff, and failover
-- Provider-neutral LLM routing for Cerebras, NVIDIA, and OpenRouter
-- Offline tests using fakes and `httpx.MockTransport`
+- Framework-independent registry, discovery, strict validation, bounded execution, safe errors, structured logs, and aggregate metrics
+- Configuration-driven LLM Provider Router for Cerebras, NVIDIA, and OpenRouter
+- Common `BaseTool` and `ToolManager` lifecycle with automatic MCP registration
+- Seven discoverable tools: `system_status`, `stock_price`, `website_reader`, `sql_query`, `csv_analysis`, `currency_converter`, and `hcl_curie_analysis`
+- Offline test suite using fakes, temporary fixtures, and `httpx.MockTransport`
 
 ## Setup and local run
 
-Requirements: Python 3.12, internet access for installation and live stock requests, an Alpha Vantage key only when that fallback is enabled, and LLM credentials only for enabled LLM providers.
+Requirements: Python 3.12 and internet access only for installation or explicitly invoked live provider tools.
 
 ```powershell
 py -3.12 -m venv .venv
@@ -30,7 +27,7 @@ python -m pytest -q -p no:cacheprovider
 python -m uvicorn toolbridge.main:app --host 127.0.0.1 --port 8000
 ```
 
-The `.env` copy is optional. Startup and the default tests perform no external data requests.
+The `.env` copy is optional. Startup and default tests make no external provider request. Keep the service bound to localhost; authentication and inbound rate limiting are not implemented.
 
 | Purpose | URL |
 | --- | --- |
@@ -39,79 +36,62 @@ The `.env` copy is optional. Startup and the default tests perform no external d
 | OpenAPI | <http://127.0.0.1:8000/docs> |
 | MCP Streamable HTTP | `http://127.0.0.1:8000/mcp/` |
 
-The MCP trailing slash is intentional. `/health` never calls external providers.
-
 ## MCP tools
 
 ### `system_status`
 
-Accepts no arguments and returns the service identifier, `ok` status, and an ISO 8601 timestamp.
+Returns the local service status and timestamp without external I/O.
 
 ### `stock_price`
 
-Input: `{"symbol": "NVDA"}`
+Accepts a stock symbol and returns a normalized quote through Yahoo Finance with optional Alpha Vantage fallback. Provider timeouts, retries, cache, priority, response size, and health probe are configured under `TOOLBRIDGE_STOCK_PRICE__`.
 
-Symbols are trimmed, uppercased, length-bounded, and restricted to letters, numbers, periods, and hyphens before outbound requests.
+### `website_reader`
 
-The normalized response contains `symbol`, `current_price`, `company_name`, `currency`, `exchange`, `day_high`, `day_low`, `open`, `previous_close`, `market_status`, `timestamp`, `provider`, and `cached`. Optional fields are null when the selected source does not supply them; ToolBridge never invents market metadata.
+Accepts a credential-free HTTPS URL and returns the final URL, title, clean visible text, content type, word count, timestamp, and truncation state. It removes common scripts and boilerplate, refuses redirects, blocks non-public destinations, streams within a response-size limit, and supports an exact host allowlist.
 
-## Stock configuration
+Configuration prefix: `TOOLBRIDGE_PHASE5__WEBSITE_READER__`.
 
-Common settings use the `TOOLBRIDGE_STOCK_PRICE__` prefix.
+### `sql_query`
 
-| Suffix | Default | Purpose |
-| --- | --- | --- |
-| `ENABLED` | `true` | Register the tool |
-| `TIMEOUT_SECONDS` | `10` | Whole-tool and HTTP timeout |
-| `RETRY_COUNT` | `2` | Additional attempts per provider |
-| `CACHE_DURATION_SECONDS` | `60` | Per-symbol cache lifetime |
-| `MAX_CACHE_ENTRIES` | `256` | Cache memory bound |
-| `PROVIDER_PRIORITY` | `yahoo_finance,alpha_vantage` | Provider order |
-| `RETRY_BACKOFF_SECONDS` | `0.1` | Initial retry delay |
-| `MAX_RETRY_BACKOFF_SECONDS` | `1` | Retry-delay cap |
-| `MAX_PROVIDER_RESPONSE_BYTES` | `1048576` | Upstream body limit |
-| `HEALTH_CHECK_SYMBOL` | `MSFT` | Explicit probe symbol |
+Executes one parameterized `SELECT` or read-only `WITH` query against the configured SQLite database. Statement separators, comments, and mutating keywords are rejected. SQLite runs in query-only mode with a progress-handler timeout and bounded rows. The application depends on a database-neutral port so a future PostgreSQL adapter can be added without changing the tool contract.
 
-Yahoo settings use `TOOLBRIDGE_STOCK_PRICE__YAHOO_FINANCE__`; Alpha Vantage uses `TOOLBRIDGE_STOCK_PRICE__ALPHA_VANTAGE__`. Base URLs must be safe HTTPS origins, and configured paths cannot override authorities or traverse directories. See [.env.example](.env.example).
+Configuration prefix: `TOOLBRIDGE_PHASE5__SQL_QUERY__`. The default `:memory:` database supports safe diagnostic queries; configure a relative database file beneath `DATABASE_ROOT` for application data.
 
-Alpha Vantage requires `ENABLED=true` and `API_KEY`. Its documented `GLOBAL_QUOTE` supplies price and OHLC data but not company name, currency, exchange, or live per-symbol market state, so those fields are null or `unknown`. Standard quotes may be end-of-day unless an applicable entitlement is used. See the [official Alpha Vantage documentation](https://www.alphavantage.co/documentation/).
+### `csv_analysis`
 
-Yahoo Finance is the credential-free primary because its chart response supplies broader metadata. The chart endpoint is not a documented, supported public API contract and may change. Review the [Yahoo Terms of Service](https://legal.yahoo.com/us/en/yahoo/terms/otos/index.html) and obtain an approved data license before commercial or production use.
+Reads a `.csv` file beneath the configured root and returns detected columns, inferred types, numeric summary statistics, missing and unique counts, a bounded preview, row counts, delimiter, and truncation state. Paths, file bytes, rows, columns, fields, preview size, and execution time are bounded.
+
+Configuration prefix: `TOOLBRIDGE_PHASE5__CSV_ANALYSIS__`.
+
+### `currency_converter`
+
+Converts one positive finite amount into multiple distinct ISO currencies through the configured Frankfurter-compatible provider. It uses bounded streaming responses, normalized failures, safe retries, successful-response caching, and request coalescing.
+
+Configuration prefix: `TOOLBRIDGE_PHASE5__CURRENCY_CONVERTER__`.
+
+### `hcl_curie_analysis`
+
+Analyzes or summarizes bounded text through the existing LLM Provider Router and returns provider-neutral content, provider, model, request identifier, and token usage. Text is wrapped as untrusted document data. The tool is discoverable when no LLM provider is enabled but reports unavailable until at least one configured provider can route requests.
+
+Configuration prefix: `TOOLBRIDGE_PHASE5__LLM_ANALYSIS__`. Provider credentials and models remain under the Phase 3 provider settings shown in `.env.example`.
 
 ## Architecture
 
 ```text
-BaseTool
-   |
-   v
-ToolManager --> ToolRegistry --> input validation --> execution
-                                                   |
-                                                   v
-                                  response validation --> logs --> metrics
+MCP client
+   -> FastMCP adapter
+   -> ToolRegistry
+   -> request validation
+   -> ToolExecutor timeout boundary
+   -> BaseTool application service
+   -> project-owned port
+   -> HTTP / SQLite / filesystem / Provider Router adapter
+   -> response validation
+   -> structured logs and aggregate metrics
 ```
 
-Tool domain and application code does not import FastAPI or FastMCP. Provider HTTP mapping is isolated in adapters; configuration, logging, and composition are infrastructure concerns. Each tool is independently registrable, testable, health-checkable, and closable.
-
-```text
-toolbridge/
-|-- core/                    MCP contracts, registry, validation, executor
-|-- adapters/                FastMCP and execution-log adapters
-|-- providers/               Phase 3 LLM router layers
-|-- tools/
-|   |-- domain/              Health, metrics, stock models, errors
-|   |-- application/         BaseTool, manager, metrics, stock routing
-|   |-- adapters/            Yahoo Finance and Alpha Vantage
-|   `-- infrastructure/      Factory and stock logging
-|-- bootstrap.py
-|-- config.py
-`-- main.py
-
-tests/
-|-- unit/providers/
-|-- unit/tools/
-|-- unit/
-`-- test_api.py
-```
+Domain and application modules do not import FastAPI or FastMCP. External details stay in adapters; configuration and object composition stay in infrastructure. See `ARCHITECTURE.md` for boundaries and data flows.
 
 ## Tests
 
@@ -120,26 +100,22 @@ python -m pytest -q -p no:cacheprovider
 python -m pip check
 ```
 
-Current result: **75 passed** on 2026-08-06. The offline suite covers registration, MCP discovery, success, invalid symbols, retries, failover, caching, network failures, timeouts, response validation, health, metrics, adapters, configuration, and log redaction. One third-party `StarletteDeprecationWarning` remains. No line-coverage package is installed, so no numerical coverage claim is made.
-
-## Documentation
-
-- [Project status](PROJECT_STATUS.md)
-- [Project rules](PROJECT_RULES.md)
-- [Roadmap](ROADMAP.md)
-- [Architecture](ARCHITECTURE.md)
-- [Tasks](TASKS.md)
-- [Changelog](CHANGELOG.md)
-- [Coding standards](CODING_STANDARDS.md)
-- [Testing strategy](TESTING_STRATEGY.md)
-- [Git workflow](GIT_WORKFLOW.md)
-- [Deployment plan](DEPLOYMENT_PLAN.md)
-- [Security guidelines](SECURITY_GUIDELINES.md)
-- [Decision log](DECISIONS.md)
+Current result: **98 passed** on 2026-08-06. One third-party `StarletteDeprecationWarning` remains. No line-coverage dependency is installed, so no numerical coverage percentage is claimed.
 
 ## Current limitations
 
-Stock data is informational, not financial advice. Yahoo licensing and its undocumented schema require approval before production. Alpha Vantage may be end-of-day and omits some metadata. Cache and metrics are process-local. Health checks are on demand. Authentication, authorization, rate limiting, persistence, agents, dashboard, packaging, deployment, and CI/CD remain unimplemented. The service is local-development only.
+- The service is local-development only; no inbound identity, authorization, rate limiting, or production hardening exists.
+- Website DNS validation has a residual time-of-check/time-of-use rebinding risk; production deployments also need outbound firewall policy and an explicit host allowlist.
+- SQL is SQLite-only at runtime; PostgreSQL has a replaceable port but no adapter.
+- CSV and SQL data are local and process-scoped; no tenant authorization model exists.
+- Frankfurter availability, supported currencies, terms, and rate freshness remain external dependencies.
+- LLM output is untrusted and can be incomplete or incorrect; no tool chaining or agent autonomy is implemented.
+- Yahoo Finance remains an undocumented stock-data contract requiring licensing review.
+- Caches and metrics are process-local and reset on restart.
+
+## Documentation
+
+See `PROJECT_STATUS.md`, `PROJECT_RULES.md`, `ROADMAP.md`, `ARCHITECTURE.md`, `TASKS.md`, `CHANGELOG.md`, `CODING_STANDARDS.md`, `TESTING_STRATEGY.md`, `GIT_WORKFLOW.md`, `DEPLOYMENT_PLAN.md`, `SECURITY_GUIDELINES.md`, and `DECISIONS.md`.
 
 ## License
 

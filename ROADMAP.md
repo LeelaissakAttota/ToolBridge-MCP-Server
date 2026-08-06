@@ -1,6 +1,6 @@
 # Roadmap
 
-This roadmap expresses intended outcomes, not committed dates. A phase begins only after the prior phase is accepted and the project owner approves the next scope.
+This roadmap expresses outcomes, not committed dates. A phase begins only after the prior phase is accepted and the project owner approves an exact scope.
 
 ## Status summary
 
@@ -9,73 +9,63 @@ This roadmap expresses intended outcomes, not committed dates. A phase begins on
 | 1. Foundation | Runnable Python, FastAPI, and MCP baseline | Complete |
 | 2. MCP Core | Contracts, registry, validation, execution, errors, logging | Complete |
 | 3. Provider Router | Cerebras, NVIDIA, and OpenRouter routing | Complete and accepted |
-| 4. Core tools | Reusable framework and Stock Price Tool | Complete - awaiting owner acceptance |
-| 5. Agent and dashboard | Optional orchestration and interface | Planned |
-| 6. Hardening | Broader security, observability, and performance | Planned |
-| 7. Deployment | Packaging, CI/CD, runbooks, and release | Planned |
+| 4. Tool Framework and Stock Price | Reusable lifecycle and first provider-backed tool | Complete and accepted |
+| 5. Remaining Core MCP Tools | Website, SQL, CSV, currency, and LLM analysis | Complete - awaiting owner acceptance |
+| 6. Agent and dashboard | Optional orchestration and interface | Planned; not approved |
+| 7. Hardening | Identity, broader observability, security, and performance | Planned; not approved |
+| 8. Deployment | Packaging, CI/CD, runbooks, and release | Planned; not approved |
 
-The owner promoted Provider Routing to Phase 3 on 2026-08-06. Core Tools became Phase 4. This ordering remains in force.
+The project owner explicitly approved the Phase 5 Core MCP Tools scope on 2026-08-06. This approval supersedes the earlier placeholder that called Phase 5 “Agent and dashboard”; those capabilities move to Phase 6 without implementation.
 
-## Phase 1 - Foundation (complete)
+## Completed phases
 
-Delivered Python 3.12 setup, pinned dependencies, Git and GitHub synchronization, FastAPI endpoints, FastMCP Streamable HTTP, `system_status`, typed settings, smoke tests, and protocol verification.
+### Phase 1 - Foundation
 
-## Phase 2 - MCP Core (complete)
+Python 3.12 setup, pinned dependencies, Git/GitHub synchronization, FastAPI endpoints, FastMCP Streamable HTTP, `system_status`, typed settings, and smoke tests.
 
-Delivered framework-independent contracts, deterministic registry and discovery, strict request and response validation, bounded execution, safe normalized errors, cancellation, structured logging, FastMCP adaptation, and offline protocol tests.
+### Phase 2 - MCP Core
 
-## Phase 3 - Provider Router (complete and accepted)
+Framework-independent contracts, deterministic registry and discovery, strict request/response validation, bounded execution, safe errors, cancellation, structured logging, and protocol tests.
 
-Delivered replaceable provider ports and adapters for Cerebras, NVIDIA, and OpenRouter; configuration-driven priority; bounded retry and failover; normalized generation and streaming; health and latency state; secret-aware configuration; safe logs; lifespan management; and offline tests.
+### Phase 3 - Provider Router
 
-## Phase 4 - Core tools (complete; awaiting owner acceptance)
+Replaceable Cerebras, NVIDIA, and OpenRouter adapters; configured priority, retry, failover, health, status, latency, lifecycle, secret handling, normalized streaming, and offline tests.
 
-Approved scope: implement the reusable Core Tool Framework and only the Stock Price Tool, with Yahoo Finance primary and optional Alpha Vantage fallback.
+### Phase 4 - Tool Framework and Stock Price
 
-Delivered:
+Common `BaseTool`, automatic managed registration, health, metrics, Yahoo primary and optional Alpha Vantage fallback, safe routing, cache, retries, response normalization, and offline tests.
 
-- Common `BaseTool` definition, initialize, health-check, and close lifecycle
-- Automatic `ToolManager` integration with the existing MCP registry
-- Existing Phase 2 request, argument, response, timeout, cancellation, error, and logging pipeline reused for every tool
-- In-process aggregate metrics and typed tool health snapshots
-- Provider-neutral stock quote port and normalized output contract
-- Yahoo Finance adapter and optional Alpha Vantage `GLOBAL_QUOTE` adapter
-- Configuration-driven timeouts, retries, cache duration, cache size, priority, backoff, endpoints, paths, and health symbol
-- Successful-response-only per-symbol caching with request coalescing
-- Category-aware retries and failover
-- HTTPS origin, path, symbol, response-size, and redirect controls
-- Allowlisted logs that exclude symbols, credentials, URLs, payloads, and exception messages
-- Offline tests for registration, discovery, execution, invalid symbols, network failures, timeouts, response validation, retries, failover, caching, health, metrics, adapters, configuration, and log redaction
+## Phase 5 - Remaining Core MCP Tools
+
+Implemented:
+
+- Website Reader with public-destination validation, bounded streaming, boilerplate removal, and structured text
+- SQL Query Tool with SQLite, a PostgreSQL-ready port, conservative read-only validation, named parameters, row bounds, and progress timeout
+- CSV Analysis Tool with confined paths, column detection, inferred types, statistics, missing-value analysis, and preview
+- Currency Converter with configurable Frankfurter integration, multi-target conversion, retries, cache, and coalescing
+- HCL Curie / LLM Analysis Tool with analyze/summarize modes and existing Provider Router integration
+- Automatic registration, shared validation/execution/logging/metrics lifecycle, typed configuration, normalized errors, and offline unit/protocol tests
 
 Exit criteria achieved:
 
-- `stock_price` registers automatically and appears in MCP discovery.
-- The tool domain and application layers do not depend on FastAPI or FastMCP.
-- Yahoo and Alpha Vantage are replaceable behind a project-owned port.
-- Startup and default tests require no credential or network access.
-- Phase 1 through Phase 3 interfaces remain compatible.
-- All 75 automated tests pass.
+- All five tools register automatically and appear in deterministic MCP discovery.
+- Every tool uses the existing Phase 4 lifecycle and Phase 2 executor.
+- Domain and application layers remain independent of FastAPI and FastMCP.
+- External work is behind project-owned ports and bounded by configuration.
+- Default startup and tests require no network or credentials.
+- All 98 automated tests pass.
 
 Acceptance constraints:
 
-- Yahoo's chart endpoint is undocumented; approve a supported contract or data license before production/commercial use.
-- Alpha Vantage standard quote freshness depends on entitlement and omits some metadata.
-- The service remains local-development only without inbound security controls.
+- Production website access requires an outbound allowlist/firewall and a decision on content privacy and licensing.
+- Production SQL/CSV access requires identity, tenant authorization, least-privileged files/databases, and data governance.
+- PostgreSQL has an architectural port but no adapter.
+- Exchange-rate production use requires provider terms, availability, currency coverage, and freshness review.
+- LLM output remains untrusted; provider credentials, cost controls, and data-processing terms must be approved.
+- The server remains local-development only.
 
-## Phase 5 - Agent and dashboard (planned; not approved)
+## Later phases - not approved
 
-Possible direction: evaluate agent orchestration and an operator/user interface after deterministic tools stabilize. Any scope must preserve explicit tool authorization, independent testing, and untrusted model-output handling.
+Phase 6 may evaluate agent orchestration and a dashboard only after Phase 5 acceptance. Phase 7 may add authentication, authorization, inbound limits, readiness, scheduled health, audit, broader observability, and performance work. Phase 8 may add packaging, CI/CD, deployment, rollback, and runbooks.
 
-No Phase 5 implementation is authorized by this roadmap entry.
-
-## Phase 6 - Hardening (planned)
-
-Potential work includes authentication, authorization, inbound rate limits, concurrency and cost controls, readiness, scheduled health, audit events, broader metrics and traces, load testing, recovery exercises, and approved market-data governance.
-
-## Phase 7 - Deployment (planned)
-
-Potential work includes reproducible packaging, CI/CD, environment promotion, secret management, rollback, monitoring, incident runbooks, and releases.
-
-## Change control
-
-Phase 5 remains blocked until the owner accepts Phase 4 and approves an exact scope. Changes to ordering, public schemas, provider contracts, or trust boundaries require a decision-log entry.
+No Phase 6 or later capability is implemented.

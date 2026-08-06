@@ -1,45 +1,43 @@
 # Project Status
 
-> Text dashboard for the current repository state. Update this file whenever the version, phase, test result, branch, milestone, or known-issue list changes.
+> Text dashboard for the current repository. Update whenever version, phase, tests, branch, milestone, issues, or synchronization changes.
 
 | Field | Current status |
 | --- | --- |
-| **Current Version** | `0.4.0` |
-| **Current Phase** | Phase 4 - Core Tool Framework and Stock Price Tool complete; awaiting project-owner acceptance |
-| **Completion Percentage** | **57% overall** - 4 of 7 roadmap phases implemented; Phases 1 through 4 are 100% implemented |
-| **Tests Passed** | **75 of 75** automated tests passing as of 2026-08-06 |
+| **Current Version** | `0.5.0` |
+| **Current Phase** | Phase 5 - Remaining Core MCP Tools complete; awaiting project-owner acceptance |
+| **Completion Percentage** | **63% overall** - 5 of 8 roadmap phases implemented; Phases 1 through 5 are 100% implemented |
+| **Tests Passed** | **98 of 98** automated tests passing as of 2026-08-06 |
 | **Current Branch** | `main` |
 | **Repository** | Initialized Git repository with GitHub remote `origin` configured |
-| **Synchronization** | Committed Phase 3 `main` matches `origin/main`; Phase 4 changes are intentionally uncommitted and unpushed |
-| **Next Milestone** | Project-owner acceptance of Phase 4, resolution of the Yahoo production data-contract decision, and explicit approval of any Phase 5 scope |
+| **Synchronization** | Committed Phase 4 `main` matches `origin/main`; Phase 5 changes are intentionally uncommitted and unpushed |
+| **Next Milestone** | Project-owner review and acceptance of Phase 5; no Phase 6 work without explicit approval |
 | **Last Updated** | 2026-08-06 (Asia/Calcutta) |
 
 ## Known Issues
 
-1. Yahoo Finance's chart endpoint is undocumented and may change; production or commercial use requires an approved supported contract and data-license review.
-2. Alpha Vantage `GLOBAL_QUOTE` may be end-of-day without an applicable entitlement and does not supply company name, currency, exchange, or per-symbol market status.
-3. Tool cache and metrics are in-process only, reset on restart, and are not shared across workers.
-4. Stock and LLM provider health checks are on demand; no scheduler, readiness endpoint, or circuit-breaker cooldown exists.
-5. The test suite emits one third-party `StarletteDeprecationWarning` from FastAPI/Starlette's `TestClient`.
-6. Strict FastMCP validation uses one isolated SDK internal because version `1.29.0` has no public post-registration hook.
-7. A timeout stops waiting for a synchronous MCP tool handler but cannot forcibly terminate its worker thread.
-8. Live external provider contract tests require separately approved credentials or network access and are excluded from the offline suite.
-9. Authentication, authorization, inbound rate limiting, persistence, budgets, dashboard, agents, CI/CD, and production packaging are not implemented. The service remains local-development only.
+1. The service has no inbound authentication, authorization, tenant controls, rate limiting, or production hardening and must remain local-development only.
+2. Website destination checks have a residual DNS-rebinding time-of-check/time-of-use risk. Production requires an explicit allowlist and outbound firewall enforcement.
+3. The SQL tool has a PostgreSQL-ready port but only a SQLite runtime adapter. Conservative validation may reject harmless SQL containing forbidden words in string literals.
+4. SQL and CSV tools operate on operator-configured local data without a tenant authorization or data-governance layer.
+5. Frankfurter currency coverage, availability, freshness, and terms are external dependencies; no secondary exchange-rate provider exists.
+6. LLM output remains untrusted, can be incomplete or incorrect, and provider use may incur cost. No agent or autonomous tool chaining is implemented.
+7. Yahoo Finance remains undocumented and requires supported-contract and licensing review before production stock use.
+8. Tool caches and metrics are process-local; health checks are on demand and no readiness endpoint or circuit breaker exists.
+9. The suite emits one third-party `StarletteDeprecationWarning` from FastAPI/Starlette `TestClient`.
+10. Strict FastMCP validation still uses one isolated MCP SDK internal due version `1.29.0` limitations.
+11. Live external provider contract tests require separately approved network access, credentials, terms, and cost and are excluded from the offline suite.
 
-## Completed in Phase 4
+## Completed in Phase 5
 
-- Common independently testable `BaseTool` lifecycle
-- Automatic managed-tool registration with deterministic MCP discovery
-- Existing MCP Core validation, execution, error, logging, and cancellation pipeline reused
-- Typed health status and in-process outcome/duration metrics
-- Stock symbol validation and normalized quote response
-- Yahoo Finance primary and optional Alpha Vantage fallback adapters
-- Configured timeouts, retries, cache, provider priority, endpoints, paths, and bounds
-- Per-symbol request coalescing and successful-response caching
-- Safe retries and failover with normalized upstream errors
-- HTTPS origin, traversal, redirect, response-size, and secret controls
-- Offline tests covering all Phase 4 acceptance paths
-- Required architecture, roadmap, task, changelog, status, decision, testing, security, and README updates
+- Website Reader, SQL Query, CSV Analysis, Currency Converter, and HCL Curie / LLM Analysis tools
+- Automatic registry integration through the unchanged Phase 4 framework
+- Existing validation, timeout, response, error, structured logging, metrics, health, and lifecycle behavior reused
+- Typed Phase 5 settings and safe environment examples
+- Clean Architecture ports for websites, databases, CSV sources, exchange rates, and existing Provider Router integration
+- SSRF controls, read-only SQL controls, path confinement, bounded files/responses, safe retries/caching, and untrusted-LLM-output handling
+- Offline tests for registration, discovery, success, invalid input, error handling, timeouts, caching, response validation, configuration, and protocol compatibility
+- Required README, architecture, roadmap, changelog, status, tasks, decisions, testing, and security updates
 
 ## Status basis
 
@@ -49,11 +47,3 @@
 - Dependencies: `python -m pip check`
 - Branch and synchronization: Git status and tracking state
 - Architecture and constraints: `ARCHITECTURE.md`, `DECISIONS.md`, and `SECURITY_GUIDELINES.md`
-
-## Update rules
-
-- Keep planned capabilities separate from implemented behavior.
-- Recalculate completion when a roadmap phase is accepted or reordered.
-- Record test count and date from the most recent successful full run.
-- Remove resolved issues and add newly discovered limitations.
-- Update `CHANGELOG.md` when status corresponds to a project change.

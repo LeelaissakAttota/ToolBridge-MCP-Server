@@ -4,94 +4,92 @@ This file tracks executable work. It does not authorize work by itself; phase ch
 
 Status key: `[x]` complete, `[ ]` not started, `[-]` intentionally deferred.
 
-## Phase 1 - Foundation (complete)
+## Phase 1 - Foundation
 
-- [x] Create and verify the Python 3.12 environment and pinned dependencies
-- [x] Add typed settings, FastAPI endpoints, and FastMCP Streamable HTTP
-- [x] Add `system_status` and smoke/protocol tests
-- [x] Initialize Git on `main`, configure GitHub `origin`, and synchronize
+- [x] Create Python 3.12 environment, dependencies, FastAPI/FastMCP baseline, `system_status`, tests, Git, and GitHub synchronization
 
-## Phase 2 - MCP Core (complete)
+## Phase 2 - MCP Core
 
-- [x] Define typed tool, request, response, metadata, and error contracts
-- [x] Implement deterministic registry, lookup, and discovery
-- [x] Enforce strict request, argument, response, and size validation
-- [x] Implement timeout-aware execution and cancellation propagation
-- [x] Normalize failures and implement safe structured execution logging
-- [x] Project registry definitions into FastMCP
-- [x] Add unit, adapter, API, and MCP protocol tests
+- [x] Implement contracts, registry, discovery, strict validation, bounded execution, safe errors, cancellation, logging, FastMCP adaptation, and tests
 
-## Phase 3 - Provider Router (complete and accepted)
+## Phase 3 - Provider Router
 
-- [x] Define provider-neutral models, lifecycle port, and safe errors
+- [x] Implement provider-neutral models and ports
 - [x] Implement Cerebras, NVIDIA, and OpenRouter adapters
-- [x] Implement configured priority, retries, failover, and streaming boundary
-- [x] Implement provider health, latency, and last-success/failure state
-- [x] Add typed secret configuration and allowlisted provider logging
-- [x] Add offline routing, adapter, configuration, health, error, and log tests
-- [x] Integrate provider lifecycle without changing Phase 1 or Phase 2 interfaces
-- [x] Receive owner approval to implement Phase 4 Stock Price Tool scope
+- [x] Implement configuration, priority, retries, failover, streaming boundary, health, lifecycle, safe logging, and tests
+- [x] Receive project-owner acceptance
 
-## Phase 4 - Core Tool Framework and Stock Price Tool (complete; awaiting acceptance)
+## Phase 4 - Tool Framework and Stock Price
 
-### Framework
+- [x] Implement `BaseTool`, `ToolManager`, automatic registration, health, and metrics
+- [x] Reuse the Phase 2 validation, execution, response, error, timeout, logging, and cancellation pipeline
+- [x] Implement Yahoo Finance primary and optional Alpha Vantage fallback
+- [x] Implement bounded stock cache, retries, failover, configuration, security controls, and tests
+- [x] Commit and synchronize Phase 4 with `origin/main`
+- [x] Receive Phase 5 scope approval, which constitutes acceptance to proceed beyond Phase 4
 
-- [x] Define the common `BaseTool` lifecycle
-- [x] Implement `ToolManager` automatic registration and lifecycle rollback
-- [x] Reuse MCP Core validation, execution, response, errors, logging, and timeout behavior
-- [x] Add typed tool metadata through immutable definitions
-- [x] Add in-memory aggregate execution metrics
-- [x] Add typed health snapshots and concurrent manager status inspection
-- [x] Keep tool domain and application layers independent of FastAPI/FastMCP
+## Phase 5 - Remaining Core MCP Tools
 
-### Stock Price Tool
+### Website Reader
 
-- [x] Define strict symbol input and normalized quote output
-- [x] Implement Yahoo Finance as configured primary
-- [x] Implement Alpha Vantage as optional configured fallback
-- [x] Return current price, company, currency, exchange, high, low, open, previous close, market status, and timestamp when supplied
-- [x] Implement configured timeout, retries, backoff, cache duration, cache size, and provider priority
-- [x] Implement successful-response-only per-symbol cache and request coalescing
-- [x] Implement normalized invalid-symbol, timeout, network, authentication, rate-limit, unavailable, and invalid-response handling
-- [x] Register `stock_price` automatically with MCP discovery
-- [x] Add stock provider health checks
-- [x] Add allowlisted stock provider logging without symbols, keys, URLs, or payloads
-- [x] Validate HTTPS origins and prevent path authority overrides and traversal
-- [x] Keep the Phase 3 LLM router independent and unchanged
+- [x] Read credential-free public HTTPS pages
+- [x] Block private/local destinations, redirects, unsupported content, and oversized bodies
+- [x] Remove common HTML boilerplate and return structured clean text
 
-### Tests and documentation
+### SQL Query Tool
 
-- [x] Test registration and MCP discovery
-- [x] Test successful execution and normalized response
-- [x] Test invalid syntax and unknown symbols
-- [x] Test retries, priority, failover, and caching
-- [x] Test network failure and timeout handling
-- [x] Test response validation and response-size limits
-- [x] Test health, lifecycle, and metrics
-- [x] Test Yahoo Finance and Alpha Vantage adapters offline
-- [x] Test configuration safety and secret masking
-- [x] Test structured log redaction
-- [x] Preserve all Phase 1 through Phase 3 tests
-- [x] Run the complete suite: 75 of 75 passing
-- [x] Run dependency integrity: no broken requirements
-- [x] Update required project documentation
-- [ ] Project-owner acceptance of Phase 4
+- [x] Define a database-neutral read-only query port
+- [x] Implement SQLite query-only and URI read-only execution
+- [x] Validate one conservative `SELECT` or `WITH` statement with named parameters
+- [x] Bound rows and interrupt long queries with a progress deadline
+- [x] Keep a PostgreSQL adapter deferred without changing the application contract
 
-## Phase 5 and later (not approved)
+### CSV Analysis Tool
 
-- [ ] Resolve Yahoo supported-data-contract and production licensing decision
-- [ ] Approve an exact Phase 5 scope
+- [x] Confine relative CSV paths beneath a configured root
+- [x] Detect columns and delimiter
+- [x] Return inferred types, numeric summary statistics, missing and unique counts, row counts, and preview
+- [x] Bound file bytes, scan rows, columns, fields, preview, and execution time
+
+### Currency Converter
+
+- [x] Implement configurable Frankfurter exchange-rate integration
+- [x] Validate finite amounts and ISO currency codes
+- [x] Support multiple destination currencies
+- [x] Add bounded retries, successful-response cache, and request coalescing
+
+### HCL Curie / LLM Analysis
+
+- [x] Implement analyze and summarize operations
+- [x] Integrate only through the existing Provider Router
+- [x] Return provider-neutral structured output and token usage
+- [x] Treat supplied text and model output as untrusted
+
+### Framework, tests, and documentation
+
+- [x] Register all tools automatically with deterministic MCP discovery
+- [x] Reuse lifecycle, validation, error handling, structured logs, metrics, and health
+- [x] Add unit tests for every tool covering success, invalid input, errors, and response contracts
+- [x] Preserve API, MCP, Core, Provider Router, framework, and Stock Price behavior
+- [x] Run the complete suite: 98 of 98 passing
+- [x] Verify dependency integrity and compilation
+- [x] Update all required project documentation
+- [ ] Project-owner acceptance of Phase 5
+
+## Phase 6 and later - not approved
+
+- [ ] Approve an exact Phase 6 scope before any implementation
 - [ ] Evaluate agent orchestration and dashboard only after approval
-- [ ] Design authentication, authorization, and inbound rate limiting
-- [ ] Add persistence only from approved use cases
-- [ ] Add readiness, scheduled health, concurrency, cost, and audit controls
-- [ ] Add broader observability, packaging, CI/CD, deployment, and recovery
-- [ ] Choose a software license and initial deployment trust boundary
+- [ ] Design authentication, authorization, tenant controls, and inbound limits
+- [ ] Add broader hardening, observability, packaging, CI/CD, deployment, and recovery only in approved later phases
+- [ ] Choose a software license and production trust boundary
 
 ## Open owner decisions
 
-- [ ] Accept or request revisions to Phase 4
-- [ ] Approve a supported stock-data source/license for production use
-- [ ] Approve or revise Phase 5 scope
-- [ ] Choose a software license
-- [ ] Decide the initial deployment environment and trust boundary
+- [ ] Accept or request revisions to Phase 5
+- [ ] Approve production outbound website policy, data privacy, and content licensing
+- [ ] Approve production database and CSV authorization/data-governance model
+- [ ] Approve exchange-rate provider terms, coverage, and fallback policy
+- [ ] Approve LLM data-processing, model, credential, and cost policy
+- [ ] Resolve supported production stock-data contract and license
+- [ ] Choose a software license and initial deployment environment

@@ -13,8 +13,8 @@ These rules apply to all ToolBridge work. They protect the small, verified found
 
 ## 2. Scope and approval
 
-- Phases 1 through 4 are implemented; Phase 4 awaits project-owner acceptance.
-- Do not begin Phase 5 implementation until the project owner accepts Phase 4 and approves an exact scope.
+- Phases 1 through 5 are implemented; Phase 5 awaits project-owner acceptance.
+- Do not begin Phase 6 implementation until the project owner accepts Phase 5 and approves an exact scope.
 - Keep each change limited to an approved task with explicit acceptance criteria.
 - Do not add speculative dependencies, services, provider SDKs, or infrastructure.
 - Application code must not be changed by documentation-only tasks.

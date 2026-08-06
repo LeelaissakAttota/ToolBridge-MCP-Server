@@ -15,6 +15,7 @@ from pydantic import (
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from toolbridge.providers.domain.models import ProviderName
+from toolbridge.phase5_config import Phase5ToolSettings
 from toolbridge.tools.domain.models import StockProviderName
 
 
@@ -290,6 +291,7 @@ class Settings(BaseSettings):
         base_url="https://openrouter.ai/api/v1",
     )
     stock_price: StockPriceToolSettings = StockPriceToolSettings()
+    phase5: Phase5ToolSettings = Phase5ToolSettings()
 
     @field_validator("provider_priority")
     @classmethod

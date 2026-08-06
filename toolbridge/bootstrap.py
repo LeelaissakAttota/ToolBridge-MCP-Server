@@ -16,7 +16,7 @@ from toolbridge.providers.infrastructure.factory import build_provider_router
 from toolbridge.tools.application.manager import ToolManager
 from toolbridge.tools.application.metrics import InMemoryToolMetrics
 from toolbridge.tools.application.ports import StockProviderEventLogger
-from toolbridge.tools.infrastructure.factory import build_managed_tools
+from toolbridge.tools.infrastructure.phase5_factory import build_phase5_managed_tools
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,7 +40,12 @@ def build_core_runtime(
 
     registry = ToolRegistry()
     metrics = InMemoryToolMetrics()
-    tools = build_managed_tools(settings, stock_event_logger)
+    provider_router = build_provider_router(settings, provider_event_logger)
+    tools = build_phase5_managed_tools(
+        settings,
+        provider_router,
+        stock_event_logger,
+    )
     tool_manager = ToolManager(tools, metrics)
     tool_manager.register_all(registry)
     observers = CompositeExecutionEventLogger((event_logger, metrics))
@@ -50,7 +55,6 @@ def build_core_runtime(
         response_validator=ResponseValidator(settings.max_response_bytes),
         event_logger=observers,
     )
-    provider_router = build_provider_router(settings, provider_event_logger)
     return CoreRuntime(
         registry=registry,
         executor=executor,

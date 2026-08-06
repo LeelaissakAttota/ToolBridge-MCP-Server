@@ -169,15 +169,60 @@ This lightweight log records architectural decisions for the current foundation.
 - **Decision:** Configure provider priority, timeouts, retry count, capped exponential backoff, cache duration, cache size, endpoints, response size, and health symbol. Cache only successful normalized responses per symbol, coalesce concurrent misses, disable redirects, restrict origins and paths, and allowlist stock log fields. Retain only aggregate tool metrics.
 - **Consequences:** Recovery and resource use are bounded. Invalid symbols are not retried, retryable failures fail over after exhaustion, and cancellation propagates. Cache and health remain process-local/on-demand; distributed cache, scheduled probes, readiness, and broader telemetry require later approval.
 
+
+## D-021 - Phase 5 extends the existing managed-tool lifecycle
+
+- **Date:** 2026-08-06
+- **Status:** Accepted for Phase 5
+- **Context:** The owner approved five remaining Core MCP Tools and prohibited changes to the Phase 4 framework unless necessary.
+- **Decision:** Keep `BaseTool`, `ToolManager`, `ToolRegistry`, `ToolExecutor`, validators, logs, metrics, and health contracts unchanged. Add each tool as a definition-backed application service behind project-owned ports and compose them in a Phase 5 infrastructure factory.
+- **Consequences:** Phase 1-4 behavior remains centralized and compatible. The Provider Router is now built before managed tools so it can be injected into LLM Analysis without giving the tool router-lifecycle ownership.
+
+## D-022 - Website Reader uses bounded HTTP and public-destination validation
+
+- **Date:** 2026-08-06
+- **Status:** Accepted for local Phase 5
+- **Context:** Reading arbitrary web pages introduces SSRF, redirects, oversized content, unsafe HTML, privacy, and licensing risks.
+- **Decision:** Require credential-free HTTPS on port 443, optional exact-host allowlisting, public-address resolution, disabled redirects, text-only content, bounded streaming, and dependency-free boilerplate removal. Return normalized text and never log URLs or content.
+- **Consequences:** Local/private destinations and common abuse paths are rejected. DNS validation remains separate from connection, so production requires an outbound firewall and explicit allowlist to mitigate rebinding and destination-policy gaps.
+
+## D-023 - SQL and CSV use configured local resources behind replaceable ports
+
+- **Date:** 2026-08-06
+- **Status:** Accepted for local Phase 5
+- **Context:** Database and file tools can expose arbitrary local data or perform mutations if paths, queries, time, or output are not controlled.
+- **Decision:** Define database-neutral and CSV data-source ports. Implement only SQLite and confined local CSV adapters. Accept a single conservative read-only SQL statement with named parameters, SQLite read-only/query-only enforcement and progress timeout. Accept only relative CSV paths beneath one root and bound file, row, column, field, and preview sizes.
+- **Consequences:** A PostgreSQL adapter can be added later without changing the tool contract, but is not implemented. Conservative SQL validation may reject harmless text. Production requires identity, per-resource authorization, tenant separation, least privilege, and data governance.
+
+## D-024 - Currency conversion uses normalized base-unit rates with bounded cache
+
+- **Date:** 2026-08-06
+- **Status:** Accepted for local Phase 5
+- **Context:** Exchange-rate APIs introduce network failures, freshness concerns, provider terms, request duplication, and malformed financial values.
+- **Decision:** Define an exchange-rate provider port and implement a configured Frankfurter-compatible HTTPS adapter. Fetch base-unit rates, validate the requested base and targets, retry only normalized transient failures, coalesce cache misses, and cache only successful bounded rate sets.
+- **Consequences:** Multi-currency conversion is provider-neutral and offline-testable. One provider means no failover. Provider terms, currency coverage, attribution, freshness, and production suitability remain open decisions.
+
+## D-025 - HCL Curie / LLM Analysis delegates only to Provider Router
+
+- **Date:** 2026-08-06
+- **Status:** Accepted for Phase 5
+- **Context:** Text analysis is required without duplicating vendor routing, credentials, retries, failover, or logging, and without introducing agent autonomy.
+- **Decision:** Build one non-streaming analyze/summarize tool that constructs a provider-neutral request, wraps source text as untrusted document data, and calls the existing Provider Router. Return structured provider-neutral content and token usage. Do not add tool calling, chaining, memory, or agents.
+- **Consequences:** Provider-specific behavior and secrets remain hidden. The tool is discoverable but unavailable when no LLM provider is enabled. Model output remains untrusted and production use requires data-processing, retention, model, cost, and review policies.
 ## Open decisions
 
 The following require proposals before implementation:
 
 - Supported and licensed production stock-data contract
-- Exact Phase 5 scope and acceptance criteria
+- Exact Phase 6 scope and acceptance criteria
 - Authentication and authorization approach
 - Broader metrics, tracing, and telemetry stack
 - Packaging and hosting platform
 - Persistence and cache requirements
 - License and distribution terms
+- Production website outbound policy, privacy, and content licensing
+- Database and CSV identity, tenancy, authorization, and data governance
+- PostgreSQL adapter and connection policy
+- Exchange-rate provider terms, coverage, attribution, freshness, and fallback
+- LLM model, data-processing, residency, retention, and cost policy
 - CI/CD automation
