@@ -145,11 +145,36 @@ This lightweight log records architectural decisions for the current foundation.
 - **Decision:** Keep providers disabled by default; load keys through typed secret settings; require HTTPS; unwrap keys only during adapter construction; allowlist provider log fields; and initialize/close adapters through application lifespan.
 - **Consequences:** Keys, prompts, responses, authorization headers, and vendor error bodies are absent from ToolBridge provider logs and normalized errors. Deployment still requires an approved secret manager, identity controls, budgets, and outbound network policy.
 
+## D-018 - Managed tool lifecycle reuses the MCP Core
+
+- **Date:** 2026-08-06
+- **Status:** Accepted
+- **Context:** Phase 4 requires every tool to share registration, validation, execution, response, logging, metrics, health, and lifecycle behavior without duplicating the Phase 2 pipeline.
+- **Decision:** Define a transport-independent `BaseTool`, compose tools through `ToolManager`, register immutable definitions in the existing `ToolRegistry`, and observe the existing executor with structured logging followed by in-memory metrics.
+- **Consequences:** Tools remain independently testable and FastMCP-independent. Registry, validation, error, timeout, and response behavior remains centralized. Metrics are process-local aggregates and reset on restart.
+
+## D-019 - Stock data port with Yahoo primary and optional Alpha fallback
+
+- **Date:** 2026-08-06
+- **Status:** Accepted for local Phase 4
+- **Context:** The approved first tool needs broad current quote metadata, credential-free local operation, and an optional configured alternative without coupling application logic to a stock SDK.
+- **Decision:** Define a project-owned `StockQuoteProvider` port. Use an asynchronous Yahoo Finance chart adapter as the default primary and an optional Alpha Vantage `GLOBAL_QUOTE` adapter as fallback. Normalize missing provider metadata as null or `unknown`; never invent values.
+- **Consequences:** Providers are replaceable and tests remain offline through injected HTTP transports. Yahoo's chart contract is undocumented and cannot be considered production-approved until legal, licensing, and supported-contract review is complete. Alpha Vantage freshness depends on entitlement and its quote response omits some metadata.
+
+## D-020 - Bounded stock retries, cache, health, and safe observability
+
+- **Date:** 2026-08-06
+- **Status:** Accepted
+- **Context:** External market data introduces latency, rate limits, malformed payloads, memory pressure, credentials, and sensitive request metadata.
+- **Decision:** Configure provider priority, timeouts, retry count, capped exponential backoff, cache duration, cache size, endpoints, response size, and health symbol. Cache only successful normalized responses per symbol, coalesce concurrent misses, disable redirects, restrict origins and paths, and allowlist stock log fields. Retain only aggregate tool metrics.
+- **Consequences:** Recovery and resource use are bounded. Invalid symbols are not retried, retryable failures fail over after exhaustion, and cancellation propagates. Cache and health remain process-local/on-demand; distributed cache, scheduled probes, readiness, and broader telemetry require later approval.
+
 ## Open decisions
 
 The following require proposals before implementation:
 
-- Phase 4 first production tool and authoritative data or model source
+- Supported and licensed production stock-data contract
+- Exact Phase 5 scope and acceptance criteria
 - Authentication and authorization approach
 - Broader metrics, tracing, and telemetry stack
 - Packaging and hosting platform

@@ -58,3 +58,51 @@ class NullExecutionEventLogger:
     ) -> None:
         """Discard a failure event."""
 
+
+class CompositeExecutionEventLogger:
+    """Forward execution events to ordered logging and metrics observers."""
+
+    def __init__(self, observers: tuple[ExecutionEventLogger, ...]) -> None:
+        self._observers = observers
+
+    def started(self, *, tool_name: str, correlation_id: str) -> None:
+        """Forward a start event in configured observer order."""
+
+        for observer in self._observers:
+            observer.started(tool_name=tool_name, correlation_id=correlation_id)
+
+    def succeeded(
+        self,
+        *,
+        tool_name: str,
+        correlation_id: str,
+        duration_ms: float,
+    ) -> None:
+        """Forward a success event in configured observer order."""
+
+        for observer in self._observers:
+            observer.succeeded(
+                tool_name=tool_name,
+                correlation_id=correlation_id,
+                duration_ms=duration_ms,
+            )
+
+    def failed(
+        self,
+        *,
+        tool_name: str | None,
+        correlation_id: str,
+        duration_ms: float,
+        error_code: ErrorCode,
+        exception_type: str | None = None,
+    ) -> None:
+        """Forward a failure event in configured observer order."""
+
+        for observer in self._observers:
+            observer.failed(
+                tool_name=tool_name,
+                correlation_id=correlation_id,
+                duration_ms=duration_ms,
+                error_code=error_code,
+                exception_type=exception_type,
+            )

@@ -6,6 +6,48 @@ All notable changes to this project are recorded here. The format follows Keep a
 
 No unreleased changes.
 
+## [0.4.0] - 2026-08-06
+
+### Added
+
+- Reusable `BaseTool` lifecycle and `ToolManager` registration, health, startup, rollback, and shutdown
+- In-memory tool execution counts, outcome totals, durations, and status snapshots
+- `stock_price` MCP tool with strict symbol input and normalized quote output
+- Yahoo Finance chart adapter and optional Alpha Vantage `GLOBAL_QUOTE` fallback
+- Configuration for stock provider priority, timeouts, retries, backoff, cache duration, cache size, endpoints, paths, response limits, and health probes
+- Successful-response-only per-symbol cache with concurrent request coalescing
+- Structured stock-provider logging with an explicit safe-field allowlist
+- Offline framework, service, adapter, configuration, health, metrics, and security tests
+
+### Changed
+
+- Promoted package version from `0.3.0` to `0.4.0`.
+- Composed `system_status` and `stock_price` through the common managed-tool lifecycle.
+- Extended application lifespan to initialize and close managed tool resources.
+- Expanded MCP discovery from one tool to `stock_price` and `system_status`.
+- Expanded the safe environment example with complete Stock Price Tool configuration.
+
+### Security
+
+- Stock symbols are normalized, length-bounded, and pattern-restricted before network access.
+- Stock provider origins require safe HTTPS URLs without credentials, queries, fragments, or embedded paths.
+- Relative provider paths cannot override authorities or traverse directories; redirects are disabled.
+- Upstream bodies, cache entries, retries, timeouts, and backoff are bounded.
+- API keys, symbols, URLs, payloads, responses, and exception messages are excluded from stock logs.
+- Alpha Vantage credentials use `SecretStr` and are unwrapped only during adapter composition.
+
+### Testing
+
+- Expanded the offline suite from 56 to 75 tests.
+- Added registration, discovery, success, invalid-symbol, network, timeout, response-validation, retry, failover, cache, health, metrics, adapter, configuration, and log-redaction coverage.
+- Verified 75 tests pass and `pip check` reports no broken requirements.
+
+### Compatibility
+
+- Existing HTTP paths, `system_status`, MCP Core behavior, and LLM Provider Router behavior remain compatible.
+- No dependency version changed and no stock SDK was added.
+- No Phase 5 or later capability was implemented.
+
 ## [0.3.0] - 2026-08-06
 
 ### Added

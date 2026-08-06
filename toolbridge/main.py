@@ -12,11 +12,18 @@ from toolbridge.adapters.mcp import MCPToolAdapter
 from toolbridge.bootstrap import build_core_runtime
 from toolbridge.config import get_settings
 from toolbridge.providers.infrastructure.logging import configure_provider_logging
+from toolbridge.tools.infrastructure.logging import configure_stock_logging
 
 settings = get_settings()
 execution_logger = configure_execution_logging(settings.log_level)
 provider_logger = configure_provider_logging(settings.log_level)
-core = build_core_runtime(settings, execution_logger, provider_logger)
+stock_logger = configure_stock_logging(settings.log_level)
+core = build_core_runtime(
+    settings,
+    execution_logger,
+    provider_logger,
+    stock_logger,
+)
 
 mcp = FastMCP(
     name=settings.app_name,
@@ -30,14 +37,18 @@ MCPToolAdapter(mcp, core.registry, core.executor).register_tools()
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    """Start and stop MCP and provider resources with the application."""
+    """Start and stop MCP, provider-router, and managed-tool resources."""
 
-    await core.provider_router.initialize()
+    await core.tool_manager.initialize()
     try:
-        async with mcp.session_manager.run():
-            yield
+        await core.provider_router.initialize()
+        try:
+            async with mcp.session_manager.run():
+                yield
+        finally:
+            await core.provider_router.close()
     finally:
-        await core.provider_router.close()
+        await core.tool_manager.close()
 
 
 app = FastAPI(
