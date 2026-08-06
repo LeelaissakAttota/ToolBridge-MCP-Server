@@ -72,3 +72,13 @@ Before a change is considered complete:
 ## 9. Decision discipline
 
 Record consequential or hard-to-reverse choices in `DECISIONS.md`, including context, decision, consequences, and status. Supersede old decisions; do not silently rewrite history.
+
+## 10. v1.0 release gate
+
+- The approved seven-phase roadmap is implemented; Phase 7 is the current release boundary.
+- Do not add post-v1 tools, business features, authentication, public exposure, or deployment targets without a new owner-approved scope.
+- Release quality gates are `pip check`, Ruff format, Ruff lint, all pytest tests, Compose validation, API/dashboard startup, and release verification.
+- Runtime dependencies belong in `requirements.txt`; test/quality dependencies belong in `requirements-dev.txt`. Pin both.
+- Docker services must run non-root and keep unauthenticated listeners on host loopback.
+- CI may validate and create review artifacts; publication and deployment remain explicit owner actions.
+- Do not commit, push, or create `v1.0.0` until the owner accepts the Phase 7 review.

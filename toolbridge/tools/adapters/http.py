@@ -122,10 +122,7 @@ class HttpStockProvider(StockQuoteProvider):
 
                 content = bytearray()
                 async for chunk in response.aiter_bytes():
-                    if (
-                        len(content) + len(chunk)
-                        > self._config.max_response_bytes
-                    ):
+                    if len(content) + len(chunk) > self._config.max_response_bytes:
                         raise self._invalid_response()
                     content.extend(chunk)
         except StockDataError:

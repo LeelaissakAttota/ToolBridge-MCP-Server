@@ -172,9 +172,7 @@ class ProviderRouter:
             except ProviderError:
                 return
 
-        await asyncio.gather(
-            *(probe(self._providers[name]) for name in self._priority)
-        )
+        await asyncio.gather(*(probe(self._providers[name]) for name in self._priority))
         self._active_provider = self._first_healthy_or_candidate()
         return self.provider_status()
 
@@ -376,8 +374,7 @@ class ProviderRouter:
         return tuple(
             self._providers[name]
             for name in ordered
-            if self._states[name].status
-            not in {ProviderStatus.UNAVAILABLE, ProviderStatus.CLOSED}
+            if self._states[name].status not in {ProviderStatus.UNAVAILABLE, ProviderStatus.CLOSED}
         )
 
     def _first_candidate(self) -> ProviderName | None:

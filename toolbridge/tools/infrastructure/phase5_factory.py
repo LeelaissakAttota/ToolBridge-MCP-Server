@@ -117,9 +117,7 @@ def build_phase5_managed_tools(
             cache_duration_seconds=currency.cache_duration_seconds,
             max_cache_entries=currency.max_cache_entries,
         )
-        tools.append(
-            CurrencyConverterTool(service, timeout_seconds=currency.timeout_seconds)
-        )
+        tools.append(CurrencyConverterTool(service, timeout_seconds=currency.timeout_seconds))
 
     llm = phase5.llm_analysis
     if llm.enabled:

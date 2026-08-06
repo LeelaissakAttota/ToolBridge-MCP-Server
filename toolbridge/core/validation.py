@@ -127,4 +127,3 @@ class ResponseValidator:
                 details={"max_response_bytes": self._max_response_bytes},
             )
         return output
-

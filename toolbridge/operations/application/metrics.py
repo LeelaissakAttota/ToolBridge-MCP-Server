@@ -127,20 +127,14 @@ class InMemoryOperationalMetrics:
             usage.timed_events += 1
             usage.total_latency_ms += latency_ms
         self._append(
-            level=(
-                SafeLogLevel.INFO
-                if error_category is None
-                else SafeLogLevel.WARNING
-            ),
+            level=(SafeLogLevel.INFO if error_category is None else SafeLogLevel.WARNING),
             source="provider",
             event="provider_request_completed",
             component=provider.value,
             status=status.value,
             latency_ms=latency_ms,
             request_id=request_id,
-            error_category=(
-                error_category.value if error_category is not None else None
-            ),
+            error_category=(error_category.value if error_category is not None else None),
         )
 
     def completed(
@@ -155,11 +149,7 @@ class InMemoryOperationalMetrics:
         """Record a safe stock-provider attempt for the log viewer."""
 
         self._append(
-            level=(
-                SafeLogLevel.INFO
-                if error_category is None
-                else SafeLogLevel.WARNING
-            ),
+            level=(SafeLogLevel.INFO if error_category is None else SafeLogLevel.WARNING),
             source="stock_provider",
             event="stock_provider_attempt_completed",
             component=provider.value,
@@ -180,9 +170,7 @@ class InMemoryOperationalMetrics:
         """Aggregate normalized usage and configured cost estimates."""
 
         input_price, output_price = self._provider_costs.get(provider, (0.0, 0.0))
-        estimated_cost = (
-            input_tokens * input_price + output_tokens * output_price
-        ) / 1_000_000
+        estimated_cost = (input_tokens * input_price + output_tokens * output_price) / 1_000_000
         with self._lock:
             usage = self._provider_entry(provider)
             usage.requests += 1
@@ -201,11 +189,7 @@ class InMemoryOperationalMetrics:
         """Record one allowlisted lifecycle or validation event."""
 
         self._append(
-            level=(
-                SafeLogLevel.INFO
-                if error_category is None
-                else SafeLogLevel.ERROR
-            ),
+            level=(SafeLogLevel.INFO if error_category is None else SafeLogLevel.ERROR),
             source="system",
             event=event,
             component="toolbridge-mcp",
@@ -218,11 +202,7 @@ class InMemoryOperationalMetrics:
 
         with self._lock:
             usage = self._provider_entry(provider)
-            average = (
-                usage.total_latency_ms / usage.timed_events
-                if usage.timed_events
-                else 0.0
-            )
+            average = usage.total_latency_ms / usage.timed_events if usage.timed_events else 0.0
             return ProviderUsageValue(
                 requests=usage.requests,
                 input_tokens=usage.input_tokens,

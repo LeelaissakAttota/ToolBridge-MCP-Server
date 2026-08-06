@@ -67,6 +67,7 @@ def test_mcp_adapter_executes_through_core() -> None:
     _, structured = result
     assert structured == {"total": 5}
 
+
 def test_mcp_adapter_rejects_and_hides_extra_input() -> None:
     with pytest.raises(ToolError) as caught:
         asyncio.run(

@@ -54,9 +54,7 @@ class AlphaVantageStockProvider(HttpStockProvider):
         information = payload.get("Information") or payload.get("Note")
         if isinstance(information, str):
             normalized = information.lower()
-            if "api key" in normalized and (
-                "invalid" in normalized or "missing" in normalized
-            ):
+            if "api key" in normalized and ("invalid" in normalized or "missing" in normalized):
                 raise self._error(StockErrorCategory.AUTHENTICATION)
             raise self._error(StockErrorCategory.RATE_LIMIT, retryable=True)
         if "Error Message" in payload:
@@ -81,9 +79,7 @@ class AlphaVantageStockProvider(HttpStockProvider):
                 day_high=self._optional_number(raw_quote.get("03. high")),
                 day_low=self._optional_number(raw_quote.get("04. low")),
                 open=self._optional_number(raw_quote.get("02. open")),
-                previous_close=self._optional_number(
-                    raw_quote.get("08. previous close")
-                ),
+                previous_close=self._optional_number(raw_quote.get("08. previous close")),
                 market_status=MarketStatus.UNKNOWN,
                 timestamp=timestamp,
                 provider=self.name,

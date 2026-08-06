@@ -33,4 +33,3 @@ def test_formatter_emits_only_allowlisted_metadata() -> None:
     assert "result" not in payload
     assert "secret-value" not in output
     assert "message-that-is-not-emitted" not in output
-

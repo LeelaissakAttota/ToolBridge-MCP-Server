@@ -73,11 +73,7 @@ def build_managed_tools(
             transport=configured_transports.get(StockProviderName.ALPHA_VANTAGE),
         )
 
-    ordered = tuple(
-        providers[name]
-        for name in stock.provider_priority_order
-        if name in providers
-    )
+    ordered = tuple(providers[name] for name in stock.provider_priority_order if name in providers)
     service = StockPriceService(
         ordered,
         retry_count=stock.retry_count,

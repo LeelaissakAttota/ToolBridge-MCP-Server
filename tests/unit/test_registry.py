@@ -76,4 +76,3 @@ def test_registry_reports_unknown_tool_safely() -> None:
 def test_definition_rejects_invalid_names(name: str) -> None:
     with pytest.raises(ValueError):
         definition(name)
-

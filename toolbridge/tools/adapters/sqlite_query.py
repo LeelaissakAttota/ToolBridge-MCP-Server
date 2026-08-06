@@ -64,8 +64,7 @@ class SQLiteReadOnlyQueryExecutor(ReadOnlyQueryExecutor):
                     raise DatabaseQueryFailedError()
                 columns = [str(item[0]) for item in cursor.description]
                 if len(columns) != len(set(columns)) or any(
-                    not name or len(name) > 256
-                    for name in columns
+                    not name or len(name) > 256 for name in columns
                 ):
                     raise DatabaseQueryFailedError()
                 raw_rows = cursor.fetchmany(max_rows + 1)

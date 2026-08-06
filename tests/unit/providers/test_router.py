@@ -160,7 +160,6 @@ def test_router_selects_primary_provider() -> None:
     assert nvidia.generate_calls == 0
 
 
-
 def test_router_records_normalized_generation_usage() -> None:
     cerebras = FakeProvider(ProviderName.CEREBRAS)
     usage = RecordingUsageRecorder()
@@ -185,12 +184,16 @@ def test_router_records_normalized_generation_usage() -> None:
 
     asyncio.run(run())
 
-    assert usage.events == [{
-        "provider": ProviderName.CEREBRAS,
-        "input_tokens": 12,
-        "output_tokens": 8,
-        "total_tokens": 20,
-    }]
+    assert usage.events == [
+        {
+            "provider": ProviderName.CEREBRAS,
+            "input_tokens": 12,
+            "output_tokens": 8,
+            "total_tokens": 20,
+        }
+    ]
+
+
 def test_router_fails_over_when_active_provider_is_unavailable() -> None:
     cerebras = FakeProvider(ProviderName.CEREBRAS)
     nvidia = FakeProvider(ProviderName.NVIDIA)
@@ -294,7 +297,6 @@ def test_stream_fails_over_before_first_chunk() -> None:
     assert router.active_provider is ProviderName.NVIDIA
 
 
-
 def test_stream_records_provider_request_without_inventing_token_usage() -> None:
     cerebras = FakeProvider(ProviderName.CEREBRAS)
     usage = RecordingUsageRecorder()
@@ -306,12 +308,14 @@ def test_stream_records_provider_request_without_inventing_token_usage() -> None
 
     asyncio.run(run())
 
-    assert usage.events == [{
-        "provider": ProviderName.CEREBRAS,
-        "input_tokens": 0,
-        "output_tokens": 0,
-        "total_tokens": 0,
-    }]
+    assert usage.events == [
+        {
+            "provider": ProviderName.CEREBRAS,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "total_tokens": 0,
+        }
+    ]
 
 
 def test_stream_does_not_fail_over_after_emitting_content() -> None:
@@ -352,9 +356,7 @@ def test_router_lifecycle_closes_every_provider() -> None:
     assert cerebras.initialized and cerebras.closed
     assert nvidia.initialized and nvidia.closed
     assert router.active_provider is None
-    assert all(
-        status.status is ProviderStatus.CLOSED for status in router.provider_status()
-    )
+    assert all(status.status is ProviderStatus.CLOSED for status in router.provider_status())
 
 
 def test_router_without_configured_providers_fails_safely() -> None:

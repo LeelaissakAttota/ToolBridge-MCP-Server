@@ -83,11 +83,7 @@ class FakeStockProvider(StockQuoteProvider):
         del symbol
         return ProviderHealthStatus(
             provider=self.name,
-            status=(
-                ToolHealthState.HEALTHY
-                if self.healthy
-                else ToolHealthState.UNAVAILABLE
-            ),
+            status=(ToolHealthState.HEALTHY if self.healthy else ToolHealthState.UNAVAILABLE),
             checked_at=datetime.now(UTC),
             latency_ms=0,
         )

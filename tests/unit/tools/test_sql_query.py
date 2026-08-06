@@ -41,8 +41,7 @@ def test_sql_query_executes_parameterized_read_only_query(tmp_path: object) -> N
         result = await tool.execute(
             SQLQueryInput(
                 query=(
-                    "SELECT name, quantity FROM items WHERE quantity >= :minimum "
-                    "ORDER BY quantity"
+                    "SELECT name, quantity FROM items WHERE quantity >= :minimum ORDER BY quantity"
                 ),
                 parameters={"minimum": 2},
                 max_rows=2,

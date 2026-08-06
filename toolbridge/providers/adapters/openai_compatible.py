@@ -257,9 +257,7 @@ class OpenAICompatibleProvider(BaseProvider):
         model = request.model or self._config.default_model
         max_tokens = request.max_tokens or self._config.max_tokens
         temperature = (
-            request.temperature
-            if request.temperature is not None
-            else self._config.temperature
+            request.temperature if request.temperature is not None else self._config.temperature
         )
         if max_tokens > self._config.max_tokens:
             raise ProviderError(ProviderErrorCategory.INVALID_REQUEST, self.name)
@@ -273,13 +271,17 @@ class OpenAICompatibleProvider(BaseProvider):
         )
         if prompt_size > self._config.max_prompt_bytes:
             raise ProviderError(ProviderErrorCategory.INVALID_REQUEST, self.name)
-        return request_id, model, {
-            "model": model,
-            "messages": messages,
-            "max_tokens": max_tokens,
-            "temperature": temperature,
-            "stream": stream,
-        }
+        return (
+            request_id,
+            model,
+            {
+                "model": model,
+                "messages": messages,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "stream": stream,
+            },
+        )
 
     def _parse_chunk(
         self,

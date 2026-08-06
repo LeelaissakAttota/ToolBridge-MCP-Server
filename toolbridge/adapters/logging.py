@@ -100,4 +100,3 @@ def configure_execution_logging(log_level: str) -> StructuredExecutionEventLogge
         handler.toolbridge_handler = True  # type: ignore[attr-defined]
         logger.addHandler(handler)
     return StructuredExecutionEventLogger(logger)
-

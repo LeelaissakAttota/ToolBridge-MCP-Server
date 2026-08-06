@@ -77,8 +77,7 @@ class CurrencyRateSet(ToolOutput):
         if any(fullmatch(r"[A-Z]{3}", currency) is None for currency in value):
             raise ValueError("exchange-rate keys must be ISO currency codes")
         if any(
-            rate <= 0 or rate > 1_000_000_000_000 or not isfinite(rate)
-            for rate in value.values()
+            rate <= 0 or rate > 1_000_000_000_000 or not isfinite(rate) for rate in value.values()
         ):
             raise ValueError("exchange rates must be positive, finite, and bounded")
         return value
@@ -98,6 +97,7 @@ class CurrencyConversion(ToolOutput):
         if not isfinite(value):
             raise ValueError("conversion values must be finite")
         return value
+
     amount: float = Field(ge=0)
 
 

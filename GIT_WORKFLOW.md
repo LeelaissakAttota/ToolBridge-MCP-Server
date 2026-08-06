@@ -1,4 +1,30 @@
 # Git Workflow
+> v1.0.0 release preparation is uncommitted and unpushed until owner approval.
+
+## v1.0.0 release procedure
+
+Before creating release state:
+
+```powershell
+python -m pip check
+python -m ruff format --check toolbridge tests scripts
+python -m ruff check toolbridge tests scripts
+python -m pytest tests
+docker compose config --quiet
+python scripts/verify_release.py
+git diff --check
+git status --short
+```
+
+After explicit owner approval, the suggested commit and annotated tag are:
+
+```powershell
+git add .
+git commit -m "chore(release): prepare ToolBridge v1.0.0"
+git tag -a v1.0.0 -m "ToolBridge MCP Server v1.0.0"
+```
+
+Push the branch and tag only with separate owner authorization. Never retag or rewrite a published release tag; correct it with a new semantic version.
 
 ## Current repository state
 

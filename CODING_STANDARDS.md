@@ -85,6 +85,25 @@ No formatter or linter is currently installed. Until tooling is approved, contri
 - Pin direct dependencies and verify upgrades with the full test suite and `python -m pip check`.
 - Do not add a dependency for a small function that is clear to implement and maintain locally.
 
+## Automated formatting and linting
+
+Ruff `0.16.1` is the release formatter, import organizer, and linter. Configuration is authoritative in `pyproject.toml`.
+
+```powershell
+python -m ruff format toolbridge tests scripts
+python -m ruff format --check toolbridge tests scripts
+python -m ruff check toolbridge tests scripts
+```
+
+CI runs check mode and never silently fixes source. Contributors format locally before review. The selected lint set enforces syntax/pyflakes errors, core pycodestyle errors, and deterministic import ordering without introducing an unreviewed broad rule migration.
+
+## Dependency groups
+
+- Production imports must be provided by the standard library or `requirements.txt`.
+- Tests, release scripts, and quality tooling may use pinned `requirements-dev.txt` dependencies.
+- Do not import test/quality packages from `toolbridge/`.
+- Keep release verification on the standard library so it runs on hosts and inside minimal CI environments without adding runtime dependencies.
+
 ## Review checklist
 
 - Is the behavior within approved scope?

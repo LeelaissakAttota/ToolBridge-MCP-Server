@@ -257,7 +257,6 @@ The following require proposals before implementation:
 - Supported and licensed production stock-data contract
 - Authentication and authorization approach
 - Persistent metrics/audit backend, tracing, scheduled probes, retention, and alert delivery
-- Packaging and hosting platform
 - Persistence and cache requirements
 - License and distribution terms
 - Production website outbound policy, privacy, and content licensing
@@ -265,4 +264,43 @@ The following require proposals before implementation:
 - PostgreSQL adapter and connection policy
 - Exchange-rate provider terms, coverage, attribution, freshness, and fallback
 - LLM model, data-processing, residency, retention, and cost policy
-- CI/CD automation
+
+## D-031 - One multi-stage non-root image serves API or dashboard
+
+- **Date:** 2026-08-06
+- **Status:** Accepted for v1.0.0
+- **Context:** Production packaging must use Python 3.12, minimize runtime contents, and support both delivery processes without duplicating dependency graphs.
+- **Decision:** Build runtime dependencies in a Python 3.12 slim builder virtual environment and copy it with application source into one slim runtime image. Run with fixed non-root UID/GID 10001. Select API or dashboard through the container command.
+- **Consequences:** One reviewed artifact covers both processes and excludes tests/dev tools. Streamlit remains a runtime dependency, so the API-only footprint is larger than a dedicated image; splitting images can be proposed after measuring operational benefit.
+
+## D-032 - Compose preserves the loopback-only dashboard trust boundary
+
+- **Date:** 2026-08-06
+- **Status:** Accepted for v1.0.0
+- **Context:** Separate containers normally communicate through service DNS, but application configuration intentionally rejects non-loopback dashboard API URLs because inbound identity is absent.
+- **Decision:** Run dashboard with `network_mode: service:api`, call the API over shared loopback, bind both service listeners inside the container namespace, and publish both ports only on host `127.0.0.1`. Keep the dashboard API validator unchanged.
+- **Consequences:** The existing security invariant remains true and no container DNS exception is introduced. The topology is single-host and couples network lifecycle; horizontal orchestration requires a future authenticated design.
+
+## D-033 - Runtime and development dependencies are separated and pinned
+
+- **Date:** 2026-08-06
+- **Status:** Accepted for v1.0.0
+- **Context:** pytest and formatting tools are unnecessary in the production image, while CI must reproduce exact quality tooling.
+- **Decision:** Keep application packages in `requirements.txt`; make `requirements-dev.txt` include runtime requirements plus pinned pytest and Ruff. Configure Ruff and pytest in `pyproject.toml`.
+- **Consequences:** Images are smaller and CI/local gates are reproducible. Both files require dependency maintenance and full upgrade review.
+
+## D-034 - CI validates and packages but does not deploy
+
+- **Date:** 2026-08-06
+- **Status:** Accepted for v1.0.0
+- **Context:** Phase 7 requires CI/CD automation but deployment credentials, target platform, promotion policy, signing, and rollback authority are not approved.
+- **Decision:** On push/PR, run dependency, Ruff, tests, startup, image, Compose, and release smoke gates. On version tags, export an image tarball and SHA-256 artifact. Do not publish or deploy.
+- **Consequences:** Every change receives production-shape validation and review artifacts without creating external release state. Registry publishing and environment deployment require separate decisions.
+
+## D-035 - Release verification uses bounded standard-library probes
+
+- **Date:** 2026-08-06
+- **Status:** Accepted for v1.0.0
+- **Context:** Local operators and CI need one portable check for version, liveness, readiness, registrations, dashboard health, and operational secret-safety.
+- **Decision:** Add a bounded retrying script using `urllib`, strict expected tool/provider sets, and recursive forbidden monitoring-key checks. It performs only read requests.
+- **Consequences:** The verifier runs without extra host dependencies and catches composition leaks. It verifies safe key names, not arbitrary secret values, and complements rather than replaces code review and secret scanning.

@@ -66,12 +66,8 @@ class ToolManager:
     async def statuses(self) -> tuple[ToolStatusSnapshot, ...]:
         """Probe every tool concurrently and combine health with metrics."""
 
-        health_values = await asyncio.gather(
-            *(tool.health_check() for tool in self._tools)
-        )
-        self._health_cache.update(
-            (health.tool_name, health) for health in health_values
-        )
+        health_values = await asyncio.gather(*(tool.health_check() for tool in self._tools))
+        self._health_cache.update((health.tool_name, health) for health in health_values)
         return tuple(
             ToolStatusSnapshot(
                 health=health,

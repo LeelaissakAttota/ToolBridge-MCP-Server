@@ -2,65 +2,63 @@
 
 ## Objectives
 
-Testing must prove that ToolBridge starts, preserves MCP/HTTP contracts, validates boundaries, bounds external work, protects secrets and sensitive inputs, routes providers predictably, reports readiness correctly, renders safe monitoring data, preserves cancellation, and runs offline without credentials.
+Testing proves that ToolBridge starts, preserves MCP/HTTP contracts, validates boundaries, bounds external work, protects sensitive data, routes providers predictably, registers all tools, reports health/readiness, renders safe monitoring, packages correctly, and remains deployable without live credentials.
 
-## Current state
+## Test layers
 
-Version `0.6.0` has **112 automated tests** across:
+| Layer | Evidence |
+| --- | --- |
+| Unit | domain rules, validation, registry, execution, errors, adapters, provider router, tool services, metrics, dashboard helpers, release scan |
+| Integration | application composition, lifecycle, automatic tool registration, provider/tool monitoring, local SQLite/CSV adapters |
+| API/MCP | lifespan, identity, health, readiness, operations snapshot, initialize, discovery, execution |
+| Dashboard | component rendering, safe client behavior, Streamlit process health |
+| Startup/release | local Uvicorn/Streamlit smoke and `scripts/verify_release.py` |
+| Container | Compose validation, image build, health checks, full stack smoke in CI/local Docker |
 
-- API, lifespan, liveness, readiness, safe operations snapshot, MCP initialize/discovery/execution
-- MCP Core registry, strict validation, sizes, timeout, cancellation, safe errors, and logs
-- Provider Router selection, retries, failover, health, streaming, lifecycle, adapters, configuration, usage observation, and redaction
-- Tool framework, Stock Price, Website Reader, SQL Query, CSV Analysis, Currency Converter, and HCL Curie / LLM Analysis
-- Phase 6 metrics, bounded logs, cost estimation, startup/readiness state, provider/tool monitoring, local dashboard client, configuration, and dashboard components
+The default suite is deterministic and offline. It uses fakes, `httpx.MockTransport`, temporary SQLite/CSV resources, and no live provider credentials or paid requests.
 
-Default tests use fakes, `httpx.MockTransport`, temporary SQLite databases, and temporary CSV files. They perform no live stock, website, currency, or LLM request and incur no API cost.
-
-## Running tests
+## Required local gates
 
 ```powershell
-.\.venv\Scripts\Activate.ps1
-python -m pytest -q -p no:cacheprovider tests
 python -m pip check
+python -m ruff format --check toolbridge tests scripts
+python -m ruff check toolbridge tests scripts
+python -m pytest tests
+docker compose config --quiet
 ```
 
-Current verified result on 2026-08-06: **112 passed**, no broken requirements, and one non-failing third-party `StarletteDeprecationWarning`.
+For release validation after starting the stack:
 
-## Phase 6 behavioral coverage
+```powershell
+python scripts/verify_release.py --timeout-seconds 90
+```
 
-| Responsibility | Covered behavior |
-| --- | --- |
-| Dashboard components | All required sections render from an immutable snapshot; tables/charts are invoked without mutations |
-| Dashboard client | Only local `GET /operations/snapshot`, no authorization header, strict JSON validation, safe errors |
-| Liveness/readiness | Existing `/health`, ready `200`, local checks, provider-router/tool-manager lifecycle state |
-| Operations API | Three providers, seven tools, system/readiness/metrics/cost/log schema |
-| Tool monitoring | registration, cached lifecycle health, execution count, average/last duration, last completion |
-| Provider monitoring | configured/disabled visibility, priority, active/failover state, status, latency, usage |
-| Metrics | requests, success/failure, error categories, response timing, tool/provider usage |
-| Cost | normalized tokens, configured input/output pricing, streaming without invented token totals |
-| Logs | bounded newest-first buffer, safe fields, warning/error categories, no exception text |
-| Configuration | loopback-only dashboard URL, bounds, nested price environment values |
-| Compatibility | unchanged seven-tool MCP discovery and all Phase 1-5 tests |
+## Current v1.0.0 result
 
-## Design rules
+- total: 114 automated test cases
+- passed: 114
+- failed: 0
+- warnings: one non-failing dependency-owned `StarletteDeprecationWarning`
+- dependency integrity: passed
+- Ruff formatting and lint: passed
+- API and dashboard startup smoke: passed
+- Compose configuration: passed
+- Docker image and Compose stack: build/start/health/release smoke passed locally
 
-- Keep default tests deterministic, isolated, credential-free, network-free, and cost-free.
-- Assert behavior and the absence of sensitive fields.
-- Prove operational reads do not call external providers, files, databases, or websites.
-- Use dependency injection and supported public interfaces at adapters.
-- Preserve cancellation and retry only failures classified safe.
-- Use temporary synthetic data; never production/customer data.
-- Re-run MCP protocol tests for MCP SDK or adapter changes.
-- Treat dashboard and operations JSON as public contracts.
+The validated Linux/amd64 image is approximately 199.3 MB. GitHub Actions repeats the image build and stack smoke on every push.
 
-## Coverage interpretation
+## Live contract tests
 
-The suite behaviorally covers every Phase 6 requirement. No line-coverage package is installed, so no numerical code-coverage percentage is claimed. Formatting, linting, typing, secret scanning, dependency scanning, and vulnerability tooling remain separately approved workflow decisions.
+Live stock, website, currency, or LLM provider tests are not part of default CI. They require explicit approval of network access, credentials, terms, privacy, quota, model, and cost. A live test failure must not be confused with an offline application regression.
 
-## External contract tests
+## Regression policy
 
-Live Yahoo, Alpha Vantage, Frankfurter, website, Cerebras, NVIDIA, and OpenRouter tests remain opt-in and network/credential/terms/cost gated. Production database and CSV tests require approved synthetic data and permissions. Dashboard public-network testing is prohibited until an authentication design is approved.
+- Every fixed defect receives a focused test when practical.
+- Interface changes cover success, invalid input, timeout/cancellation, dependency failure, and response validation.
+- Security tests verify rejection and redaction without inserting real secrets.
+- Test counts are based on pytest collection, including parametrized cases.
+- Do not suppress dependency warnings merely to make output quiet; investigate and document ownership/action.
 
-## Phase gate
+## Release acceptance
 
-Phase 6 implementation is complete and awaits owner acceptance. Phase 7 must not begin without explicit scope approval.
+No release is ready with a failed dependency check, formatting/lint gate, automated test, health/readiness check, registration check, dashboard health check, Compose parse, or secret-safety check. Public exposure and live provider validation remain separate owner-controlled decisions.

@@ -165,10 +165,10 @@ def test_provider_streams_normalized_sse_chunks() -> None:
     stream_body = (
         'data: {"model":"stream-model","choices":[{"delta":{"content":"one"},'
         '"finish_reason":null}]}\n\n'
-        ': keep-alive\n\n'
+        ": keep-alive\n\n"
         'data: {"model":"stream-model","choices":[{"delta":{"content":"two"},'
         '"finish_reason":"stop"}]}\n\n'
-        'data: [DONE]\n\n'
+        "data: [DONE]\n\n"
     )
     transport = httpx.MockTransport(
         lambda request: httpx.Response(
@@ -275,9 +275,7 @@ def test_provider_rejects_malformed_response() -> None:
 def test_provider_enforces_configured_token_and_prompt_limits() -> None:
     provider = CerebrasProvider(
         config(),
-        transport=httpx.MockTransport(
-            lambda request: httpx.Response(500, request=request)
-        ),
+        transport=httpx.MockTransport(lambda request: httpx.Response(500, request=request)),
     )
 
     async def run() -> tuple[ProviderError, ProviderError]:

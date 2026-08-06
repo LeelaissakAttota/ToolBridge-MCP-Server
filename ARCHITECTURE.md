@@ -1,10 +1,11 @@
 # Architecture
+> Current release architecture: ToolBridge v1.0.0, Phase 7 deployment prepared.
 
 ## Purpose and current state
 
-ToolBridge `0.6.0` is a local-only MCP service with seven read-only tools and a separate read-only Streamlit operations dashboard. One Python process hosts FastAPI, FastMCP, MCP Core, managed tools, the Provider Router, and process-local operational state. Streamlit runs as a second local process and reads one safe HTTP snapshot.
+ToolBridge `1.0.0` is a loopback-only deployable MCP service with seven read-only tools and a separate read-only Streamlit operations dashboard. One API process hosts FastAPI, FastMCP, MCP Core, managed tools, the Provider Router, and process-local operational state. Streamlit runs as a second process and reads one safe HTTP snapshot. Local development uses two host processes; Compose uses two hardened containers.
 
-Existing `/`, `/health`, `/docs`, `/mcp/`, and all Phase 1-5 MCP tool contracts remain compatible. Phase 6 adds `/ready` and `/operations/snapshot`. Startup performs no provider, website, stock, exchange-rate, database, or file request.
+Existing `/`, `/health`, `/ready`, `/operations/snapshot`, `/docs`, `/mcp/`, and all seven MCP tool contracts remain compatible. Startup performs no provider, website, stock, exchange-rate, database, or file request.
 
 ```mermaid
 flowchart LR
@@ -131,12 +132,41 @@ MCP arguments, provider responses, website content, SQL, database values, file p
 ## Current constraints
 
 - local-only; no authentication, authorization, tenancy, inbound rate limits, or public dashboard exposure
-- no persistent metrics/audit backend, distributed cache, tracing, scheduled health probes, or alert delivery
+- no persistent metrics/audit backend, distributed cache, tracing, scheduled health probes, alert delivery, or horizontal orchestration
 - process-local values reset on restart and do not aggregate across workers
 - cost estimates depend on operator-configured prices and provider-reported usage
 - existing external-contract, data-governance, licensing, and DNS-rebinding risks remain
-- no agent, CI/CD, deployment pipeline, packaging, or Phase 7 implementation
+- no agent, inbound identity system, public network topology, automated deployment, or post-v1 business features
 
 ## Phase boundary
 
-Phase 6 is complete and awaits owner acceptance. Phase 7 must not begin without explicit approval.
+Phase 7 deployment and v1.0.0 release preparation are complete and await owner approval. No post-v1 phase is authorized.
+
+## Phase 7 deployment architecture
+
+The release adds only outer operational adapters and packaging; domain, application, MCP Core, provider, and tool contracts are unchanged.
+
+```mermaid
+flowchart TB
+    H["Host loopback"] -->|"127.0.0.1:8000"| A["API container"]
+    H -->|"127.0.0.1:8501"| D["Dashboard container"]
+    D -->|"shared 127.0.0.1:8000"| A
+    A --> C["MCP Core / Provider Router / Tools"]
+    A --> V["toolbridge-data volume"]
+    W["GitHub Actions"] --> Q["pip check + Ruff + pytest"]
+    W --> B["image build + Compose smoke"]
+    W --> R["tagged image artifact + SHA-256"]
+```
+
+### Container boundary
+
+- `builder` installs pinned runtime dependencies into `/opt/venv`; the runtime stage copies only the environment and `toolbridge/` package.
+- the runtime uses Python 3.12 slim and fixed non-root UID/GID 10001.
+- Compose makes roots read-only, supplies a bounded writable `/tmp`, drops all capabilities, and enables `no-new-privileges`.
+- the API binds `0.0.0.0` only inside its container; Docker publishes it to host loopback only.
+- the dashboard shares the API network namespace, calls the API through shared loopback, and listens on the container namespace so Docker can publish it only to host loopback; the typed loopback-only API validator remains unchanged.
+- environment settings are external; `.env` is never copied into the image. `/app/data` uses a named persistent volume.
+
+### Automation boundary
+
+CI is a validation and artifact pipeline, not a deployment authority. It uses read-only repository permission, builds and starts the same Compose topology, runs the release verifier, and creates image artifacts only for tags. Publishing, signing, environment promotion, secrets, and rollback execution remain owner/platform responsibilities.

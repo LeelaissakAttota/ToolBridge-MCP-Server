@@ -18,8 +18,8 @@ from toolbridge.providers.application.ports import (
     ProviderEventLogger,
 )
 from toolbridge.providers.application.router import ProviderRouter
-from toolbridge.providers.infrastructure.factory import build_provider_router
 from toolbridge.providers.domain.models import ProviderName
+from toolbridge.providers.infrastructure.factory import build_provider_router
 from toolbridge.tools.application.manager import ToolManager
 from toolbridge.tools.application.metrics import InMemoryToolMetrics
 from toolbridge.tools.application.ports import (

@@ -12,4 +12,3 @@ def system_status() -> dict[str, Any]:
         "status": "ok",
         "timestamp": datetime.now(UTC).isoformat(),
     }
-

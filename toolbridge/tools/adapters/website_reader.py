@@ -98,10 +98,7 @@ class _CleanTextParser(HTMLParser):
         """Return normalized title and content text."""
 
         title = _normalize_inline(" ".join(self.title_fragments))[:512] or None
-        lines = (
-            _normalize_inline(line)
-            for line in "".join(self.fragments).splitlines()
-        )
+        lines = (_normalize_inline(line) for line in "".join(self.fragments).splitlines())
         text = "\n".join(line for line in lines if line)
         return title, text
 
@@ -254,7 +251,5 @@ def _normalize_inline(value: str) -> str:
 
 def _normalize_text(value: str) -> str:
     return "\n".join(
-        normalized
-        for line in value.splitlines()
-        if (normalized := _normalize_inline(line))
+        normalized for line in value.splitlines() if (normalized := _normalize_inline(line))
     )

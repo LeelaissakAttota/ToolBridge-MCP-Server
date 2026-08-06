@@ -1,4 +1,33 @@
 # Deployment Plan
+> Phase 7 superseding status: the v1.0.0 single-host Compose deployment is implemented. This document retains earlier planning context; `DEPLOYMENT.md` is the operator runbook.
+
+## Implemented v1.0.0 plan
+
+| Concern | Implemented control |
+| --- | --- |
+| Artifact | multi-stage `toolbridge-mcp:1.0.0` Python 3.12 slim image |
+| Identity | fixed non-root UID/GID 10001 |
+| Configuration | typed `TOOLBRIDGE_` environment variables; host `.env` excluded from image/Git |
+| Persistence | named `toolbridge-data` volume mounted at `/app/data` |
+| Network | API and dashboard published only on host loopback |
+| Health | image/API and dashboard healthchecks plus `/ready` |
+| Hardening | read-only root, bounded tmpfs, dropped capabilities, no-new-privileges |
+| Automation | push/PR quality/tests/startup/build/smoke; tag artifacts only |
+| Validation | `scripts/verify_release.py` checks version, endpoints, registrations, dashboard, safe keys |
+| Rollback | restore prior approved immutable image/config; preserve data volume |
+
+## Promotion sequence
+
+1. Obtain owner approval of this uncommitted Phase 7 worktree.
+2. Run all quality, test, startup, Compose, image, security, and release checks.
+3. Create the reviewed release commit.
+4. Create annotated tag `v1.0.0` only after the commit is accepted.
+5. Let CI reproduce gates and create the tagged image artifact/SHA-256.
+6. Review the artifact, vulnerability/license/SBOM evidence, configuration, backups, and checklist.
+7. Deploy manually to the approved loopback/trusted single-host environment.
+8. Run release verification and record evidence without secrets.
+
+Automatic publishing, environment deployment, public ingress, credentials, and platform-specific rollout remain intentionally outside v1.0.0.
 
 ## Current deployment status
 

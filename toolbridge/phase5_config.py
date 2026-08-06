@@ -50,9 +50,7 @@ class WebsiteReaderSettings(BaseModel):
         """Normalize an optional comma-separated exact-host allowlist."""
 
         hosts = tuple(
-            part.strip().lower().rstrip(".")
-            for part in value.split(",")
-            if part.strip()
+            part.strip().lower().rstrip(".") for part in value.split(",") if part.strip()
         )
         if any(fullmatch(r"[a-z0-9.-]{1,253}", host) is None for host in hosts):
             raise ValueError("website allowed_hosts contains an invalid host")

@@ -66,9 +66,7 @@ class YahooFinanceStockProvider(HttpStockProvider):
             indicators = self._mapping(result.get("indicators"))
             quote_sets = indicators.get("quote")
             quote = (
-                self._mapping(quote_sets[0])
-                if isinstance(quote_sets, list) and quote_sets
-                else {}
+                self._mapping(quote_sets[0]) if isinstance(quote_sets, list) and quote_sets else {}
             )
             current_price = self._number(meta.get("regularMarketPrice"))
             if current_price is None:
@@ -84,8 +82,7 @@ class YahooFinanceStockProvider(HttpStockProvider):
                 symbol=self._text(meta.get("symbol")) or symbol,
                 current_price=current_price,
                 company_name=(
-                    self._text(meta.get("longName"))
-                    or self._text(meta.get("shortName"))
+                    self._text(meta.get("longName")) or self._text(meta.get("shortName"))
                 ),
                 currency=self._text(meta.get("currency")),
                 exchange=(

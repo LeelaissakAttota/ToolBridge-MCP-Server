@@ -42,4 +42,3 @@ def system_status_definition(timeout_seconds: float) -> ToolDefinition:
         handler=handle_system_status,
         timeout_seconds=timeout_seconds,
     )
-

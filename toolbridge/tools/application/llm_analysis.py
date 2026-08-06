@@ -40,8 +40,7 @@ class LLMAnalysisTool(BaseTool):
         self._definition = ToolDefinition(
             name="hcl_curie_analysis",
             description=(
-                "Analyze or summarize untrusted text through the configured LLM "
-                "Provider Router."
+                "Analyze or summarize untrusted text through the configured LLM Provider Router."
             ),
             input_model=LLMAnalysisInput,
             output_model=LLMAnalysisOutput,

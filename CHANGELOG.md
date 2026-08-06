@@ -4,7 +4,53 @@ All notable changes to this project are recorded here. The format follows Keep a
 
 ## [Unreleased]
 
-No unreleased changes.
+No changes after the v1.0.0 release candidate.
+
+## [1.0.0] - 2026-08-06
+
+### Added
+
+- multi-stage Python 3.12 slim Dockerfile with pinned runtime dependencies, fixed non-root identity, application healthcheck, and persistent data volume
+- hardened `docker-compose.yml` for API and Streamlit dashboard with loopback-only host publication, shared loopback namespace, read-only filesystems, dropped capabilities, and health checks
+- `.dockerignore`, runtime/development dependency split, Ruff configuration, and pinned development requirements
+- GitHub Actions workflow for dependency integrity, formatting, lint, all tests, local startup, image build, Compose smoke validation, JUnit artifact, and tagged image/SHA-256 artifacts
+- secret-safe release verification script for version, health, readiness, three providers, seven tools, dashboard health, and monitoring-key safety
+- installation, deployment, user, API, troubleshooting, contribution, production checklist, known-limitations, and v1.0.0 release-note documents
+- two unit tests for release monitoring-payload safety
+
+### Changed
+
+- promoted package and operational version from `0.6.0` to `1.0.0`
+- changed the default displayed phase to Phase 7 - Deployment & v1.0.0 Release
+- moved pytest from runtime requirements to pinned development requirements
+- adopted Ruff as the deterministic formatter/import organizer/linter and mechanically formatted the Python tree
+- synchronized roadmap, tasks, rules, architecture, standards, testing, security, deployment, Git workflow, decisions, status, and README with the release state
+
+### Security
+
+- kept `.env` outside Git and Docker build context and retained loopback defaults in `.env.example`
+- published Compose API/dashboard ports only to host `127.0.0.1`
+- configured non-root containers, read-only roots, bounded temporary storage, all capabilities dropped, and `no-new-privileges`
+- retained the dashboard's application-enforced loopback API URL by sharing the API network namespace
+- added release validation that rejects secret-, prompt-, and tool-payload-bearing keys in operational output
+- did not add authentication or authorize direct public exposure
+
+### Testing
+
+- expanded the offline suite from 112 to 114 tests
+- verified dependency integrity, Ruff format/lint, API/MCP integration, dashboard components/startup, release validation, and Compose configuration
+- retained one documented third-party `StarletteDeprecationWarning` without suppression or workaround
+
+### Operations
+
+- documented supported single-host loopback deployment, configuration, data persistence, health/readiness, rollback, troubleshooting, and production acceptance
+- CI validates and packages tagged image artifacts but intentionally does not publish or deploy
+- Phase 7 changes remain uncommitted, unpushed, and untagged pending owner approval
+
+### Investigated
+
+- Traced the remaining `StarletteDeprecationWarning` to Starlette `1.4.1`: `starlette/testclient.py:36` cannot import optional `httpx2`, intentionally falls back to compatible `httpx==0.28.1`, and emits the warning at `starlette/testclient.py:47`. The displayed location is FastAPI's re-export at `fastapi/testclient.py:1`, reached by `tests/test_api.py:6`.
+- No warning suppression, application workaround, dependency patch, or test-client replacement was added. The fallback is operational and all tests pass; migrate to `httpx2` only through a separately reviewed dependency update with a full regression run.
 
 ## [0.6.0] - 2026-08-06
 

@@ -184,4 +184,3 @@ class ToolExecutor:
         if isinstance(correlation_id, str) and fullmatch(CORRELATION_ID_PATTERN, correlation_id):
             return correlation_id
         return fallback
-
