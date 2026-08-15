@@ -4,16 +4,16 @@
 
 | Field | Current status |
 | --- | --- |
-| **Current Version** | `1.1.0` (working tree; `v1.0.0` remains the latest Git tag) |
-| **Current Phase** | Post-v1 Provider Plugin Platform complete and validated; awaiting owner approval |
+| **Current Version** | `1.1.0`, released as Git tag `v1.1.0` |
+| **Current Phase** | Approved roadmap and v1.1.0 release complete; resume/demo packaging awaiting owner review |
 | **Completion Percentage** | **100% of the approved provider-platform scope implemented and validated** |
 | **Tests Passed** | **123 of 123** automated tests passing; 0 failed |
 | **Current Branch** | `main` |
 | **Repository** | Initialized; GitHub `origin` configured at `git@github.com:LeelaissakAttota/ToolBridge-MCP-Server.git` |
-| **Synchronization** | `main` matches `origin/main` at tagged release `v1.0.0`; v1.1.0 changes are intentionally uncommitted and unpushed |
-| **Next Milestone** | Owner review and approval of the v1.1.0 provider plugin platform |
+| **Synchronization** | `main` matches `origin/main` at release commit `4d8d73bb3ffa63102c7059429f14b459eb668546`, tagged `v1.1.0` |
+| **Next Milestone** | Owner review of recruiter-facing resume/demo packaging |
 | **Known Issues** | One dependency-owned `StarletteDeprecationWarning`; process-local budgets/metrics reset on restart; see `KNOWN_LIMITATIONS.md` |
-| **Last Updated** | 2026-08-06 (Asia/Calcutta) |
+| **Last Updated** | 2026-08-15 (Asia/Calcutta) |
 
 ## v1.1.0 provider platform
 

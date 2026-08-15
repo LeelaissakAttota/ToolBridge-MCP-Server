@@ -1,105 +1,133 @@
 # ToolBridge MCP Server
 
-ToolBridge is a production-oriented Model Context Protocol server that exposes seven validated tools, discovers self-registering LLM provider plugins, selects models by capability/health/cost, and provides a read-only operational dashboard.
+ToolBridge is a local-first Model Context Protocol (MCP) server that exposes seven strictly validated tools through FastMCP, routes LLM work through self-registering provider plugins, and presents secret-safe operational state in a read-only Streamlit dashboard.
 
-**Release:** `1.1.0` working tree (`v1.0.0` latest tag)
-**Phase:** Post-v1 Provider Plugin Platform complete; awaiting owner approval
-**Runtime:** Python 3.12
-**Transport:** MCP Streamable HTTP
+- **Release:** `v1.1.0`
+- **Runtime:** Python 3.12
+- **Transport:** MCP Streamable HTTP
+- **Status:** Approved roadmap complete; automated and owner manual validation passed
 
-## What is included
+## Problem and solution
 
-- strict MCP tool discovery, request/response validation, execution timeouts, normalized errors, and structured logging
-- self-registering provider plugins with automatic discovery; Cerebras, NVIDIA, and OpenRouter are built in, not hardcoded router cases
-- capability-aware model discovery/ranking, optional explicit priority, bounded retries/failover, health scoring, and daily/monthly/per-request budgets
-- reusable tool lifecycle with automatic registry integration, validation, timing, health, metrics, and safe logging
-- Stock Price, Website Reader, SQL Query, CSV Analysis, Currency Converter, HCL Curie Analysis, and System Status tools
-- FastAPI liveness, readiness, operations snapshot, OpenAPI, and graceful lifespan shutdown
-- read-only Streamlit dashboard for system, provider, tool, metric, cost, and bounded safe-log views
-- multi-stage non-root Docker image, loopback-only Compose stack, GitHub Actions CI, and release smoke validation
+AI clients often need access to external data and model providers, but direct integrations couple protocol handling, validation, vendor APIs, local data access, and operations into one boundary. ToolBridge uses MCP as the client-facing contract and Clean Architecture internally so tools, providers, transports, and infrastructure can evolve independently.
+
+The release provides deterministic tool discovery, schema-validated execution, normalized errors, bounded external work, provider selection controls, and an operational view that excludes prompts, tool payloads, paths, SQL, URLs, credentials, and provider response bodies.
+
+## Engineering highlights
+
+- seven MCP tools with strict Pydantic input/output schemas, timeouts, response bounds, and normalized failures
+- FastAPI control plane plus FastMCP Streamable HTTP initialization, discovery, and execution
+- self-registering Cerebras, NVIDIA, and OpenRouter plugins discovered without router vendor switches
+- capability-aware model ranking using availability, health, latency, configured cost, and reasoning quality
+- optional provider priority, bounded retry/failover, health scoring, and daily/monthly/per-request budget controls
+- read-only health, readiness, operations snapshot, and Streamlit monitoring interfaces
+- multi-stage non-root Docker image, loopback-only Compose publication, and GitHub Actions validation
+- 123 automated tests plus owner manual validation of HTTP, MCP, dashboard, error, and repository-integrity behavior
 
 ## Architecture
 
 ```mermaid
-flowchart LR
-    C["MCP client"] --> F["FastAPI / FastMCP adapters"]
-    F --> A["Application services"]
-    A --> D["Domain contracts"]
-    A --> R["Tool Registry + Executor"]
-    A --> P["Provider Router"]
-    R --> T["Seven managed tools"]
-    P --> L["Self-registering provider plugins"]
-    O["Streamlit dashboard"] --> S["Safe operations snapshot"]
-    S --> A
+flowchart TB
+    Client["MCP client"] --> API["FastAPI / FastMCP"]
+    API --> MCP["MCP adapter"]
+    MCP --> Executor["ToolExecutor"]
+    Executor --> Registry["ToolRegistry"]
+    Registry --> Tools["Seven MCP tools"]
+
+    Tools --> Data["HTTP / SQLite / CSV data sources"]
+    Tools --> Router["ProviderRouter"]
+    Router --> Plugins["ProviderPluginRegistry"]
+    Plugins --> Policy["Ranking + health + budgets + failover"]
+    Policy --> Providers["Cerebras / NVIDIA / OpenRouter"]
+
+    Executor --> Operations["Safe metrics and operations state"]
+    Router --> Operations
+    Dashboard["Streamlit dashboard"] --> Snapshot["GET /operations/snapshot"]
+    Snapshot --> Operations
 ```
 
-Dependencies point inward: Domain <- Application <- Adapters <- Infrastructure. FastAPI, MCP, Streamlit, HTTP, SQLite, files, and vendor APIs remain replaceable outer concerns.
+Dependencies point inward: Domain <- Application <- Adapters <- Infrastructure. FastAPI, FastMCP, Streamlit, HTTP clients, SQLite, files, and vendor APIs remain replaceable outer concerns. See [ARCHITECTURE.md](ARCHITECTURE.md) for the detailed component, provider, request, operations, and deployment flows.
 
-## Quick start with Docker
+## MCP tools
+
+| Tool | Purpose | Operational boundary |
+| --- | --- | --- |
+| `system_status` | Return local service status | No input or external dependency |
+| `stock_price` | Retrieve a current market quote | External provider/network dependent |
+| `website_reader` | Extract bounded text from a web page | Public HTTPS destinations by default |
+| `sql_query` | Execute a bounded SQLite query | Conservative read-only `SELECT`/CTE validation |
+| `csv_analysis` | Summarize a configured local CSV | Root-confined and size/row/column bounded |
+| `currency_converter` | Convert one amount to multiple currencies | External rate-provider/network dependent |
+| `hcl_curie_analysis` | Analyze or summarize text | Requires an enabled LLM provider |
+
+Discovery through `tools/list` is the authoritative source for every input and output schema.
+
+## Provider platform
+
+Cerebras, NVIDIA, and OpenRouter are built-in plugins. Each plugin contributes its identifier, factory, default capabilities, and typed configuration. At startup, enabled plugins are health-checked and their model metadata is discovered. The router filters by required capabilities, evaluates health/latency/cost/quality, enforces configured budgets, retries eligible failures, and can fail over to another eligible provider.
+
+Providers are disabled by default. Live LLM execution requires owner-supplied credentials, approved network access, quota, model configuration, and provider terms. No successful live provider call is claimed by the release validation.
+
+## Five-minute local demo
+
+Use the existing project virtual environment:
 
 ```powershell
-docker compose up --build --detach
-python scripts/verify_release.py
+.\.venv\Scripts\python.exe -m uvicorn toolbridge.main:app --host 127.0.0.1 --port 8000
 ```
 
-Open the dashboard at `http://127.0.0.1:8501` and API docs at `http://127.0.0.1:8000/docs`. Docker publishes both ports only to host loopback because v1.0.0 does not include inbound authentication.
-
-## Local development
+In a second terminal:
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --requirement requirements-dev.txt
-Copy-Item .env.example .env
-python -m uvicorn toolbridge.main:app --host 127.0.0.1 --port 8000
+.\.venv\Scripts\python.exe -m streamlit run toolbridge/dashboard/app.py --server.address 127.0.0.1 --server.port 8501
 ```
 
-Run the dashboard in another terminal:
+Open `http://127.0.0.1:8501`, or follow the complete [5-10 minute recruiter demo](docs/DEMO.md). Copyable HTTP/MCP commands are in [docs/API-EXAMPLES.md](docs/API-EXAMPLES.md), with request bodies in [examples/](examples/).
 
-```powershell
-python -m streamlit run toolbridge/dashboard/app.py --server.address 127.0.0.1 --server.port 8501
-```
-
-Providers are disabled by default. To enable one, set its `ENABLED`, `API_KEY`, and `DEFAULT_MODEL` values in the ignored `.env` file. Leave `TOOLBRIDGE_PROVIDER_PRIORITY` empty for dynamic model ranking, or provide a comma-separated explicit order. Never commit credentials.
-
-A new provider is added by creating one adapter module that implements `BaseProvider`, calling `register_provider()`, and supplying typed settings (including its API key). The router, MCP Core, and tool APIs do not change.
+For a fresh installation, follow [INSTALLATION.md](INSTALLATION.md) rather than assuming `.venv` already exists.
 
 ## Interfaces
 
-| Interface | URL |
+| Interface | Local URL |
 | --- | --- |
-| Service identity | `GET /` |
-| Liveness | `GET /health` |
-| Readiness | `GET /ready` |
-| Safe operations | `GET /operations/snapshot` |
-| OpenAPI | `GET /docs` |
-| MCP Streamable HTTP | `/mcp/` |
+| Service identity | `GET http://127.0.0.1:8000/` |
+| Liveness | `GET http://127.0.0.1:8000/health` |
+| Readiness | `GET http://127.0.0.1:8000/ready` |
+| Safe operations | `GET http://127.0.0.1:8000/operations/snapshot` |
+| OpenAPI | `http://127.0.0.1:8000/docs` |
+| MCP Streamable HTTP | `http://127.0.0.1:8000/mcp/` |
 | Streamlit dashboard | `http://127.0.0.1:8501` |
 
-Tool discovery returns the authoritative input and output schemas. See [API_GUIDE.md](API_GUIDE.md) and [USER_GUIDE.md](USER_GUIDE.md).
+## Validation evidence
 
-## Quality gates
+Release `v1.1.0` is commit `4d8d73bb3ffa63102c7059429f14b459eb668546`. The deterministic offline suite passes 123 tests. Ruff formatting/lint, dependency integrity, Compose parsing, local API/dashboard startup, MCP initialization, seven-tool discovery, safe representative execution, error handling, and repository integrity were validated.
+
+Live stock, website, and currency checks remain network-dependent. Live LLM calls remain configuration-dependent. These are not represented as successful executions.
 
 ```powershell
-python -m pip check
-python -m ruff format --check toolbridge tests scripts
-python -m ruff check toolbridge tests scripts
-python -m pytest tests
+.\.venv\Scripts\python.exe -m pip check
+.\.venv\Scripts\python.exe -m ruff format --check toolbridge tests scripts
+.\.venv\Scripts\python.exe -m ruff check toolbridge tests scripts
+.\.venv\Scripts\python.exe -m pytest tests
 docker compose config --quiet
 ```
 
-CI runs these gates on every push and pull request, starts the local API/dashboard, builds the image, starts the Compose stack, and verifies health, readiness, registrations, dashboard health, and safe monitoring output. Tagged releases also produce a compressed image artifact and SHA-256 file; CI does not deploy or publish automatically.
+CI runs dependency, formatting, lint, test, startup, image-build, Compose, and release-smoke gates. Tagged builds produce an image archive and SHA-256 artifact; CI does not publish or deploy it automatically.
 
-## Security boundary
+## Deployment and security boundary
 
-ToolBridge validates and bounds external input, never logs secrets/prompts/tool payloads, confines local data access, and runs containers non-root with a read-only root filesystem. It has no inbound authentication, authorization, tenants, or application rate limits. Do not expose it directly to public or untrusted networks. Review [SECURITY_GUIDELINES.md](SECURITY_GUIDELINES.md), [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md), and [PRODUCTION_CHECKLIST.md](PRODUCTION_CHECKLIST.md).
+The supported release profile is local or trusted single-host Docker Compose. Both host ports are published only on `127.0.0.1`; containers run non-root with read-only roots, bounded temporary storage, dropped Linux capabilities, and `no-new-privileges`.
 
-## Documentation
+ToolBridge has no inbound authentication, authorization, tenants, persistent audit backend, or application rate limits. It must not be exposed directly to a public or untrusted network. Metrics, health, budgets, caches, and recent logs are process-local and reset on restart. See [SECURITY_GUIDELINES.md](SECURITY_GUIDELINES.md), [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md), and [PRODUCTION_CHECKLIST.md](PRODUCTION_CHECKLIST.md).
 
-- Setup and operation: [INSTALLATION.md](INSTALLATION.md), [DEPLOYMENT.md](DEPLOYMENT.md), [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
-- Usage: [USER_GUIDE.md](USER_GUIDE.md), [API_GUIDE.md](API_GUIDE.md)
-- Engineering: [ARCHITECTURE.md](ARCHITECTURE.md), [CODING_STANDARDS.md](CODING_STANDARDS.md), [TESTING_STRATEGY.md](TESTING_STRATEGY.md), [CONTRIBUTING.md](CONTRIBUTING.md)
-- Governance: [PROJECT_RULES.md](PROJECT_RULES.md), [DECISIONS.md](DECISIONS.md), [ROADMAP.md](ROADMAP.md), [TASKS.md](TASKS.md)
-- Release: [RELEASE_NOTES_v1.0.0.md](RELEASE_NOTES_v1.0.0.md), [CHANGELOG.md](CHANGELOG.md), [PROJECT_STATUS.md](PROJECT_STATUS.md)
+## Portfolio and documentation
 
-The tagged `v1.0.0` release is synchronized with `origin/main`. The v1.1.0 provider-platform changes are intentionally uncommitted and unpushed pending owner approval.
+- Recruiter overview: [docs/PROJECT-SUMMARY.md](docs/PROJECT-SUMMARY.md)
+- Resume material and interview answers: [docs/RESUME.md](docs/RESUME.md)
+- Live demo sequence: [docs/DEMO.md](docs/DEMO.md)
+- HTTP and MCP examples: [docs/API-EXAMPLES.md](docs/API-EXAMPLES.md)
+- Screenshot checklist: [screenshots/README.md](screenshots/README.md)
+- Architecture: [ARCHITECTURE.md](ARCHITECTURE.md)
+- Setup and deployment: [INSTALLATION.md](INSTALLATION.md), [DEPLOYMENT.md](DEPLOYMENT.md), [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+- Usage and contracts: [USER_GUIDE.md](USER_GUIDE.md), [API_GUIDE.md](API_GUIDE.md)
+- Testing and status: [TESTING_STRATEGY.md](TESTING_STRATEGY.md), [PROJECT_STATUS.md](PROJECT_STATUS.md), [CHANGELOG.md](CHANGELOG.md)

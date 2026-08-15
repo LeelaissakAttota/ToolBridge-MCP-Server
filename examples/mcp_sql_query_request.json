@@ -1,0 +1,12 @@
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "method": "tools/call",
+  "params": {
+    "name": "sql_query",
+    "arguments": {
+      "query": "SELECT 1 AS value",
+      "parameters": {}
+    }
+  }
+}

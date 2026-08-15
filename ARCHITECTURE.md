@@ -151,7 +151,7 @@ Recent logs use a bounded `deque` with a configured capacity. Stored fields are 
 
 ## Configuration and trust boundaries
 
-Phase 6 settings use `TOOLBRIDGE_OPERATIONS__...`. Provider cost rates remain alongside each providerâ€™s typed settings. The dashboard API URL must be loopback and cannot contain credentials, query data, or fragments.
+Phase 6 settings use `TOOLBRIDGE_OPERATIONS__...`. Provider cost rates remain alongside each provider's typed settings. The dashboard API URL must be loopback and cannot contain credentials, query data, or fragments.
 
 MCP arguments, provider responses, website content, SQL, database values, file paths, CSV data, model output, environment variables, and external errors remain untrusted. Operational output explicitly excludes API keys, authorization headers, prompts, tool arguments/results, URLs, queries, SQL, parameters, paths, filenames, cells, content, provider bodies, and exception messages.
 
@@ -166,7 +166,7 @@ MCP arguments, provider responses, website content, SQL, database values, file p
 
 ## Phase boundary
 
-Phase 7 and tagged v1.0.0 are complete. The owner separately authorized the v1.1.0 Provider Plugin Platform scope; no other post-v1 feature is included.
+Phase 7, tagged v1.0.0, and the tagged v1.1.0 Provider Plugin Platform are complete. No other post-v1 feature is included.
 
 ## Phase 7 deployment architecture
 
