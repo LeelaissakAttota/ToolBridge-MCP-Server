@@ -9,7 +9,6 @@ from toolbridge.core.contracts import ErrorCode
 from toolbridge.operations.domain.models import SafeLogEntry, SafeLogLevel
 from toolbridge.providers.domain.models import (
     ProviderErrorCategory,
-    ProviderName,
     ProviderStatus,
 )
 from toolbridge.tools.domain.models import StockProviderName
@@ -45,13 +44,13 @@ class InMemoryOperationalMetrics:
         self,
         *,
         log_capacity: int,
-        provider_costs: dict[ProviderName, tuple[float, float]],
+        provider_costs: dict[str, tuple[float, float]],
     ) -> None:
         if log_capacity <= 0:
             raise ValueError("log capacity must be greater than zero")
         self._logs: deque[SafeLogEntry] = deque(maxlen=log_capacity)
         self._provider_costs = dict(provider_costs)
-        self._provider_usage: dict[ProviderName, _ProviderUsage] = {}
+        self._provider_usage: dict[str, _ProviderUsage] = {}
         self._error_categories: Counter[str] = Counter()
         self._lock = Lock()
 
@@ -114,7 +113,7 @@ class InMemoryOperationalMetrics:
     def record(
         self,
         *,
-        provider: ProviderName,
+        provider: str,
         latency_ms: float,
         status: ProviderStatus,
         request_id: str,
@@ -130,7 +129,7 @@ class InMemoryOperationalMetrics:
             level=(SafeLogLevel.INFO if error_category is None else SafeLogLevel.WARNING),
             source="provider",
             event="provider_request_completed",
-            component=provider.value,
+            component=str(provider),
             status=status.value,
             latency_ms=latency_ms,
             request_id=request_id,
@@ -152,7 +151,7 @@ class InMemoryOperationalMetrics:
             level=(SafeLogLevel.INFO if error_category is None else SafeLogLevel.WARNING),
             source="stock_provider",
             event="stock_provider_attempt_completed",
-            component=provider.value,
+            component=str(provider),
             status=status,
             latency_ms=latency_ms,
             request_id=operation_id,
@@ -162,7 +161,7 @@ class InMemoryOperationalMetrics:
     def record_generation(
         self,
         *,
-        provider: ProviderName,
+        provider: str,
         input_tokens: int,
         output_tokens: int,
         total_tokens: int,
@@ -197,7 +196,7 @@ class InMemoryOperationalMetrics:
             error_category=error_category,
         )
 
-    def provider_usage(self, provider: ProviderName) -> ProviderUsageValue:
+    def provider_usage(self, provider: str) -> ProviderUsageValue:
         """Return immutable provider usage and average timing."""
 
         with self._lock:
@@ -226,7 +225,7 @@ class InMemoryOperationalMetrics:
         with self._lock:
             return tuple(reversed(tuple(self._logs)[-limit:]))
 
-    def _provider_entry(self, provider: ProviderName) -> _ProviderUsage:
+    def _provider_entry(self, provider: str) -> _ProviderUsage:
         return self._provider_usage.setdefault(provider, _ProviderUsage())
 
     def _append(

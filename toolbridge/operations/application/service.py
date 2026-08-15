@@ -11,6 +11,7 @@ from toolbridge.operations.domain.models import (
     LifecycleState,
     MetricsSummary,
     OperationsSnapshot,
+    ProviderModelMonitor,
     ProviderMonitor,
     ReadinessCheck,
     ReadinessSnapshot,
@@ -18,7 +19,6 @@ from toolbridge.operations.domain.models import (
     ToolMonitor,
 )
 from toolbridge.providers.application.router import ProviderRouter
-from toolbridge.providers.domain.models import ProviderName
 from toolbridge.tools.application.manager import ToolManager
 from toolbridge.tools.domain.models import ToolHealthState, ToolStatusSnapshot
 
@@ -46,8 +46,8 @@ class OperationsService:
         provider_router: ProviderRouter,
         tool_manager: ToolManager,
         metrics: InMemoryOperationalMetrics,
-        provider_priority: tuple[ProviderName, ...],
-        enabled_providers: frozenset[ProviderName],
+        provider_priority: tuple[str, ...],
+        enabled_providers: frozenset[str],
         recent_log_limit: int,
         readiness_require_provider: bool,
         readiness_require_all_tools_healthy: bool,
@@ -156,7 +156,7 @@ class OperationsService:
                     name="active_provider",
                     ready=self._provider_router.active_provider is not None,
                     status=(
-                        self._provider_router.active_provider.value
+                        str(self._provider_router.active_provider)
                         if self._provider_router.active_provider is not None
                         else "unavailable"
                     ),
@@ -223,6 +223,7 @@ class OperationsService:
             ),
             readiness=readiness,
             providers=providers,
+            models=self._model_monitors(),
             tools=tools,
             metrics=MetricsSummary(
                 total_requests=total_requests,
@@ -245,26 +246,35 @@ class OperationsService:
         )
 
     def _provider_monitors(self) -> tuple[ProviderMonitor, ...]:
-        statuses = {item.provider: item for item in self._provider_router.provider_status()}
+        statuses = {str(item.provider): item for item in self._provider_router.provider_status()}
         active = self._provider_router.active_provider
         enabled_order = tuple(
-            name for name in self._provider_priority if name in self._enabled_providers
+            str(name) for name in self._provider_priority if str(name) in self._enabled_providers
         )
-        failover_active = active is not None and (
-            not enabled_order or active is not enabled_order[0]
-        )
+        failover_active = active is not None and (not enabled_order or active != enabled_order[0])
+        models = self._provider_router.discovered_models()
+        selection = self._provider_router.last_selection
         values: list[ProviderMonitor] = []
-        for priority, provider in enumerate(self._provider_priority, start=1):
+        for priority, raw_provider in enumerate(self._provider_priority, start=1):
+            provider = str(raw_provider)
             status = statuses.get(provider)
             usage = self._metrics.provider_usage(provider)
+            budget = self._provider_router.budget_status(provider)
+            discovery_ms, discovered_at = self._provider_router.discovery_metadata(provider)
+            cache_age = (
+                max(0.0, (datetime.now(UTC) - discovered_at).total_seconds())
+                if discovered_at is not None
+                else None
+            )
+            provider_models = tuple(item for item in models if item.provider == provider)
             values.append(
                 ProviderMonitor(
-                    provider=provider.value,
+                    provider=provider,
                     configured=provider in self._enabled_providers,
                     priority=priority,
                     status=status.status.value if status is not None else "disabled",
-                    active=provider is active,
-                    failover_active=failover_active and provider is active,
+                    active=provider == active,
+                    failover_active=failover_active and provider == active,
                     response_latency_ms=(
                         usage.average_latency_ms
                         if usage.average_latency_ms > 0
@@ -281,12 +291,59 @@ class OperationsService:
                         if status is not None and status.last_error_category is not None
                         else None
                     ),
-                    requests=usage.requests,
+                    requests=max(usage.requests, status.requests if status else 0),
+                    errors=status.errors if status else 0,
+                    retries=status.retries if status else 0,
+                    success_rate=status.success_rate if status else 1.0,
+                    health_score=status.health_score if status else 0.0,
+                    available=(
+                        status is not None and status.status.value not in {"unavailable", "closed"}
+                    ),
+                    capabilities=self._provider_router.provider_capabilities(provider).enabled(),
+                    model_count=len(provider_models),
+                    active_model=(
+                        self._provider_router.active_model if provider == active else None
+                    ),
+                    selection_reason=(
+                        selection.reason
+                        if selection is not None and selection.provider == provider
+                        else None
+                    ),
+                    model_cache_age_seconds=(
+                        round(cache_age, 3) if cache_age is not None else None
+                    ),
+                    model_discovery_time_ms=discovery_ms,
+                    daily_budget_usd=budget.daily_limit_usd,
+                    monthly_budget_usd=budget.monthly_limit_usd,
+                    per_request_budget_usd=budget.per_request_limit_usd,
+                    daily_cost_usd=budget.daily_spend_usd,
+                    monthly_cost_usd=budget.monthly_spend_usd,
+                    soft_limit_reached=budget.soft_limit_reached,
+                    hard_limit_reached=budget.hard_limit_reached,
                     total_tokens=usage.total_tokens,
                     estimated_cost_usd=usage.estimated_cost_usd,
                 )
             )
         return tuple(values)
+
+    def _model_monitors(self) -> tuple[ProviderModelMonitor, ...]:
+        return tuple(
+            ProviderModelMonitor(
+                provider=item.provider,
+                model=item.id,
+                capabilities=item.capabilities.enabled(),
+                available=item.available,
+                is_free=item.is_free,
+                context_window=item.context_window,
+                input_cost_per_million_tokens_usd=(item.input_cost_per_million_tokens_usd),
+                output_cost_per_million_tokens_usd=(item.output_cost_per_million_tokens_usd),
+                latency_ms=item.latency_ms,
+                health_score=item.health_score,
+                reasoning_quality=item.reasoning_quality,
+                discovered_at=item.discovered_at,
+            )
+            for item in self._provider_router.discovered_models()
+        )
 
     def _tool_monitors(
         self,

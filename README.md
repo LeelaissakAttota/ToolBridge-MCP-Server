@@ -1,16 +1,17 @@
 # ToolBridge MCP Server
 
-ToolBridge is a production-oriented Model Context Protocol server that exposes seven validated tools, routes LLM work across three replaceable providers, and provides a read-only operational dashboard.
+ToolBridge is a production-oriented Model Context Protocol server that exposes seven validated tools, discovers self-registering LLM provider plugins, selects models by capability/health/cost, and provides a read-only operational dashboard.
 
-**Release:** `1.0.0`
-**Phase:** Phase 7 - Deployment & v1.0.0 Release prepared; awaiting owner approval
+**Release:** `1.1.0` working tree (`v1.0.0` latest tag)
+**Phase:** Post-v1 Provider Plugin Platform complete; awaiting owner approval
 **Runtime:** Python 3.12
 **Transport:** MCP Streamable HTTP
 
 ## What is included
 
 - strict MCP tool discovery, request/response validation, execution timeouts, normalized errors, and structured logging
-- Cerebras -> NVIDIA -> OpenRouter provider priority with bounded retry, failover, health, latency, usage, and normalized responses
+- self-registering provider plugins with automatic discovery; Cerebras, NVIDIA, and OpenRouter are built in, not hardcoded router cases
+- capability-aware model discovery/ranking, optional explicit priority, bounded retries/failover, health scoring, and daily/monthly/per-request budgets
 - reusable tool lifecycle with automatic registry integration, validation, timing, health, metrics, and safe logging
 - Stock Price, Website Reader, SQL Query, CSV Analysis, Currency Converter, HCL Curie Analysis, and System Status tools
 - FastAPI liveness, readiness, operations snapshot, OpenAPI, and graceful lifespan shutdown
@@ -27,7 +28,7 @@ flowchart LR
     A --> R["Tool Registry + Executor"]
     A --> P["Provider Router"]
     R --> T["Seven managed tools"]
-    P --> L["Cerebras / NVIDIA / OpenRouter adapters"]
+    P --> L["Self-registering provider plugins"]
     O["Streamlit dashboard"] --> S["Safe operations snapshot"]
     S --> A
 ```
@@ -59,7 +60,9 @@ Run the dashboard in another terminal:
 python -m streamlit run toolbridge/dashboard/app.py --server.address 127.0.0.1 --server.port 8501
 ```
 
-Providers are disabled by default. To enable one, set its `ENABLED`, `API_KEY`, and `DEFAULT_MODEL` values in the ignored `.env` file. Never commit credentials.
+Providers are disabled by default. To enable one, set its `ENABLED`, `API_KEY`, and `DEFAULT_MODEL` values in the ignored `.env` file. Leave `TOOLBRIDGE_PROVIDER_PRIORITY` empty for dynamic model ranking, or provide a comma-separated explicit order. Never commit credentials.
+
+A new provider is added by creating one adapter module that implements `BaseProvider`, calling `register_provider()`, and supplying typed settings (including its API key). The router, MCP Core, and tool APIs do not change.
 
 ## Interfaces
 
@@ -99,4 +102,4 @@ ToolBridge validates and bounds external input, never logs secrets/prompts/tool 
 - Governance: [PROJECT_RULES.md](PROJECT_RULES.md), [DECISIONS.md](DECISIONS.md), [ROADMAP.md](ROADMAP.md), [TASKS.md](TASKS.md)
 - Release: [RELEASE_NOTES_v1.0.0.md](RELEASE_NOTES_v1.0.0.md), [CHANGELOG.md](CHANGELOG.md), [PROJECT_STATUS.md](PROJECT_STATUS.md)
 
-Phase 7 changes are prepared but intentionally uncommitted and unpushed pending owner approval. Suggested tag: `v1.0.0`.
+The tagged `v1.0.0` release is synchronized with `origin/main`. The v1.1.0 provider-platform changes are intentionally uncommitted and unpushed pending owner approval.

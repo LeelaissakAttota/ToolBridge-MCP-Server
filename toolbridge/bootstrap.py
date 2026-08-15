@@ -5,10 +5,7 @@ from dataclasses import dataclass
 from toolbridge import __version__
 from toolbridge.config import Settings
 from toolbridge.core.executor import ToolExecutor
-from toolbridge.core.ports import (
-    CompositeExecutionEventLogger,
-    ExecutionEventLogger,
-)
+from toolbridge.core.ports import CompositeExecutionEventLogger, ExecutionEventLogger
 from toolbridge.core.registry import ToolRegistry
 from toolbridge.core.validation import RequestValidator, ResponseValidator
 from toolbridge.operations.application.metrics import InMemoryOperationalMetrics
@@ -18,8 +15,10 @@ from toolbridge.providers.application.ports import (
     ProviderEventLogger,
 )
 from toolbridge.providers.application.router import ProviderRouter
-from toolbridge.providers.domain.models import ProviderName
-from toolbridge.providers.infrastructure.factory import build_provider_router
+from toolbridge.providers.infrastructure.factory import (
+    build_provider_router,
+    configured_provider_settings,
+)
 from toolbridge.tools.application.manager import ToolManager
 from toolbridge.tools.application.metrics import InMemoryToolMetrics
 from toolbridge.tools.application.ports import (
@@ -51,19 +50,13 @@ def build_core_runtime(
 
     registry = ToolRegistry()
     metrics = InMemoryToolMetrics()
+    configurations = configured_provider_settings(settings)
     provider_costs = {
-        ProviderName.CEREBRAS: (
-            settings.cerebras.input_cost_per_million_tokens_usd,
-            settings.cerebras.output_cost_per_million_tokens_usd,
-        ),
-        ProviderName.NVIDIA: (
-            settings.nvidia.input_cost_per_million_tokens_usd,
-            settings.nvidia.output_cost_per_million_tokens_usd,
-        ),
-        ProviderName.OPENROUTER: (
-            settings.openrouter.input_cost_per_million_tokens_usd,
-            settings.openrouter.output_cost_per_million_tokens_usd,
-        ),
+        name: (
+            configured.input_cost_per_million_tokens_usd,
+            configured.output_cost_per_million_tokens_usd,
+        )
+        for name, configured in configurations.items()
     }
     operational_metrics = InMemoryOperationalMetrics(
         log_capacity=settings.operations.log_capacity,
@@ -94,15 +87,6 @@ def build_core_runtime(
         response_validator=ResponseValidator(settings.max_response_bytes),
         event_logger=observers,
     )
-    enabled_providers = frozenset(
-        name
-        for name, configured in {
-            ProviderName.CEREBRAS: settings.cerebras,
-            ProviderName.NVIDIA: settings.nvidia,
-            ProviderName.OPENROUTER: settings.openrouter,
-        }.items()
-        if configured.enabled
-    )
     operations = OperationsService(
         version=__version__,
         environment=settings.environment,
@@ -111,8 +95,10 @@ def build_core_runtime(
         provider_router=provider_router,
         tool_manager=tool_manager,
         metrics=operational_metrics,
-        provider_priority=settings.provider_priority_order,
-        enabled_providers=enabled_providers,
+        provider_priority=(
+            settings.provider_priority_order or provider_router.installed_providers
+        ),
+        enabled_providers=provider_router.enabled_providers,
         recent_log_limit=settings.operations.recent_log_limit,
         readiness_require_provider=settings.operations.readiness_require_provider,
         readiness_require_all_tools_healthy=(

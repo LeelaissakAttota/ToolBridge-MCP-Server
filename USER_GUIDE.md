@@ -26,7 +26,9 @@ The client can discover schemas with `tools/list` and invoke a tool with `tools/
 
 ## Configure LLM providers
 
-Priority is Cerebras, NVIDIA, then OpenRouter by default. In `.env`, enable only approved providers and set the matching key and model. The router retries bounded failures and moves to the next configured provider when appropriate.
+Cerebras, NVIDIA, and OpenRouter are built-in self-registering plugins. In `.env`, enable only approved providers and set the matching key and model. Leave provider priority empty for dynamic capability/health/latency/cost ranking, or configure a comma-separated preference. The router retries bounded failures, enforces configured budgets, and fails over when appropriate.
+
+Future providers use `TOOLBRIDGE_PROVIDERS__<ID>__...` configuration and one self-registering adapter module; MCP tools and router code do not change.
 
 Provider prompts, credentials, and results never appear in operational logs or the dashboard.
 
@@ -35,7 +37,7 @@ Provider prompts, credentials, and results never appear in operational logs or t
 Open `http://127.0.0.1:8501` to view:
 
 - version, uptime, lifecycle, and readiness
-- provider configuration, health, failover, latency, usage, and estimated cost
+- provider/model discovery, capabilities, selection reason, health, failover, latency, success/errors, budgets, usage, and estimated cost
 - tool registration, health, executions, timing, and last execution
 - aggregate request/error metrics
 - bounded safe logs

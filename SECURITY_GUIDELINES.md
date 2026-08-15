@@ -2,7 +2,7 @@
 
 ## Current security posture
 
-Version `1.0.0` is packaged for a hardened loopback-only single-host deployment. It exposes seven read-only MCP tools plus a read-only monitoring dashboard, but it has no inbound authentication, authorization, tenant separation, application rate limiting, persistent audit trail, or approved production data contracts. Keep API and dashboard publication on loopback; do not expose either directly to an untrusted network.
+Version `1.1.0` builds on the packaged v1.0.0 deployment and is for a hardened loopback-only single-host deployment. It exposes seven read-only MCP tools plus a read-only monitoring dashboard, but it has no inbound authentication, authorization, tenant separation, application rate limiting, persistent audit trail, or approved production data contracts. Keep API and dashboard publication on loopback; do not expose either directly to an untrusted network.
 
 All Phase 2-5 validation, timeout, cancellation, secret, provider, tool, SSRF, SQL, filesystem, and logging controls remain in force.
 
@@ -61,6 +61,17 @@ Treat MCP arguments, URLs, DNS, website content, SQL, parameters, SQLite values,
 - bounded in-memory logs are diagnostic, not tamper-evident audit evidence.
 - multi-worker/process deployments would fragment metrics and must not sum them without a designed backend.
 
+## Provider plugin, discovery, and budget controls
+
+- Treat provider adapter modules as trusted executable dependencies; review provenance and source before installation.
+- Plugin identifiers are bounded and validated. Router/factory code never interprets a provider name through a vendor switch.
+- API keys remain `SecretStr`, are required only for enabled providers, and are unwrapped only at outbound adapter construction.
+- Enabled-provider startup health/model requests use configured HTTPS origins, paths, timeouts, response bounds, and normalized errors.
+- Model metadata and prices are untrusted provider/operator inputs and are validated before routing or display.
+- Capability requirements are hard filters; unsupported tasks are not silently routed to an incompatible model.
+- Budget values are estimates. Process-local hard limits reduce accidental spend but are not an authoritative distributed billing control.
+- Logs/metrics may contain only provider ID, request ID, status, latency, and normalized error category; never prompts, outputs, model payloads, headers, endpoints, or credentials.
+- Dashboard provider/model tables remain read-only and display only normalized allowlisted fields.
 ## Existing tool controls
 
 ### Website Reader
@@ -97,7 +108,7 @@ Review sources, destinations, permissions, side effects, tenants, limits, cancel
 
 ## Phase gate
 
-Phase 7 deployment and v1.0.0 release preparation are complete. No post-v1 security architecture or public exposure is approved.
+The v1.0.0 release is tagged and synchronized. The approved v1.1.0 provider plugin scope does not authorize public exposure, inbound identity, or other post-v1 security architecture.
 
 ## v1.0.0 deployment controls
 

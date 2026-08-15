@@ -3,6 +3,7 @@
 import json
 from collections.abc import AsyncIterator, Mapping
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from time import perf_counter
 from typing import Any
 from uuid import uuid4
@@ -16,10 +17,10 @@ from toolbridge.providers.domain.models import (
     GenerationChunk,
     GenerationRequest,
     GenerationResponse,
+    ProviderCapabilities,
     ProviderErrorCategory,
     ProviderHealthCheck,
     ProviderModel,
-    ProviderName,
     TokenUsage,
 )
 
@@ -37,6 +38,47 @@ class OpenAICompatibleConfig:
     max_prompt_bytes: int
     models_path: str
     chat_completions_path: str
+    capabilities: ProviderCapabilities = field(
+        default_factory=lambda: ProviderCapabilities(chat=True, streaming=True)
+    )
+    is_free: bool = False
+    input_cost_per_million_tokens_usd: float = 0.0
+    output_cost_per_million_tokens_usd: float = 0.0
+    context_window: int | None = None
+    reasoning_quality: float = 0.5
+
+    @classmethod
+    def from_settings(cls, settings: object) -> "OpenAICompatibleConfig":
+        """Build at the credential-unwrapping infrastructure boundary."""
+
+        api_key = getattr(settings, "api_key", None)
+        default_model = getattr(settings, "default_model", None)
+        if api_key is None or default_model is None:
+            raise ValueError("enabled provider configuration is incomplete")
+        return cls(
+            base_url=str(getattr(settings, "base_url")),
+            api_key=api_key.get_secret_value(),
+            default_model=default_model,
+            timeout_seconds=getattr(settings, "timeout_seconds"),
+            max_tokens=getattr(settings, "max_tokens"),
+            temperature=getattr(settings, "temperature"),
+            max_prompt_bytes=getattr(settings, "max_prompt_bytes"),
+            models_path=getattr(settings, "models_path"),
+            chat_completions_path=getattr(settings, "chat_completions_path"),
+            capabilities=(
+                getattr(settings, "capabilities")
+                or ProviderCapabilities(chat=True, streaming=True)
+            ),
+            is_free=getattr(settings, "is_free"),
+            input_cost_per_million_tokens_usd=getattr(
+                settings, "input_cost_per_million_tokens_usd"
+            ),
+            output_cost_per_million_tokens_usd=getattr(
+                settings, "output_cost_per_million_tokens_usd"
+            ),
+            context_window=getattr(settings, "context_window"),
+            reasoning_quality=getattr(settings, "reasoning_quality"),
+        )
 
     def __post_init__(self) -> None:
         if not self.base_url.startswith("https://"):
@@ -60,7 +102,7 @@ class OpenAICompatibleProvider(BaseProvider):
 
     def __init__(
         self,
-        name: ProviderName,
+        name: str,
         config: OpenAICompatibleConfig,
         *,
         extra_headers: Mapping[str, str] | None = None,
@@ -73,7 +115,13 @@ class OpenAICompatibleProvider(BaseProvider):
         self._client: httpx.AsyncClient | None = None
 
     @property
-    def name(self) -> ProviderName:
+    def capabilities(self) -> ProviderCapabilities:
+        """Return configured normalized capabilities."""
+
+        return self._config.capabilities
+
+    @property
+    def name(self) -> str:
         """Return the stable provider identifier."""
 
         return self._name
@@ -114,7 +162,21 @@ class OpenAICompatibleProvider(BaseProvider):
             if not isinstance(data, list):
                 raise TypeError
             models = tuple(
-                ProviderModel(id=item["id"], provider=self.name)
+                ProviderModel(
+                    id=item["id"],
+                    provider=self.name,
+                    capabilities=self._config.capabilities,
+                    is_free=self._config.is_free,
+                    input_cost_per_million_tokens_usd=(
+                        self._config.input_cost_per_million_tokens_usd
+                    ),
+                    output_cost_per_million_tokens_usd=(
+                        self._config.output_cost_per_million_tokens_usd
+                    ),
+                    context_window=self._config.context_window,
+                    reasoning_quality=self._config.reasoning_quality,
+                    discovered_at=datetime.now(UTC),
+                )
                 for item in data
                 if isinstance(item, dict) and isinstance(item.get("id"), str)
             )

@@ -1,6 +1,6 @@
 # Installation
 
-ToolBridge v1.0.0 supports Python 3.12 and Docker. Use a local Python environment for development or Docker Compose for an isolated release runtime.
+ToolBridge v1.1.0 supports Python 3.12 and Docker. Use a local Python environment for development or Docker Compose for an isolated release runtime.
 
 ## Prerequisites
 

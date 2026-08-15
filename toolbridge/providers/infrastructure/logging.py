@@ -7,7 +7,6 @@ from typing import Any
 
 from toolbridge.providers.domain.models import (
     ProviderErrorCategory,
-    ProviderName,
     ProviderStatus,
 )
 
@@ -44,7 +43,7 @@ class StructuredProviderEventLogger:
     def record(
         self,
         *,
-        provider: ProviderName,
+        provider: str,
         latency_ms: float,
         status: ProviderStatus,
         request_id: str,
@@ -57,7 +56,7 @@ class StructuredProviderEventLogger:
             level,
             "provider_event",
             extra={
-                "provider": provider.value,
+                "provider": str(provider),
                 "latency_ms": latency_ms,
                 "status": status.value,
                 "request_id": request_id,

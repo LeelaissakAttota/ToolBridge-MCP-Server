@@ -4,54 +4,39 @@
 
 | Field | Current status |
 | --- | --- |
-| **Current Version** | `1.0.0` |
-| **Current Phase** | Phase 7 - Deployment & v1.0.0 Release complete; awaiting project-owner approval |
-| **Completion Percentage** | **100% of the approved seven-phase roadmap** |
-| **Tests Passed** | **114 of 114** automated tests passing as of 2026-08-06; final release validation evidence below |
+| **Current Version** | `1.1.0` (working tree; `v1.0.0` remains the latest Git tag) |
+| **Current Phase** | Post-v1 Provider Plugin Platform complete and validated; awaiting owner approval |
+| **Completion Percentage** | **100% of the approved provider-platform scope implemented and validated** |
+| **Tests Passed** | **123 of 123** automated tests passing; 0 failed |
 | **Current Branch** | `main` |
-| **Repository** | Initialized Git repository with GitHub remote `origin` configured |
-| **Synchronization** | `origin/main` contains the accepted Phase 6 commit; Phase 7 release changes are intentionally uncommitted and unpushed |
-| **Next Milestone** | Owner approval, reviewed commit, and annotated `v1.0.0` tag; no post-v1 work without separate approval |
-| **Known Issues** | See the summary below and `KNOWN_LIMITATIONS.md` |
+| **Repository** | Initialized; GitHub `origin` configured at `git@github.com:LeelaissakAttota/ToolBridge-MCP-Server.git` |
+| **Synchronization** | `main` matches `origin/main` at tagged release `v1.0.0`; v1.1.0 changes are intentionally uncommitted and unpushed |
+| **Next Milestone** | Owner review and approval of the v1.1.0 provider plugin platform |
+| **Known Issues** | One dependency-owned `StarletteDeprecationWarning`; process-local budgets/metrics reset on restart; see `KNOWN_LIMITATIONS.md` |
 | **Last Updated** | 2026-08-06 (Asia/Calcutta) |
 
-## Release validation
+## v1.1.0 provider platform
 
-- runtime dependencies: `pip check` passes
-- formatting: Ruff format check passes
-- static checks: Ruff lint passes
-- automated suite: 114 passed, 0 failed
-- API startup: service version, health, readiness, three providers, seven tools, and safe operations snapshot verified
-- dashboard startup: Streamlit health endpoint verified
-- Compose configuration: valid
-- Docker image/stack: build passed; API and dashboard containers became healthy; MCP discovery, health, readiness, registrations, dashboard HTML, and safe monitoring verification passed
-- secrets: release verifier rejects secret/prompt/payload-bearing monitoring keys; environment files are excluded from image and Git
+- Provider adapters self-register through `register_provider()` and are discovered from the adapter package; router/factory code contains no provider-name switch.
+- Built-in Cerebras, NVIDIA, and OpenRouter adapters remain compatible, while a new provider requires only an adapter module, registration metadata, typed configuration, and its API key.
+- Startup initializes, health-checks, and discovers models for each enabled provider. Disabled providers perform no network work.
+- The runtime model catalog records provider, capabilities, cost, context window, availability, health, latency, reasoning quality, and discovery time.
+- Requests may declare a task and required capabilities. Dynamic routing ranks eligible models by availability, health, latency, configured cost/free status, reasoning quality, and context; an optional explicit priority remains supported.
+- Per-provider daily, monthly, and per-request limits support soft deprioritization and hard routing exclusion/failover.
+- Health telemetry records success rate, average latency, errors, retries, availability, and last success/failure. Health checks permit automatic recovery.
+- The read-only dashboard now exposes provider/model catalogs, capabilities, active selection and reason, health, latency, request/error/success data, discovery/cache age, and budget/cost state.
 
-## Completed in Phase 7
+## Compatibility and security
 
-- Python 3.12 multi-stage non-root Dockerfile with healthcheck and minimal runtime dependencies
-- loopback-only, hardened API/dashboard Compose services with persistent data volume
-- runtime/development dependency split and pinned Ruff quality tooling
-- GitHub Actions checks for dependencies, formatting, lint, tests, startup, image build, Compose smoke, and tagged artifacts
-- release verifier for API, readiness, registration, dashboard health, and monitoring-key safety
-- v1.0.0 version promotion and release/operator documentation
-- complete release checklist, limitations, notes, installation, deployment, usage, API, contribution, and troubleshooting guides
+- All seven MCP tools, MCP Core contracts, existing HTTP paths, and built-in provider imports remain compatible.
+- The router remains FastAPI-independent and adapters remain replaceable behind project-owned ports.
+- API keys are unwrapped only at adapter construction. Prompts, generated content, secrets, and provider response bodies remain excluded from logs and monitoring.
+- Provider settings and budget values are environment-driven; there are no hardcoded credentials or provider prices.
 
-## Known issues
+## Validation targets
 
-1. No inbound authentication, authorization, tenants, or application rate limits; direct public exposure is unsupported.
-2. Metrics, logs, usage, uptime, and caches are process-local and reset on restart.
-3. Website destination checks retain DNS-rebinding residual risk; sensitive deployments require allowlist and outbound firewall.
-4. SQL runtime support is SQLite-only; PostgreSQL is architecture-ready but not implemented.
-5. External provider contracts, cost, privacy, licensing, quota, and availability remain operator responsibilities.
-6. One dependency-owned `StarletteDeprecationWarning` remains: Starlette `1.4.1` TestClient falls back to compatible `httpx==0.28.1` because optional `httpx2` is absent. It is not suppressed or patched and has no observed functional impact.
-7. CI validates and produces tagged image artifacts but intentionally does not publish or deploy them.
-
-## Status basis
-
-- version: `toolbridge/__init__.py`
-- phase and milestone: `ROADMAP.md` and `TASKS.md`
-- tests: `python -m pytest tests`
-- quality: `python -m ruff format --check ...`, `python -m ruff check ...`, and `python -m pip check`
-- deployment: `Dockerfile`, `docker-compose.yml`, workflow, and `scripts/verify_release.py`
-- branch/synchronization: Git status, HEAD, tracking, and remote state
+- dependency integrity: `pip check`
+- formatting and static checks: Ruff
+- automated suite: 123 unit, integration, API/MCP, dashboard, and startup tests
+- local service: health, readiness, operations snapshot, and Streamlit dashboard
+- known non-failing warning: dependency-owned Starlette TestClient/httpx migration warning

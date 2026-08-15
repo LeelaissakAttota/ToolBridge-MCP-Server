@@ -304,3 +304,43 @@ The following require proposals before implementation:
 - **Context:** Local operators and CI need one portable check for version, liveness, readiness, registrations, dashboard health, and operational secret-safety.
 - **Decision:** Add a bounded retrying script using `urllib`, strict expected tool/provider sets, and recursive forbidden monitoring-key checks. It performs only read requests.
 - **Consequences:** The verifier runs without extra host dependencies and catches composition leaks. It verifies safe key names, not arbitrary secret values, and complements rather than replaces code review and secret scanning.
+
+## D-036 - Provider adapters self-register into a discovered plugin catalog
+
+- **Date:** 2026-08-06
+- **Status:** Accepted for v1.1.0
+- **Context:** The fixed provider enum and factory switch required central router/composition edits for every new vendor, conflicting with the approved unlimited-provider architecture.
+- **Decision:** Each adapter module calls `register_provider()` with its identifier, construction factory, default capabilities, and optional legacy settings attribute. Infrastructure imports adapter-package modules through package discovery and builds enabled registrations from the catalog. Runtime identifiers are validated strings; `ProviderName` remains only a built-in compatibility convenience.
+- **Consequences:** A provider can be added with one adapter module plus typed settings/API key and no router, MCP Core, tool, FastAPI, or dashboard edit. Adapter modules are trusted application code and are imported at startup; plugin installation therefore requires the same code-review and supply-chain controls as any dependency.
+
+## D-037 - Model discovery and capability-aware ranking replace fixed-provider selection
+
+- **Date:** 2026-08-06
+- **Status:** Accepted for v1.1.0
+- **Context:** Provider identity alone cannot select safely among chat, reasoning, streaming, embedding, multimodal, tool-use, long-context, search, or code models, and a fixed three-provider priority cannot adapt to availability, latency, price, or quality.
+- **Decision:** Every provider exposes `discover_models()` through the base port. Cache normalized model metadata and filter by request task/required capabilities before deterministic scoring by provider health, latency, configured price/free status, reasoning quality, and context window. Empty priority enables dynamic ranking; configured priority adds a deterministic preference without adding provider-name branches.
+- **Consequences:** Existing generation callers remain valid because new routing hints have defaults. Capability metadata describes routability; provider-native embeddings/image/audio/tool-call payload contracts are not invented by this change. Model catalogs are startup snapshots until the process is restarted or a future refresh scheduler is approved.
+
+## D-038 - Provider budgets are process-local routing safety limits
+
+- **Date:** 2026-08-06
+- **Status:** Accepted for v1.1.0
+- **Context:** Provider failover without budget controls can exceed operator limits, while provider prices and organizational policies vary and must not be hardcoded.
+- **Decision:** Configure per-provider daily, monthly, and per-request USD limits plus a soft-limit ratio. Estimate a candidate request from discovered model prices and token bounds; deprioritize soft-limited providers, exclude hard-limited candidates, and fail over. Record normalized successful token cost into a thread-safe process-local ledger.
+- **Consequences:** Zero/absent prices produce zero estimates and values remain estimates rather than billing truth. Limits reset on process restart and do not coordinate workers, so durable organization-wide enforcement requires a shared authoritative ledger before distributed production use.
+
+## D-039 - Enabled providers validate health and models during startup
+
+- **Date:** 2026-08-06
+- **Status:** Accepted for v1.1.0
+- **Context:** Routing should not select a provider whose key, endpoint, model catalog, or required capability is invalid, and the dashboard requires discovery time/cache age.
+- **Decision:** For every enabled plugin, create the adapter, run its health check, fetch models/capabilities, normalize/cache metadata, and mark failures unavailable without exposing vendor details. Disabled providers remain network-free. Later health checks probe all enabled providers so recovered providers can return to ranking.
+- **Consequences:** Enabling a provider makes startup dependent on a bounded provider request and may delay readiness by its configured timeout/retries. Default startup remains offline because all providers are disabled. Operators requiring an active provider may enable the existing readiness gate.
+
+## D-040 - Provider/model observability remains a read-only safe projection
+
+- **Date:** 2026-08-06
+- **Status:** Accepted for v1.1.0
+- **Context:** Operators need model, capability, selection, health, latency, budget, cost, error, and discovery data without making the dashboard an execution/configuration surface or leaking prompts/secrets.
+- **Decision:** Extend strict operations models with allowlisted provider/model metadata and render them in the existing read-only Streamlit tab. Expose active provider/model, selection reason, availability, health score, requests/errors/retries/success rate, cost/budget state, and discovery/cache timing. Continue excluding payloads, content, endpoints, headers, and credentials.
+- **Consequences:** Existing operations clients must tolerate the additive `models` field and additive provider fields. The dashboard performs no provider call and all operational state remains process-local and non-authoritative.

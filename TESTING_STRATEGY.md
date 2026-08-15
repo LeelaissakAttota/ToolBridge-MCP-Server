@@ -33,10 +33,10 @@ For release validation after starting the stack:
 python scripts/verify_release.py --timeout-seconds 90
 ```
 
-## Current v1.0.0 result
+## Current v1.1.0 result
 
-- total: 114 automated test cases
-- passed: 114
+- total: 123 automated test cases
+- passed: 123
 - failed: 0
 - warnings: one non-failing dependency-owned `StarletteDeprecationWarning`
 - dependency integrity: passed
@@ -46,6 +46,8 @@ python scripts/verify_release.py --timeout-seconds 90
 - Docker image and Compose stack: build/start/health/release smoke passed locally
 
 The validated Linux/amd64 image is approximately 199.3 MB. GitHub Actions repeats the image build and stack smoke on every push.
+
+The v1.1.0 provider-platform tests cover arbitrary plugin registration, package discovery, generic configuration, capability filtering, dynamic free/paid and health ranking, per-request/daily limits, smart routing, budget failover, and startup health/model discovery.
 
 ## Live contract tests
 

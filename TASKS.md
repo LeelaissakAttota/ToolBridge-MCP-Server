@@ -1,5 +1,28 @@
 # Tasks
 
+## v1.1.0 - Provider Plugin Platform
+
+- [x] Replace centralized provider construction with self-registering adapter plugins and automatic discovery.
+- [x] Preserve built-in Cerebras, NVIDIA, and OpenRouter compatibility.
+- [x] Add generic typed provider configuration and optional dynamic priority.
+- [x] Add normalized capability and rich model-discovery metadata.
+- [x] Add capability/task filtering and health/latency/cost/quality/context ranking.
+- [x] Add daily, monthly, and per-request budgets with soft/hard behavior.
+- [x] Add health scoring, retries/errors/success/latency telemetry, and recovery.
+- [x] Extend the read-only operations snapshot and Streamlit provider/model dashboard.
+- [x] Add nine focused plugin-platform tests.
+- [x] Preserve MCP Core, all seven tool contracts, HTTP paths, and deployment architecture.
+- [x] Synchronize project documentation.
+- [x] Complete dependency, Ruff, 123-test, startup, API/readiness, Docker, and dashboard validation.
+- [ ] Owner review and approval.
+- [ ] After approval only: commit and push v1.1.0 changes.
+
+## v1.0.0 release status
+
+- [x] Owner approved Phase 7.
+- [x] Commit `86cc575` created on `main`.
+- [x] Annotated tag `v1.0.0` created and pushed with `main` to `origin`.
+
 ## Phase 7 - Deployment & v1.0.0 Release
 
 ### Docker and Compose
@@ -28,7 +51,7 @@
 - [x] Verify provider slots initialize safely when disabled by default.
 - [x] Verify all seven tools register without live external requests.
 - [x] Run dependency, formatting, lint, unit, integration/API, dashboard, and startup checks.
-- [ ] Owner reviews local Docker engine validation evidence and Phase 7 report.
+- [x] Owner reviewed and approved Phase 7; release commit/tag were pushed.
 
 ### Documentation and release
 
@@ -40,6 +63,6 @@
 
 ## Approval gate
 
-- [ ] Project owner approves Phase 7.
-- [ ] After approval only: create reviewed commit and tag through the documented Git workflow.
-- [ ] No post-v1 implementation without a new explicit scope.
+- [x] Project owner approved Phase 7.
+- [x] Reviewed Phase 7 commit and tag were created and pushed.
+- [x] Provider Plugin Platform was separately authorized as an explicit post-v1 scope.

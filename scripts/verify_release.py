@@ -105,8 +105,8 @@ def validate_api(api_url: str, timeout_seconds: float) -> None:
         timeout_seconds,
     )
 
-    if service.get("version") != "1.0.0":
-        raise RuntimeError("service version is not 1.0.0")
+    if service.get("version") != "1.1.0":
+        raise RuntimeError("service version is not 1.1.0")
     if health.get("status") != "ok":
         raise RuntimeError("health endpoint did not report OK")
     if readiness.get("ready") is not True or readiness.get("status") != "ready":
@@ -122,7 +122,7 @@ def validate_api(api_url: str, timeout_seconds: float) -> None:
     provider_names = {item.get("provider") for item in snapshot.get("providers", [])}
     if tool_names != EXPECTED_TOOLS:
         raise RuntimeError(f"registered tool set is incomplete: {sorted(tool_names)}")
-    if provider_names != EXPECTED_PROVIDERS:
+    if not EXPECTED_PROVIDERS.issubset(provider_names):
         raise RuntimeError(f"provider set is incomplete: {sorted(provider_names)}")
 
     forbidden = find_forbidden_keys(snapshot)
@@ -190,7 +190,7 @@ def main() -> int:
     except RuntimeError as error:
         print(f"release verification failed: {error}", file=sys.stderr)
         return 1
-    print("ToolBridge v1.0.0 release verification passed.")
+    print("ToolBridge v1.1.0 release verification passed.")
     return 0
 
 
