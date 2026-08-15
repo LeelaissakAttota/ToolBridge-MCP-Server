@@ -15,6 +15,8 @@ Show a recruiter or engineering interviewer that ToolBridge:
 - publishes secret-safe operational state to a read-only Streamlit dashboard
 - discovers provider plugins and supports ranking, health, budget, retry, and failover policy without requiring live credentials for the demonstration
 
+For a static preview of the verified local UI and interfaces, see the [genuine screenshot gallery](../screenshots/README.md).
+
 ## Prerequisites
 
 - Windows PowerShell from the repository root
@@ -196,4 +198,3 @@ Do not make Docker startup a prerequisite for a short recruiter demo. The verifi
 - There is no inbound authentication; the supported deployment is loopback/local or behind a separately reviewed trusted boundary.
 - Metrics, recent logs, health scores, caches, and provider budgets are process-local and reset when the API process restarts.
 - Cost values are estimates based on configured rates and normalized usage, not authoritative billing records.
-

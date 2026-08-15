@@ -48,6 +48,20 @@ flowchart TB
 
 Dependencies point inward: Domain <- Application <- Adapters <- Infrastructure. FastAPI, FastMCP, Streamlit, HTTP clients, SQLite, files, and vendor APIs remain replaceable outer concerns. See [ARCHITECTURE.md](ARCHITECTURE.md) for the detailed component, provider, request, operations, and deployment flows.
 
+## Project screenshots
+
+| Operations overview | MCP tool registry |
+| --- | --- |
+| ![ToolBridge operations overview](screenshots/01-dashboard-overview.png) | ![Seven registered ToolBridge MCP tools](screenshots/04-mcp-tools.png) |
+| Version, health, and local readiness checks for the released v1.1.0 service. | All seven tools registered with healthy local lifecycle state; this does not imply successful live network calls. |
+
+| Provider plugin platform | Successful MCP execution |
+| --- | --- |
+| ![ToolBridge provider plugin dashboard](screenshots/06-provider-platform.png) | ![Successful ToolBridge system status result](screenshots/05-system-status-call.png) |
+| Cerebras, NVIDIA, and OpenRouter plugin metadata with providers truthfully disabled and failover on standby. | Structured `system_status` output successfully returned through the validated MCP path. |
+
+See the [complete screenshot gallery](screenshots/README.md) for health and readiness responses, full technical context, and interpretation boundaries.
+
 ## MCP tools
 
 | Tool | Purpose | Operational boundary |
@@ -126,7 +140,7 @@ ToolBridge has no inbound authentication, authorization, tenants, persistent aud
 - Resume material and interview answers: [docs/RESUME.md](docs/RESUME.md)
 - Live demo sequence: [docs/DEMO.md](docs/DEMO.md)
 - HTTP and MCP examples: [docs/API-EXAMPLES.md](docs/API-EXAMPLES.md)
-- Screenshot checklist: [screenshots/README.md](screenshots/README.md)
+- Genuine screenshot gallery: [screenshots/README.md](screenshots/README.md)
 - Architecture: [ARCHITECTURE.md](ARCHITECTURE.md)
 - Setup and deployment: [INSTALLATION.md](INSTALLATION.md), [DEPLOYMENT.md](DEPLOYMENT.md), [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 - Usage and contracts: [USER_GUIDE.md](USER_GUIDE.md), [API_GUIDE.md](API_GUIDE.md)

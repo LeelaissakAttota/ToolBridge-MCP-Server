@@ -1,66 +1,69 @@
-# Screenshot Checklist
+# ToolBridge Screenshot Gallery
 
-No screenshots were present when the v1.1.0 recruiter package was prepared. The owner should capture real output from the released application; do not substitute mockups or generated UI images.
+These six genuine screenshots were captured from the released ToolBridge MCP Server v1.1.0 during local portfolio validation. They document the operational UI and verified local interfaces without implying live external-provider execution.
 
-## Recommended Screenshots
+## 1. Operations Overview
 
-### 1. Dashboard Overview
+**File:** `01-dashboard-overview.png`
 
-Capture the Streamlit **Overview** tab showing:
+![ToolBridge operations overview](01-dashboard-overview.png)
 
-- ToolBridge Operations title
-- version `1.1.0`
-- healthy lifecycle state
-- readiness checks
-- a clean browser crop focused on the application
+**What it demonstrates:** The read-only Streamlit overview displays version `1.1.0`, development environment, healthy service state, and ready lifecycle, registry, tool-lifecycle, and provider-router checks. The registry reports seven tools.
 
-### 2. Health Response
+**Why it matters:** It shows that runtime composition and readiness are observable separately from optional external-provider availability.
 
-Capture `GET http://127.0.0.1:8000/health` showing HTTP 200 and the small `status`, `service`, and `environment` response.
+## 2. Health Endpoint
 
-### 3. Readiness Response
+**File:** `02-health-endpoint.png`
 
-Capture `GET http://127.0.0.1:8000/ready` showing HTTP 200, `ready=true`, and the lifecycle, registry, tool-lifecycle, and provider-router checks.
+![ToolBridge health endpoint response](02-health-endpoint.png)
 
-### 4. MCP Tool Discovery
+**What it demonstrates:** `GET /health` returns `status=ok`, `service=toolbridge-mcp`, and the local development environment.
 
-Capture `tools/list` with all seven tool names visible. Include enough schema context to demonstrate discovery, but avoid an unreadably long terminal dump.
+**Why it matters:** The endpoint provides cheap process liveness without triggering database, website, market-data, currency, or LLM-provider work.
 
-### 5. Successful `system_status`
+## 3. Readiness Endpoint
 
-Capture the MCP `tools/call` result showing `isError=false` and structured `service`, `status`, and `timestamp` fields.
+**File:** `03-readiness-endpoint.png`
 
-### 6. Provider Dashboard
+![ToolBridge readiness endpoint response](03-readiness-endpoint.png)
 
-Capture the Streamlit **Providers** tab showing Cerebras, NVIDIA, and OpenRouter discovery/status, capability information, and failover state. It is truthful for providers to show disabled or unconfigured; do not enable them solely for a screenshot.
+**What it demonstrates:** `GET /ready` returns `ready=true` with successful lifecycle, seven-tool registry, tool-lifecycle, and provider-router initialization checks.
 
-### 7. Architecture Diagram
+**Why it matters:** Readiness verifies that the local application composition can accept traffic while keeping optional live provider calls outside the check.
 
-Optionally render the Mermaid diagram in [ARCHITECTURE.md](../ARCHITECTURE.md) or the README. Capture the MCP/tool flow and provider routing flow at a readable size.
+## 4. MCP Tool Dashboard
 
-## Capture Safety
+**File:** `04-mcp-tools.png`
 
-Before saving each screenshot, verify that it does **not** show:
+![ToolBridge MCP tool dashboard](04-mcp-tools.png)
 
-- API keys, tokens, passwords, cookies, authorization headers, or `.env` contents
-- usernames, home-directory names, personal/local filesystem paths, or private repository URLs
-- prompts, source text, tool arguments/results containing private data, SQL, database contents, CSV cells, or website content
-- provider account details, quota/billing pages, request identifiers that should remain private, or raw provider responses
-- unrelated applications, browser tabs, notifications, email/chat content, clocks/calendars if privacy-sensitive, or desktop files
+**What it demonstrates:** All seven tools—System Status, Stock Price, Website Reader, SQL Query, CSV Analysis, Currency Converter, and HCL Curie / LLM Analysis—are registered with healthy local lifecycle state.
 
-Use a dedicated local browser window and terminal. Crop to the relevant application or response. Prefer JSON pretty-printing and a readable font size. Review the final image at full resolution before adding it to Git.
+**Why it matters:** It provides a visual inventory of the stable MCP tool surface. Registered/healthy here means local registration and lifecycle health; it does not claim that every network-dependent tool executed successfully.
 
-## Suggested Filenames
+## 5. Successful MCP `system_status` Call
 
-```text
-screenshots/dashboard-overview.png
-screenshots/health-response.png
-screenshots/readiness-response.png
-screenshots/mcp-tools-list.png
-screenshots/system-status-call.png
-screenshots/provider-dashboard.png
-screenshots/architecture.png
-```
+**File:** `05-system-status-call.png`
 
-Only add the files that were actually captured and reviewed.
+![Successful ToolBridge system status result](05-system-status-call.png)
 
+**What it demonstrates:** A successful structured `system_status` result with `service=toolbridge-mcp`, `status=ok`, and a runtime-generated timestamp.
+
+**Why it matters:** It supplies direct evidence of a deterministic tool execution through the validated MCP path, beyond registration alone.
+
+## 6. Provider Plugin Platform
+
+**File:** `06-provider-platform.png`
+
+![ToolBridge provider plugin dashboard](06-provider-platform.png)
+
+**What it demonstrates:** Cerebras, NVIDIA, and OpenRouter appear in the provider dashboard with priority and capability metadata. The captured local configuration truthfully shows the providers disabled, active provider `None`, failover `Standby`, and no cached enabled-provider models.
+
+**Why it matters:** It shows plugin discovery and secret-safe operational metadata without requiring credentials or fabricating live provider execution.
+
+## Privacy and Interpretation
+
+The published images were reviewed for visible API keys, bearer tokens, passwords, authorization headers, private email addresses, personal filesystem paths, browser tabs/bookmarks, notifications, and unrelated application content. None were observed.
+
+These screenshots support the documented local validation scope. They do not prove public-cloud deployment, production traffic, authentication, persistent distributed state, live LLM-provider execution, or successful network-dependent stock, website, and currency calls.
