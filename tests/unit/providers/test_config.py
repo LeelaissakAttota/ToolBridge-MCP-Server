@@ -12,14 +12,11 @@ from toolbridge.providers.domain.models import ProviderName
 from toolbridge.providers.infrastructure.factory import build_provider_router
 
 
-def test_default_provider_priority_is_explicit_and_providers_are_disabled() -> None:
+def test_default_provider_priority_uses_dynamic_ranking_and_providers_are_disabled() -> None:
     settings = Settings(_env_file=None)
 
-    assert settings.provider_priority_order == (
-        ProviderName.CEREBRAS,
-        ProviderName.NVIDIA,
-        ProviderName.OPENROUTER,
-    )
+    assert settings.provider_priority_order == ()
+
     assert settings.cerebras.enabled is False
     assert settings.nvidia.enabled is False
     assert settings.openrouter.enabled is False
@@ -51,9 +48,9 @@ def test_enabled_provider_requires_key_and_model() -> None:
         )
 
 
-def test_provider_priority_rejects_duplicates_and_missing_names() -> None:
-    with pytest.raises(ValidationError, match="every supported provider"):
-        Settings(_env_file=None, provider_priority="cerebras,nvidia")
+def test_provider_priority_accepts_partial_plugins_and_rejects_duplicates() -> None:
+    settings = Settings(_env_file=None, provider_priority="cerebras,nvidia")
+    assert settings.provider_priority_order == ("cerebras", "nvidia")
 
     with pytest.raises(ValidationError, match="duplicates"):
         Settings(

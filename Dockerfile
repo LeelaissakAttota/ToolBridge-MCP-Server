@@ -15,7 +15,7 @@ RUN python -m pip install --upgrade pip \
 
 FROM python:3.12-slim AS runtime
 
-ARG TOOLBRIDGE_VERSION=1.0.0
+ARG TOOLBRIDGE_VERSION=1.1.0
 ARG TOOLBRIDGE_UID=10001
 ARG TOOLBRIDGE_GID=10001
 

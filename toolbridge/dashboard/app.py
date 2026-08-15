@@ -19,12 +19,12 @@ def _status_icon(status: str) -> str:
     """Map safe health states to visual indicators."""
 
     if status in {"healthy", "ready", "ok"}:
-        return "🟢"
+        return "\U0001f7e2"
     if status in {"degraded", "starting", "uninitialized", "not_ready"}:
-        return "🟠"
+        return "\U0001f7e0"
     if status == "disabled":
-        return "⚪"
-    return "🔴"
+        return "\u26aa"
+    return "\U0001f534"
 
 
 def _log_rows(entries: tuple[SafeLogEntry, ...]) -> list[dict[str, object]]:
@@ -97,9 +97,25 @@ def render_dashboard(snapshot: OperationsSnapshot) -> None:
                 "Priority": item.priority,
                 "Provider": item.provider,
                 "Configured": item.configured,
+                "Available": item.available,
                 "Active": item.active,
+                "Active Model": item.active_model or "-",
                 "Health": f"{_status_icon(item.status)} {item.status}",
-                "Response Latency (ms)": item.response_latency_ms,
+                "Health Score": item.health_score,
+                "Capabilities": ", ".join(item.capabilities) or "-",
+                "Models": item.model_count,
+                "Latency (ms)": item.response_latency_ms,
+                "Requests": item.requests,
+                "Errors": item.errors,
+                "Retries": item.retries,
+                "Success Rate": f"{item.success_rate:.1%}",
+                "Daily Cost": item.daily_cost_usd,
+                "Monthly Cost": item.monthly_cost_usd,
+                "Daily Budget": item.daily_budget_usd,
+                "Monthly Budget": item.monthly_budget_usd,
+                "Cache Age (s)": item.model_cache_age_seconds,
+                "Discovery (ms)": item.model_discovery_time_ms,
+                "Selection Reason": item.selection_reason or "-",
                 "Last Success": _format_timestamp(item.last_successful_request),
                 "Last Failure": _format_timestamp(item.last_failed_request),
                 "Error Category": item.error_category or "-",
@@ -107,6 +123,28 @@ def render_dashboard(snapshot: OperationsSnapshot) -> None:
             for item in snapshot.providers
         ]
         st.dataframe(provider_rows, use_container_width=True, hide_index=True)
+        st.markdown("#### Discovered Models")
+        model_rows = [
+            {
+                "Provider": item.provider,
+                "Model": item.model,
+                "Available": item.available,
+                "Free": item.is_free,
+                "Capabilities": ", ".join(item.capabilities) or "-",
+                "Context Window": item.context_window,
+                "Input $/1M": item.input_cost_per_million_tokens_usd,
+                "Output $/1M": item.output_cost_per_million_tokens_usd,
+                "Latency (ms)": item.latency_ms,
+                "Health Score": item.health_score,
+                "Reasoning Quality": item.reasoning_quality,
+                "Discovered": _format_timestamp(item.discovered_at),
+            }
+            for item in snapshot.models
+        ]
+        if model_rows:
+            st.dataframe(model_rows, use_container_width=True, hide_index=True)
+        else:
+            st.info("No enabled provider models are currently cached.")
 
     with tools_tab:
         st.subheader("MCP Tool Dashboard")
@@ -193,7 +231,7 @@ def main() -> None:
 
     st.set_page_config(
         page_title="ToolBridge Operations",
-        page_icon="🔗",
+        page_icon="\U0001f517",
         layout="wide",
     )
     settings = get_settings()

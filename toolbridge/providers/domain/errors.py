@@ -1,6 +1,6 @@
 """Safe, normalized errors for provider operations."""
 
-from toolbridge.providers.domain.models import ProviderErrorCategory, ProviderName
+from toolbridge.providers.domain.models import ProviderErrorCategory
 
 _SAFE_MESSAGES = {
     ProviderErrorCategory.TIMEOUT: "The provider request timed out.",
@@ -10,6 +10,8 @@ _SAFE_MESSAGES = {
     ProviderErrorCategory.INVALID_REQUEST: "The provider request is invalid.",
     ProviderErrorCategory.INVALID_RESPONSE: "The provider returned an invalid response.",
     ProviderErrorCategory.INTERNAL: "The provider request failed internally.",
+    ProviderErrorCategory.BUDGET_EXCEEDED: "The configured provider budget was exceeded.",
+    ProviderErrorCategory.CAPABILITY_UNAVAILABLE: "No provider supports the requested capability.",
 }
 _RETRYABLE = {
     ProviderErrorCategory.TIMEOUT,
@@ -29,7 +31,7 @@ class ProviderError(Exception):
     def __init__(
         self,
         category: ProviderErrorCategory,
-        provider: ProviderName | None,
+        provider: str | None,
         *,
         retry_after_seconds: float | None = None,
     ) -> None:

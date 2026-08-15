@@ -1,11 +1,11 @@
 # Architecture
-> Current release architecture: ToolBridge v1.0.0, Phase 7 deployment prepared.
+> Current architecture: ToolBridge v1.1.0 provider plugin platform on the v1.0.0 deployment foundation.
 
 ## Purpose and current state
 
-ToolBridge `1.0.0` is a loopback-only deployable MCP service with seven read-only tools and a separate read-only Streamlit operations dashboard. One API process hosts FastAPI, FastMCP, MCP Core, managed tools, the Provider Router, and process-local operational state. Streamlit runs as a second process and reads one safe HTTP snapshot. Local development uses two host processes; Compose uses two hardened containers.
+ToolBridge `1.1.0` is a loopback-only deployable MCP service with seven read-only tools and a separate read-only Streamlit operations dashboard. One API process hosts FastAPI, FastMCP, MCP Core, managed tools, the Provider Router, and process-local operational state. Streamlit runs as a second process and reads one safe HTTP snapshot. Local development uses two host processes; Compose uses two hardened containers.
 
-Existing `/`, `/health`, `/ready`, `/operations/snapshot`, `/docs`, `/mcp/`, and all seven MCP tool contracts remain compatible. Startup performs no provider, website, stock, exchange-rate, database, or file request.
+Existing `/`, `/health`, `/ready`, `/operations/snapshot`, `/docs`, `/mcp/`, and all seven MCP tool contracts remain compatible. Default startup performs no external request because all LLM providers are disabled. Each enabled provider is initialized, credential-checked through its health endpoint, and queried for current model/capability metadata before it becomes routable.
 
 ```mermaid
 flowchart LR
@@ -44,7 +44,9 @@ Domain modules contain no FastAPI, FastMCP, Streamlit, HTTP client, database, or
 
 - `ToolExecutor` owns request/response validation, timeouts, error normalization, cancellation, and execution observers.
 - `ToolManager` owns registration and lifecycle. Phase 6 adds cached monitoring snapshots so dashboard reads do not trigger external tool health checks.
-- `ProviderRouter` owns provider priority, retries, failover, lifecycle, status, and normalized generation. A provider-usage observer receives only provider identity and normalized token counts.
+- `ProviderRouter` owns capability filtering, model ranking, optional priority, retries, failover, budget enforcement, lifecycle, discovery cache, health scoring, and normalized generation. A provider-usage observer receives only provider identity and normalized token counts.
+- `ProviderPluginRegistry` is populated by adapter-module `register_provider()` calls. Infrastructure discovers adapter modules without a central provider list or switch statement.
+- `ModelRankingEngine` and `ProviderBudgetManager` are application services with no FastAPI dependency.
 - `OperationsService` owns startup validation, lifecycle/readiness decisions, and aggregation into immutable safe snapshots.
 - `InMemoryOperationalMetrics` is a bounded observer for tool/provider timing, provider usage/cost estimates, error categories, and recent allowlisted events.
 
@@ -62,6 +64,30 @@ Application code remains independent of FastAPI, FastMCP, and Streamlit.
 
 `config.py` owns typed provider, tool, operational, readiness, dashboard, and price settings. `bootstrap.py` composes console loggers with bounded operational observers, builds the Provider Router, builds/registers tools, and creates `OperationsService`. `main.py` coordinates startup validation and the MCP/provider/tool lifespan.
 
+## Provider plugin and routing architecture
+
+```mermaid
+flowchart LR
+    Package["Provider adapter package"] --> Discovery["Automatic module discovery"]
+    Adapter["Adapter + register_provider()"] --> Registry["ProviderPluginRegistry"]
+    Discovery --> Registry
+    Config["Typed provider configuration"] --> Factory["Registry-driven factory"]
+    Registry --> Factory
+    Factory --> Runtime["Enabled provider runtime registry"]
+    Runtime --> Models["Discovered model catalog"]
+    Request["Task + required capabilities"] --> Ranking["ModelRankingEngine"]
+    Models --> Ranking
+    Health["Health score + latency"] --> Ranking
+    Budget["Daily / monthly / request budget"] --> Ranking
+    Ranking --> Router["ProviderRouter"]
+    Router --> Response["Normalized response"]
+```
+
+A provider plugin contributes a stable identifier, factory, default capabilities, and optional legacy configuration attribute. Generic providers use `TOOLBRIDGE_PROVIDERS__<ID>__...`; the built-ins retain their existing environment names. Adding a provider does not change router, MCP Core, tool, FastAPI, or dashboard code.
+
+`ProviderModel` metadata includes provider, model ID, capability flags, free/paid status, input/output price, context window, latency, health score, availability, reasoning quality, and discovery timestamp. A request may add a task hint and required capabilities without changing existing callers. Ineligible, unavailable, or hard-budget-exceeded models are removed before ranking. Empty priority uses dynamic ranking; configured priority is a deterministic preference while preserving failover.
+
+Health is process-local and records requests, successes, errors, retries, average latency, last success/failure, availability, and a normalized score. A later successful request or health check restores an eligible provider. Budgets are process-local safety controls and reset with the process; durable organization-wide enforcement requires a shared ledger.
 ## Request and execution flow
 
 ```mermaid
@@ -125,7 +151,7 @@ Recent logs use a bounded `deque` with a configured capacity. Stored fields are 
 
 ## Configuration and trust boundaries
 
-Phase 6 settings use `TOOLBRIDGE_OPERATIONS__...`. Provider cost rates remain alongside each provider’s typed settings. The dashboard API URL must be loopback and cannot contain credentials, query data, or fragments.
+Phase 6 settings use `TOOLBRIDGE_OPERATIONS__...`. Provider cost rates remain alongside each providerâ€™s typed settings. The dashboard API URL must be loopback and cannot contain credentials, query data, or fragments.
 
 MCP arguments, provider responses, website content, SQL, database values, file paths, CSV data, model output, environment variables, and external errors remain untrusted. Operational output explicitly excludes API keys, authorization headers, prompts, tool arguments/results, URLs, queries, SQL, parameters, paths, filenames, cells, content, provider bodies, and exception messages.
 
@@ -140,7 +166,7 @@ MCP arguments, provider responses, website content, SQL, database values, file p
 
 ## Phase boundary
 
-Phase 7 deployment and v1.0.0 release preparation are complete and await owner approval. No post-v1 phase is authorized.
+Phase 7 and tagged v1.0.0 are complete. The owner separately authorized the v1.1.0 Provider Plugin Platform scope; no other post-v1 feature is included.
 
 ## Phase 7 deployment architecture
 

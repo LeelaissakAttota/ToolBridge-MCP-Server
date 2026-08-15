@@ -1,6 +1,6 @@
 # Known Limitations
 
-ToolBridge v1.0.0 is production-ready for its documented local or trusted single-host deployment profile, subject to these limitations.
+ToolBridge v1.1.0 is production-ready for its documented local or trusted single-host deployment profile, subject to these limitations.
 
 1. The API and dashboard have no inbound authentication, authorization, tenant isolation, or application rate limiting. Docker publishes both only to host loopback; direct public exposure is unsupported.
 2. Operational metrics, recent safe logs, uptime, provider usage, and caches are process-local and reset on restart. They are not an audit ledger.
@@ -16,5 +16,8 @@ ToolBridge v1.0.0 is production-ready for its documented local or trusted single
 12. Live provider contract tests are opt-in and require separately approved credentials, network access, terms, quota, and cost.
 13. CI builds and smoke-tests the image but does not publish it or deploy to an environment. Release publishing and deployment remain owner-controlled.
 14. The Compose release uses one host and a shared network namespace; horizontal scaling, orchestration, and zero-downtime rollout are not included.
+15. Model catalogs are discovered at enabled-provider startup and have no background refresh scheduler; restart to force a refresh.
+16. Daily/monthly/per-request budgets and health scores are process-local estimates. They reset on restart and do not coordinate multiple workers.
+17. Capability metadata enables safe selection, but provider-native embedding, image, audio, vision, web-search, and tool-call payload APIs are not added to the text generation contract.
 
 See `ROADMAP.md` for separately approved post-v1 possibilities.

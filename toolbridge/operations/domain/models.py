@@ -7,8 +7,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class LifecycleState(StrEnum):
-    """Server process lifecycle states used by readiness checks."""
-
     STARTING = "starting"
     READY = "ready"
     STOPPING = "stopping"
@@ -17,28 +15,20 @@ class LifecycleState(StrEnum):
 
 
 class SafeLogLevel(StrEnum):
-    """Allowlisted log levels retained by the bounded viewer buffer."""
-
     INFO = "INFO"
     WARNING = "WARNING"
     ERROR = "ERROR"
 
 
 class ReadinessCheck(BaseModel):
-    """One non-secret readiness decision."""
-
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
-
     name: str
     ready: bool
     status: str
 
 
 class ReadinessSnapshot(BaseModel):
-    """Aggregate readiness state suitable for an HTTP response."""
-
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
-
     status: str
     ready: bool
     checked_at: datetime
@@ -46,10 +36,7 @@ class ReadinessSnapshot(BaseModel):
 
 
 class SystemOverview(BaseModel):
-    """Read-only server identity and lifecycle information."""
-
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
-
     version: str
     uptime_seconds: float = Field(ge=0)
     environment: str
@@ -60,10 +47,9 @@ class SystemOverview(BaseModel):
 
 
 class ProviderMonitor(BaseModel):
-    """Safe provider status, timing, usage, and cost summary."""
+    """Safe provider health, routing, discovery, usage, and budget summary."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
-
     provider: str
     configured: bool
     priority: int
@@ -75,15 +61,48 @@ class ProviderMonitor(BaseModel):
     last_failed_request: datetime | None = None
     error_category: str | None = None
     requests: int = Field(ge=0)
+    errors: int = Field(default=0, ge=0)
+    retries: int = Field(default=0, ge=0)
+    success_rate: float = Field(default=1.0, ge=0, le=1)
+    health_score: float = Field(default=1.0, ge=0, le=1)
+    available: bool = False
+    capabilities: tuple[str, ...] = ()
+    model_count: int = Field(default=0, ge=0)
+    active_model: str | None = None
+    selection_reason: str | None = None
+    model_cache_age_seconds: float | None = Field(default=None, ge=0)
+    model_discovery_time_ms: float | None = Field(default=None, ge=0)
+    daily_budget_usd: float | None = Field(default=None, ge=0)
+    monthly_budget_usd: float | None = Field(default=None, ge=0)
+    per_request_budget_usd: float | None = Field(default=None, ge=0)
+    daily_cost_usd: float = Field(default=0.0, ge=0)
+    monthly_cost_usd: float = Field(default=0.0, ge=0)
+    soft_limit_reached: bool = False
+    hard_limit_reached: bool = False
     total_tokens: int = Field(ge=0)
     estimated_cost_usd: float = Field(ge=0)
 
 
-class ToolMonitor(BaseModel):
-    """Registration, health, and execution metrics for one MCP tool."""
+class ProviderModelMonitor(BaseModel):
+    """Safe discovered-model metadata for provider operations."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+    provider: str
+    model: str
+    capabilities: tuple[str, ...]
+    available: bool
+    is_free: bool
+    context_window: int | None = Field(default=None, ge=1)
+    input_cost_per_million_tokens_usd: float = Field(ge=0)
+    output_cost_per_million_tokens_usd: float = Field(ge=0)
+    latency_ms: float | None = Field(default=None, ge=0)
+    health_score: float = Field(ge=0, le=1)
+    reasoning_quality: float = Field(ge=0, le=1)
+    discovered_at: datetime | None = None
 
+
+class ToolMonitor(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
     tool_name: str
     display_name: str
     registered: bool
@@ -94,10 +113,7 @@ class ToolMonitor(BaseModel):
 
 
 class MetricsSummary(BaseModel):
-    """Aggregate request, error, provider, and tool metrics."""
-
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
-
     total_requests: int = Field(ge=0)
     successful_requests: int = Field(ge=0)
     failed_requests: int = Field(ge=0)
@@ -108,10 +124,7 @@ class MetricsSummary(BaseModel):
 
 
 class CostSummary(BaseModel):
-    """Configuration-driven provider token and API-cost estimates."""
-
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
-
     estimated_token_usage: int = Field(ge=0)
     estimated_api_cost_usd: float = Field(ge=0)
     requests_per_provider: dict[str, int]
@@ -119,10 +132,7 @@ class CostSummary(BaseModel):
 
 
 class SafeLogEntry(BaseModel):
-    """Allowlisted event metadata retained for dashboard display."""
-
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
-
     timestamp: datetime
     level: SafeLogLevel
     source: str
@@ -135,13 +145,11 @@ class SafeLogEntry(BaseModel):
 
 
 class OperationsSnapshot(BaseModel):
-    """Complete safe dashboard payload returned by the operational API."""
-
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
-
     system: SystemOverview
     readiness: ReadinessSnapshot
     providers: tuple[ProviderMonitor, ...]
+    models: tuple[ProviderModelMonitor, ...] = ()
     tools: tuple[ToolMonitor, ...]
     metrics: MetricsSummary
     costs: CostSummary

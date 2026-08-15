@@ -15,6 +15,8 @@ The FastAPI control plane and MCP Streamable HTTP transport run in one process b
 
 `/health` deliberately avoids provider calls. `/ready` checks local initialization and configured policy without spending provider quota. The monitoring snapshot never includes prompts, tool inputs/results, URLs, SQL, file paths, credentials, or authorization headers.
 
+The operations snapshot includes additive `providers` and `models` collections with normalized capabilities, active selection/reason, availability, health/latency, request/error/retry/success metrics, model discovery/cache timing, configured budget limits, and estimated process-local cost. It remains a read-only allowlisted projection.
+
 ## MCP lifecycle
 
 1. Send `initialize` with a supported MCP protocol version.
@@ -37,11 +39,11 @@ Required headers are `Content-Type: application/json` and `Accept: application/j
 
 ## Error behavior
 
-MCP Core normalizes unknown tools, invalid requests, timeouts, cancellations, execution failures, and invalid responses. Provider errors are categorized as timeout, authentication, rate limit, unavailable, or invalid request. Logs retain category and request ID, not sensitive payloads.
+MCP Core normalizes unknown tools, invalid requests, timeouts, cancellations, execution failures, and invalid responses. Provider errors are categorized as timeout, authentication, rate limit, unavailable, invalid request/response, budget exceeded, capability unavailable, or internal failure. Logs retain category and request ID, not sensitive payloads.
 
 ## Compatibility
 
-- ToolBridge version: `1.0.0`
+- ToolBridge version: `1.1.0`
 - Python: `3.12`
 - MCP SDK: `1.29.0`
 - Transport: Streamable HTTP

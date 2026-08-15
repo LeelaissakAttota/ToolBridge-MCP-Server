@@ -1,8 +1,8 @@
 # Deployment
 
-## Supported v1.0.0 deployment profile
+## Supported v1.1.0 deployment profile
 
-The supported release profile is a single-host Docker Compose deployment with the API and dashboard published only on `127.0.0.1`. ToolBridge does not provide inbound authentication in v1.0.0, so it must not be exposed directly to the public internet.
+The supported release profile is a single-host Docker Compose deployment with the API and dashboard published only on `127.0.0.1`. ToolBridge does not provide inbound authentication in v1.1.0, so it must not be exposed directly to the public internet.
 
 ```mermaid
 flowchart LR

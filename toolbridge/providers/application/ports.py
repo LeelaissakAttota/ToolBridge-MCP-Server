@@ -8,21 +8,27 @@ from toolbridge.providers.domain.models import (
     GenerationChunk,
     GenerationRequest,
     GenerationResponse,
+    ProviderCapabilities,
     ProviderErrorCategory,
     ProviderHealthCheck,
     ProviderModel,
-    ProviderName,
     ProviderStatus,
 )
 
 
 class BaseProvider(ABC):
-    """Provider-neutral lifecycle and generation interface."""
+    """Provider-neutral lifecycle, discovery, and generation interface."""
 
     @property
     @abstractmethod
-    def name(self) -> ProviderName:
+    def name(self) -> str:
         """Return the stable provider identifier."""
+
+    @property
+    def capabilities(self) -> ProviderCapabilities:
+        """Return capabilities; legacy adapters retain chat defaults."""
+
+        return ProviderCapabilities(chat=True, streaming=True)
 
     @abstractmethod
     async def initialize(self) -> None:
@@ -35,6 +41,11 @@ class BaseProvider(ABC):
     @abstractmethod
     async def list_models(self) -> tuple[ProviderModel, ...]:
         """Return normalized available model identifiers."""
+
+    async def discover_models(self) -> tuple[ProviderModel, ...]:
+        """Discover rich metadata; legacy providers delegate to list_models."""
+
+        return await self.list_models()
 
     @abstractmethod
     async def generate(self, request: GenerationRequest) -> GenerationResponse:
@@ -55,7 +66,7 @@ class ProviderEventLogger(Protocol):
     def record(
         self,
         *,
-        provider: ProviderName,
+        provider: str,
         latency_ms: float,
         status: ProviderStatus,
         request_id: str,
@@ -70,7 +81,7 @@ class NullProviderEventLogger:
     def record(
         self,
         *,
-        provider: ProviderName,
+        provider: str,
         latency_ms: float,
         status: ProviderStatus,
         request_id: str,
@@ -88,7 +99,7 @@ class CompositeProviderEventLogger:
     def record(
         self,
         *,
-        provider: ProviderName,
+        provider: str,
         latency_ms: float,
         status: ProviderStatus,
         request_id: str,
@@ -112,7 +123,7 @@ class ProviderUsageRecorder(Protocol):
     def record_generation(
         self,
         *,
-        provider: ProviderName,
+        provider: str,
         input_tokens: int,
         output_tokens: int,
         total_tokens: int,
@@ -126,7 +137,7 @@ class NullProviderUsageRecorder:
     def record_generation(
         self,
         *,
-        provider: ProviderName,
+        provider: str,
         input_tokens: int,
         output_tokens: int,
         total_tokens: int,

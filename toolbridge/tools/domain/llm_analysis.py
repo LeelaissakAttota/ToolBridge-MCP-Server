@@ -28,7 +28,7 @@ class LLMAnalysisOutput(ToolOutput):
 
     operation: AnalysisOperation
     content: str = Field(max_length=1_000_000)
-    provider: ProviderName
+    provider: ProviderName | str
     model: str = Field(min_length=1, max_length=256)
     request_id: str = Field(min_length=1, max_length=128)
     input_tokens: int = Field(ge=0)

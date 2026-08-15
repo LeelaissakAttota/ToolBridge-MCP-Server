@@ -1,7 +1,7 @@
 name: toolbridge
 
 x-toolbridge-runtime: &toolbridge-runtime
-  image: toolbridge-mcp:1.0.0
+  image: toolbridge-mcp:1.1.0
   restart: unless-stopped
   read_only: true
   tmpfs:
@@ -21,12 +21,12 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        TOOLBRIDGE_VERSION: 1.0.0
+        TOOLBRIDGE_VERSION: 1.1.0
     environment:
       TOOLBRIDGE_ENVIRONMENT: production
       TOOLBRIDGE_HOST: 0.0.0.0
       TOOLBRIDGE_PORT: 8000
-      TOOLBRIDGE_OPERATIONS__CURRENT_PHASE: Phase 7 - Deployment & v1.0.0 Release
+      TOOLBRIDGE_OPERATIONS__CURRENT_PHASE: Provider Platform v1.1
       TOOLBRIDGE_OPERATIONS__DASHBOARD_API_URL: http://127.0.0.1:8000
     ports:
       - "127.0.0.1:${TOOLBRIDGE_API_PORT:-8000}:8000"
@@ -52,7 +52,7 @@ services:
         condition: service_healthy
     environment:
       TOOLBRIDGE_ENVIRONMENT: production
-      TOOLBRIDGE_OPERATIONS__CURRENT_PHASE: Phase 7 - Deployment & v1.0.0 Release
+      TOOLBRIDGE_OPERATIONS__CURRENT_PHASE: Provider Platform v1.1
       TOOLBRIDGE_OPERATIONS__DASHBOARD_API_URL: http://127.0.0.1:8000
       STREAMLIT_BROWSER_GATHER_USAGE_STATS: "false"
       STREAMLIT_SERVER_HEADLESS: "true"

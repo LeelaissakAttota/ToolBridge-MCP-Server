@@ -15,7 +15,7 @@ from pydantic import (
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from toolbridge.phase5_config import Phase5ToolSettings
-from toolbridge.providers.domain.models import ProviderName
+from toolbridge.providers.domain.models import ProviderCapabilities
 from toolbridge.tools.domain.models import StockProviderName
 
 
@@ -34,6 +34,14 @@ class LLMProviderSettings(BaseModel):
     temperature: float = Field(default=0.2, ge=0, le=2)
     input_cost_per_million_tokens_usd: float = Field(default=0.0, ge=0)
     output_cost_per_million_tokens_usd: float = Field(default=0.0, ge=0)
+    capabilities: ProviderCapabilities | None = None
+    is_free: bool = False
+    context_window: int | None = Field(default=None, ge=1)
+    reasoning_quality: float = Field(default=0.5, ge=0, le=1)
+    daily_budget_usd: float | None = Field(default=None, ge=0)
+    monthly_budget_usd: float | None = Field(default=None, ge=0)
+    per_request_budget_usd: float | None = Field(default=None, ge=0)
+    budget_soft_limit_ratio: float = Field(default=0.8, ge=0, le=1)
     max_prompt_bytes: int = Field(default=131_072, ge=1_024, le=10_485_760)
     models_path: str = Field(default="/models", pattern=r"^/[A-Za-z0-9_./-]+$")
     chat_completions_path: str = Field(
@@ -214,25 +222,14 @@ class StockPriceToolSettings(BaseModel):
     @field_validator("provider_priority")
     @classmethod
     def validate_provider_priority(cls, value: str) -> str:
-        """Require every supported stock provider once in configured order."""
+        """Accept an optional unique ordered list of installed plugin IDs."""
 
         names = tuple(part.strip().lower() for part in value.split(",") if part.strip())
-        try:
-            providers = tuple(StockProviderName(name) for name in names)
-        except ValueError as error:
-            raise ValueError("stock provider priority contains an unsupported provider") from error
-        if len(providers) != len(set(providers)):
-            raise ValueError("stock provider priority cannot contain duplicates")
-        if set(providers) != set(StockProviderName):
-            raise ValueError("stock provider priority must contain every supported provider")
-        return ",".join(provider.value for provider in providers)
-
-    @field_validator("health_check_symbol", mode="before")
-    @classmethod
-    def normalize_health_symbol(cls, value: object) -> object:
-        """Normalize the configured non-secret health probe symbol."""
-
-        return value.strip().upper() if isinstance(value, str) else value
+        if len(names) != len(set(names)):
+            raise ValueError("provider_priority cannot contain duplicates")
+        if any(fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", name) is None for name in names):
+            raise ValueError("provider_priority contains an invalid provider identifier")
+        return ",".join(names)
 
     @model_validator(mode="after")
     def validate_tool_configuration(self) -> "StockPriceToolSettings":
@@ -257,7 +254,7 @@ class OperationsSettings(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     current_phase: str = Field(
-        default="Phase 7 - Deployment & v1.0.0 Release",
+        default="Provider Platform v1.1",
         min_length=1,
         max_length=128,
     )
@@ -317,7 +314,7 @@ class Settings(BaseSettings):
     tool_timeout_seconds: float = Field(default=30.0, gt=0, le=300)
     max_request_bytes: int = Field(default=65_536, ge=1_024, le=10_485_760)
     max_response_bytes: int = Field(default=262_144, ge=1_024, le=10_485_760)
-    provider_priority: str = "cerebras,nvidia,openrouter"
+    provider_priority: str = ""
     provider_retry_backoff_seconds: float = Field(default=0.25, ge=0, le=60)
     provider_max_retry_backoff_seconds: float = Field(default=2.0, ge=0, le=300)
     provider_max_request_bytes: int = Field(
@@ -325,6 +322,7 @@ class Settings(BaseSettings):
         ge=1_024,
         le=10_485_760,
     )
+    providers: dict[str, LLMProviderSettings] = Field(default_factory=dict)
     cerebras: LLMProviderSettings = LLMProviderSettings(
         base_url="https://api.cerebras.ai/v1",
     )
@@ -341,18 +339,14 @@ class Settings(BaseSettings):
     @field_validator("provider_priority")
     @classmethod
     def validate_provider_priority(cls, value: str) -> str:
-        """Require every supported provider exactly once in configured order."""
+        """Accept an optional unique ordered list of installed plugin IDs."""
 
         names = tuple(part.strip().lower() for part in value.split(",") if part.strip())
-        try:
-            providers = tuple(ProviderName(name) for name in names)
-        except ValueError as error:
-            raise ValueError("provider_priority contains an unsupported provider") from error
-        if len(providers) != len(set(providers)):
+        if len(names) != len(set(names)):
             raise ValueError("provider_priority cannot contain duplicates")
-        if set(providers) != set(ProviderName):
-            raise ValueError("provider_priority must contain every supported provider")
-        return ",".join(provider.value for provider in providers)
+        if any(fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", name) is None for name in names):
+            raise ValueError("provider_priority contains an invalid provider identifier")
+        return ",".join(names)
 
     @model_validator(mode="after")
     def validate_retry_backoff(self) -> "Settings":
@@ -363,10 +357,12 @@ class Settings(BaseSettings):
         return self
 
     @property
-    def provider_priority_order(self) -> tuple[ProviderName, ...]:
-        """Return the validated provider priority as stable identifiers."""
+    def provider_priority_order(self) -> tuple[str, ...]:
+        """Return configured provider identifiers, or empty for dynamic ranking."""
 
-        return tuple(ProviderName(name) for name in self.provider_priority.split(","))
+        if not self.provider_priority:
+            return ()
+        return tuple(self.provider_priority.split(","))
 
 
 @lru_cache

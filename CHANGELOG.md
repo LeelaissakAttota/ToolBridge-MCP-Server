@@ -4,7 +4,42 @@ All notable changes to this project are recorded here. The format follows Keep a
 
 ## [Unreleased]
 
-No changes after the v1.0.0 release candidate.
+No changes beyond the prepared v1.1.0 provider-platform scope.
+
+## [1.1.0] - 2026-08-06
+
+### Added
+
+- self-registering `ProviderPluginRegistry`, public `register_provider()`, and automatic adapter-package discovery
+- generic provider configuration for future adapters while retaining built-in environment compatibility
+- normalized capability catalog for chat, reasoning, streaming, embeddings, image/audio generation, tool/function use, vision, long context, JSON mode, web search, and code generation
+- rich startup model discovery metadata: provider, cost/free status, context, capabilities, latency, health, availability, quality, and discovery time
+- capability/task-aware `ModelRankingEngine` with dynamic ranking and optional explicit priority
+- process-local `ProviderBudgetManager` with daily, monthly, and per-request limits, soft deprioritization, hard exclusion, and failover
+- provider health scoring with request/success/error/retry counts, latency, last success/failure, deprioritization, and recovery
+- provider/model operations fields and expanded read-only Streamlit provider dashboard
+- nine offline tests for plugin registration/discovery, generic configuration, ranking, budgets, smart routing, budget failover, and startup discovery
+
+### Changed
+
+- promoted the working package and operational version from `1.0.0` to `1.1.0`
+- changed empty provider priority to dynamic model ranking; configured priority remains supported
+- replaced the hardcoded three-provider factory switch with registry-driven composition
+- enabled providers now authenticate/health-check and discover models during startup; disabled default startup remains network-free
+- expanded normalized provider identifiers to accept arbitrary validated plugin IDs while retaining `ProviderName` built-in compatibility constants
+
+### Security
+
+- API keys remain typed secrets and are unwrapped only at adapter construction
+- model prices and all budget limits are configuration-driven; no prices or credentials are hardcoded
+- provider telemetry remains allowlisted and excludes prompts, output, response bodies, endpoints, headers, and secrets
+- hard budget limits prevent routing to an over-budget provider and permit safe fallback
+
+### Compatibility
+
+- no MCP Core, MCP tool name/input/output schema, existing HTTP path, or deployment topology changed
+- Cerebras, NVIDIA, OpenRouter, and their public adapter imports remain compatible
+- no new MCP tool, authentication system, public exposure, deployment workflow, commit, push, or tag was created
 
 ## [1.0.0] - 2026-08-06
 
@@ -45,7 +80,7 @@ No changes after the v1.0.0 release candidate.
 
 - documented supported single-host loopback deployment, configuration, data persistence, health/readiness, rollback, troubleshooting, and production acceptance
 - CI validates and packages tagged image artifacts but intentionally does not publish or deploy
-- Phase 7 changes remain uncommitted, unpushed, and untagged pending owner approval
+- Phase 7 was subsequently approved, committed as `86cc575`, tagged `v1.0.0`, and pushed to `origin`
 
 ### Investigated
 
