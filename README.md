@@ -22,7 +22,7 @@ The release provides deterministic tool discovery, schema-validated execution, n
 - optional provider priority, bounded retry/failover, health scoring, and daily/monthly/per-request budget controls
 - read-only health, readiness, operations snapshot, and Streamlit monitoring interfaces
 - multi-stage non-root Docker image, loopback-only Compose publication, and GitHub Actions validation
-- 123 automated tests plus owner manual validation of HTTP, MCP, dashboard, error, and repository-integrity behavior
+- 133 passing automated tests plus owner manual validation of HTTP, MCP, dashboard, security, and live integration behavior
 
 ## Architecture
 
@@ -53,14 +53,27 @@ Dependencies point inward: Domain <- Application <- Adapters <- Infrastructure. 
 | Operations overview | MCP tool registry |
 | --- | --- |
 | ![ToolBridge operations overview](screenshots/01-dashboard-overview.png) | ![Seven registered ToolBridge MCP tools](screenshots/04-mcp-tools.png) |
-| Version, health, and local readiness checks for the released v1.1.0 service. | All seven tools registered with healthy local lifecycle state; this does not imply successful live network calls. |
+| Version, health, and local readiness checks for the released v1.1.0 service. | All seven tools registered with healthy local lifecycle state; point-in-time live execution evidence appears below. |
 
 | Provider plugin platform | Successful MCP execution |
 | --- | --- |
 | ![ToolBridge provider plugin dashboard](screenshots/06-provider-platform.png) | ![Successful ToolBridge system status result](screenshots/05-system-status-call.png) |
 | Cerebras, NVIDIA, and OpenRouter plugin metadata with providers truthfully disabled and failover on standby. | Structured `system_status` output successfully returned through the validated MCP path. |
 
-See the [complete screenshot gallery](screenshots/README.md) for health and readiness responses, full technical context, and interpretation boundaries.
+### Verified Live Validation
+
+| Seven-tool discovery + NVIDIA LLM | Live AAPL market data |
+| --- | --- |
+| ![Seven ToolBridge MCP tools discovered with a successful NVIDIA execution](screenshots/08-mcp-7-tools-nvidia-live-test.png) | ![Point-in-time AAPL market data returned through ToolBridge MCP](screenshots/10-live-stock-price-mcp.png) |
+| MCP initialized, discovered all seven tools, and executed `hcl_curie_analysis` through NVIDIA using `meta/llama-3.1-8b-instruct`, with token accounting returned. | `stock_price` returned point-in-time AAPL data through MCP using Yahoo Finance; this is captured validation, not an availability guarantee. |
+
+**SQL write rejection**
+
+![ToolBridge rejects an attempted destructive SQL write](screenshots/12-sql-write-operation-rejected.png)
+
+The attempted `DELETE FROM users` request was rejected by validation. Additional captured evidence records [133 passing automated tests](screenshots/07-automated-tests-133-passed.png) and [USD-to-INR/EUR conversion through Frankfurter](screenshots/11-live-currency-converter-mcp.png).
+
+See the [complete 12-screenshot gallery](screenshots/README.md) for health and readiness responses, full technical context, and interpretation boundaries.
 
 ## MCP tools
 
@@ -80,7 +93,7 @@ Discovery through `tools/list` is the authoritative source for every input and o
 
 Cerebras, NVIDIA, and OpenRouter are built-in plugins. Each plugin contributes its identifier, factory, default capabilities, and typed configuration. At startup, enabled plugins are health-checked and their model metadata is discovered. The router filters by required capabilities, evaluates health/latency/cost/quality, enforces configured budgets, retries eligible failures, and can fail over to another eligible provider.
 
-Providers are disabled by default. Live LLM execution requires owner-supplied credentials, approved network access, quota, model configuration, and provider terms. No successful live provider call is claimed by the release validation.
+Providers are disabled by default. A later point-in-time portfolio validation successfully executed `hcl_curie_analysis` through MCP using NVIDIA and `meta/llama-3.1-8b-instruct`. Live execution still depends on owner-supplied configuration and credentials, network access, quota, model availability, and provider terms; the captured result does not imply permanent availability or an SLA.
 
 ## Five-minute local demo
 
@@ -114,9 +127,11 @@ For a fresh installation, follow [INSTALLATION.md](INSTALLATION.md) rather than 
 
 ## Validation evidence
 
-Release `v1.1.0` is commit `4d8d73bb3ffa63102c7059429f14b459eb668546`. The deterministic offline suite passes 123 tests. Ruff formatting/lint, dependency integrity, Compose parsing, local API/dashboard startup, MCP initialization, seven-tool discovery, safe representative execution, error handling, and repository integrity were validated.
+Release `v1.1.0` is commit `4d8d73bb3ffa63102c7059429f14b459eb668546`. The later portfolio/manual evidence summarized below does not change that historical release commit.
 
-Live stock, website, and currency checks remain network-dependent. Live LLM calls remain configuration-dependent. These are not represented as successful executions.
+### Deterministic automated validation
+
+The current pytest suite completed with 133 passing tests and one non-failing Starlette/httpx deprecation warning. Ruff lint and Ruff format checks passed.
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip check
@@ -125,6 +140,16 @@ Live stock, website, and currency checks remain network-dependent. Live LLM call
 .\.venv\Scripts\python.exe -m pytest tests
 docker compose config --quiet
 ```
+
+### Point-in-time manual and live validation
+
+- MCP initialization succeeded and discovered all seven tools: `csv_analysis`, `currency_converter`, `hcl_curie_analysis`, `sql_query`, `stock_price`, `system_status`, and `website_reader`.
+- `hcl_curie_analysis` executed through MCP using NVIDIA and `meta/llama-3.1-8b-instruct`; `stock_price` returned AAPL market data using Yahoo Finance; and `currency_converter` converted USD to INR and EUR using Frankfurter.
+- `website_reader` retrieved `https://example.com/`; `csv_analysis` analyzed a controlled local CSV; and `sql_query` executed a bounded read-only `SELECT` query.
+- `/health` returned `status=ok`, while `/ready` returned `ready=true` and confirmed seven registered tools.
+- The destructive `DELETE FROM users` SQL request was rejected. Invalid HTTP website input, invalid stock-symbol input, and an invalid `hcl_curie_analysis` operation were also rejected during manual security validation.
+
+These live-provider results are point-in-time evidence. They remain dependent on configuration, credentials where required, network access, quota, upstream availability, and provider terms, and do not imply production availability or SLAs.
 
 CI runs dependency, formatting, lint, test, startup, image-build, Compose, and release-smoke gates. Tagged builds produce an image archive and SHA-256 artifact; CI does not publish or deploy it automatically.
 
