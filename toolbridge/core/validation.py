@@ -28,8 +28,14 @@ def _validation_details(error: ValidationError) -> dict[str, Any]:
 def _json_size(value: object) -> int:
     """Return the encoded JSON size or raise a safe request error."""
 
+    return len(_encode_json(value))
+
+
+def _encode_json(value: object) -> bytes:
+    """Return strict JSON bytes or raise a safe request error."""
+
     try:
-        encoded = json.dumps(
+        return json.dumps(
             value,
             ensure_ascii=False,
             separators=(",", ":"),
@@ -37,7 +43,6 @@ def _json_size(value: object) -> int:
         ).encode("utf-8")
     except (TypeError, ValueError) as error:
         raise RequestValidationError("The request must contain valid JSON values.") from error
-    return len(encoded)
 
 
 class RequestValidator:
@@ -83,7 +88,10 @@ class RequestValidator:
         """Validate arguments against the selected tool contract."""
 
         try:
-            return definition.input_model.model_validate(arguments, strict=True)
+            return definition.input_model.model_validate_json(
+                _encode_json(arguments),
+                strict=True,
+            )
         except ValidationError as error:
             raise RequestValidationError(
                 "The tool arguments do not match the declared input schema.",

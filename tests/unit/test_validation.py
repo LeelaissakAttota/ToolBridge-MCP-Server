@@ -1,5 +1,7 @@
 """Unit tests for request, argument, and response validation."""
 
+from enum import StrEnum
+
 import pytest
 
 from toolbridge.core.contracts import ToolDefinition, ToolInput, ToolOutput
@@ -19,6 +21,26 @@ class CountOutput(ToolOutput):
     count: int
 
 
+class AnalysisOperation(StrEnum):
+    """JSON string enum used to verify MCP-boundary validation."""
+
+    ANALYZE = "analyze"
+    SUMMARIZE = "summarize"
+
+
+class AnalysisInput(ToolInput):
+    """Enum-bearing input used by validation tests."""
+
+    operation: AnalysisOperation
+    text: str
+
+
+class IntegerInput(ToolInput):
+    """Non-enum strict input used to detect unintended coercion."""
+
+    count: int
+
+
 def count_text(arguments: TextInput) -> CountOutput:
     """Return the length of a validated string."""
 
@@ -31,6 +53,24 @@ DEFINITION = ToolDefinition(
     input_model=TextInput,
     output_model=CountOutput,
     handler=count_text,
+    timeout_seconds=1.0,
+)
+
+ANALYSIS_DEFINITION = ToolDefinition(
+    name="analyze_text",
+    description="Analyze text with a selected operation.",
+    input_model=AnalysisInput,
+    output_model=CountOutput,
+    handler=lambda data: CountOutput(count=len(data.text)),
+    timeout_seconds=1.0,
+)
+
+INTEGER_DEFINITION = ToolDefinition(
+    name="count_value",
+    description="Return one validated integer.",
+    input_model=IntegerInput,
+    output_model=CountOutput,
+    handler=lambda data: CountOutput(count=data.count),
     timeout_seconds=1.0,
 )
 
@@ -83,6 +123,40 @@ def test_argument_validator_rejects_unknown_fields_without_values() -> None:
 
     assert caught.value.details == {"fields": ["secret"], "issue_count": 1}
     assert "must-not-appear" not in str(caught.value.details)
+
+
+@pytest.mark.parametrize("operation", ["summarize", "analyze"])
+def test_argument_validator_accepts_json_enum_strings(operation: str) -> None:
+    validator = RequestValidator(max_request_bytes=1_024)
+
+    validated = validator.validate_arguments(
+        ANALYSIS_DEFINITION,
+        {"operation": operation, "text": "hello"},
+    )
+
+    assert isinstance(validated, AnalysisInput)
+    assert validated.operation is AnalysisOperation(operation)
+
+
+def test_argument_validator_rejects_invalid_json_enum_string() -> None:
+    validator = RequestValidator(max_request_bytes=1_024)
+
+    with pytest.raises(RequestValidationError) as caught:
+        validator.validate_arguments(
+            ANALYSIS_DEFINITION,
+            {"operation": "invalid-operation", "text": "hello"},
+        )
+
+    assert caught.value.details == {"fields": ["operation"], "issue_count": 1}
+
+
+def test_argument_validator_preserves_strict_non_enum_validation() -> None:
+    validator = RequestValidator(max_request_bytes=1_024)
+
+    with pytest.raises(RequestValidationError) as caught:
+        validator.validate_arguments(INTEGER_DEFINITION, {"count": "5"})
+
+    assert caught.value.details == {"fields": ["count"], "issue_count": 1}
 
 
 def test_response_validator_accepts_declared_output() -> None:

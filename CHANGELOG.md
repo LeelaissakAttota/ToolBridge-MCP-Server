@@ -4,7 +4,17 @@ All notable changes to this project are recorded here. The format follows Keep a
 
 ## [Unreleased]
 
-No changes beyond the prepared v1.1.0 provider-platform scope.
+### Fixed
+
+- RW-002: MCP string-enum arguments advertised by tool schemas are now accepted at the JSON transport boundary and converted to typed domain enums
+
+### Security
+
+- retained strict validation for non-enum inputs, unknown-field rejection, bounded request/response validation, and safe validation errors
+
+### Testing
+
+- added ten offline regressions covering valid and invalid enum strings, schema/transport compatibility, unknown fields, and unrelated strict input behavior
 
 ## [1.1.0] - 2026-08-06
 

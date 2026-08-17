@@ -7,13 +7,13 @@
 | **Current Version** | `1.1.0`, released as Git tag `v1.1.0` |
 | **Current Phase** | Approved roadmap and v1.1.0 release complete; resume/demo packaging awaiting owner review |
 | **Completion Percentage** | **100% of the approved provider-platform scope implemented and validated** |
-| **Tests Passed** | **123 of 123** automated tests passing; 0 failed |
+| **Tests Passed** | **133 of 133** automated tests passing; 0 failed |
 | **Current Branch** | `main` |
 | **Repository** | Initialized; GitHub `origin` configured at `git@github.com:LeelaissakAttota/ToolBridge-MCP-Server.git` |
 | **Synchronization** | `main` matches `origin/main` at release commit `4d8d73bb3ffa63102c7059429f14b459eb668546`, tagged `v1.1.0` |
 | **Next Milestone** | Owner review of recruiter-facing resume/demo packaging |
 | **Known Issues** | One dependency-owned `StarletteDeprecationWarning`; process-local budgets/metrics reset on restart; see `KNOWN_LIMITATIONS.md` |
-| **Last Updated** | 2026-08-15 (Asia/Calcutta) |
+| **Last Updated** | 2026-08-16 (Asia/Calcutta) |
 
 ## v1.1.0 provider platform
 
@@ -29,6 +29,7 @@
 ## Compatibility and security
 
 - All seven MCP tools, MCP Core contracts, existing HTTP paths, and built-in provider imports remain compatible.
+- MCP JSON string-enum values advertised by tool schemas are accepted and converted to typed domain enums; invalid values and unknown fields remain rejected.
 - The router remains FastAPI-independent and adapters remain replaceable behind project-owned ports.
 - API keys are unwrapped only at adapter construction. Prompts, generated content, secrets, and provider response bodies remain excluded from logs and monitoring.
 - Provider settings and budget values are environment-driven; there are no hardcoded credentials or provider prices.

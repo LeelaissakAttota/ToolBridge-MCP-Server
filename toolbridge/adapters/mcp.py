@@ -3,10 +3,12 @@
 import inspect
 import json
 from collections.abc import Callable
-from typing import Any
+from enum import StrEnum
+from typing import Annotated, Any
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
+from pydantic import Field
 
 from toolbridge.core.contracts import ToolDefinition
 from toolbridge.core.executor import ToolExecutor
@@ -84,12 +86,16 @@ class MCPToolAdapter:
         parameters: list[inspect.Parameter] = []
         for name, field in definition.input_model.model_fields.items():
             default = inspect.Parameter.empty if field.is_required() else field.default
+            annotation = field.annotation or Any
+            if isinstance(annotation, type) and issubclass(annotation, StrEnum):
+                # MCP sends the JSON value advertised by the schema, not a Python enum.
+                annotation = Annotated[annotation, Field(strict=False)]
             parameters.append(
                 inspect.Parameter(
                     name=name,
                     kind=inspect.Parameter.KEYWORD_ONLY,
                     default=default,
-                    annotation=field.annotation or Any,
+                    annotation=annotation,
                 )
             )
         return inspect.Signature(

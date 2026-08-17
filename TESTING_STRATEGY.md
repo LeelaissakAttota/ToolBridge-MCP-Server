@@ -33,10 +33,10 @@ For release validation after starting the stack:
 python scripts/verify_release.py --timeout-seconds 90
 ```
 
-## Current v1.1.0 result
+## Current result
 
-- total: 123 automated test cases
-- passed: 123
+- total: 133 automated test cases
+- passed: 133
 - failed: 0
 - warnings: one non-failing dependency-owned `StarletteDeprecationWarning`
 - dependency integrity: passed
@@ -48,6 +48,8 @@ python scripts/verify_release.py --timeout-seconds 90
 The validated Linux/amd64 image is approximately 199.3 MB. GitHub Actions repeats the image build and stack smoke on every push.
 
 The v1.1.0 provider-platform tests cover arbitrary plugin registration, package discovery, generic configuration, capability filtering, dynamic free/paid and health ranking, per-request/daily limits, smart routing, budget failover, and startup health/model discovery.
+
+RW-002 regressions cover strict JSON-boundary conversion of advertised MCP string enums, invalid enum rejection, unknown-field rejection, unrelated strict-type rejection, and FastMCP adapter execution without live provider calls.
 
 ## Live contract tests
 

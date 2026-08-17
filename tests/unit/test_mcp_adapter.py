@@ -11,6 +11,10 @@ from toolbridge.core.contracts import ToolDefinition, ToolInput, ToolOutput
 from toolbridge.core.executor import ToolExecutor
 from toolbridge.core.registry import ToolRegistry
 from toolbridge.core.validation import RequestValidator, ResponseValidator
+from toolbridge.tools.domain.llm_analysis import (
+    LLMAnalysisInput,
+    LLMAnalysisOutput,
+)
 
 
 class AddInput(ToolInput):
@@ -50,6 +54,39 @@ def build_mcp() -> FastMCP:
     return mcp
 
 
+def build_analysis_mcp() -> FastMCP:
+    """Build an isolated MCP transport with the enum-bearing analysis contract."""
+
+    registry = ToolRegistry()
+    registry.register(
+        ToolDefinition(
+            name="hcl_curie_analysis",
+            description="Analyze or summarize text.",
+            input_model=LLMAnalysisInput,
+            output_model=LLMAnalysisOutput,
+            handler=lambda data: LLMAnalysisOutput(
+                operation=data.operation,
+                content="Processed text.",
+                provider="test-provider",
+                model="test-model",
+                request_id="test-request",
+                input_tokens=1,
+                output_tokens=2,
+                total_tokens=3,
+            ),
+            timeout_seconds=1.0,
+        )
+    )
+    executor = ToolExecutor(
+        registry,
+        RequestValidator(max_request_bytes=1_024),
+        ResponseValidator(max_response_bytes=1_024),
+    )
+    mcp = FastMCP("analysis-adapter-test", stateless_http=True, json_response=True)
+    MCPToolAdapter(mcp, registry, executor).register_tools()
+    return mcp
+
+
 def test_mcp_discovery_uses_core_contract_schema() -> None:
     tools = asyncio.run(build_mcp().list_tools())
 
@@ -68,6 +105,11 @@ def test_mcp_adapter_executes_through_core() -> None:
     assert structured == {"total": 5}
 
 
+def test_mcp_adapter_preserves_strict_non_enum_validation() -> None:
+    with pytest.raises(ToolError):
+        asyncio.run(build_mcp().call_tool("add", {"left": "2", "right": 3}))
+
+
 def test_mcp_adapter_rejects_and_hides_extra_input() -> None:
     with pytest.raises(ToolError) as caught:
         asyncio.run(
@@ -79,3 +121,39 @@ def test_mcp_adapter_rejects_and_hides_extra_input() -> None:
 
     assert "Extra inputs are not permitted" in str(caught.value)
     assert "secret-value" not in str(caught.value)
+
+
+@pytest.mark.parametrize("operation", ["summarize", "analyze"])
+def test_mcp_adapter_accepts_advertised_json_enum(operation: str) -> None:
+    mcp = build_analysis_mcp()
+    tools = asyncio.run(mcp.list_tools())
+    operation_schema = tools[0].inputSchema["$defs"]["AnalysisOperation"]
+
+    assert operation in operation_schema["enum"]
+
+    _, structured = asyncio.run(
+        mcp.call_tool(
+            "hcl_curie_analysis",
+            {
+                "operation": operation,
+                "text": "ToolBridge is an MCP server.",
+                "instructions": "Reply in one short sentence.",
+            },
+        )
+    )
+
+    assert structured is not None
+    assert structured["operation"] == operation
+
+
+def test_mcp_adapter_rejects_invalid_json_enum() -> None:
+    with pytest.raises(ToolError) as caught:
+        asyncio.run(
+            build_analysis_mcp().call_tool(
+                "hcl_curie_analysis",
+                {"operation": "invalid-operation", "text": "hello"},
+            )
+        )
+
+    assert "Input should be 'analyze' or 'summarize'" in str(caught.value)
+    assert "invalid-operation" not in str(caught.value)

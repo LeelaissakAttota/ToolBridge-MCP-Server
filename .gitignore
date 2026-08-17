@@ -19,3 +19,4 @@ test-results.xml
 *.tar.gz
 *.sha256
 data/
+.venv-repro-test/
