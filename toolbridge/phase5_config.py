@@ -131,8 +131,8 @@ class FrankfurterSettings(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     enabled: bool = True
-    base_url: HttpUrl = HttpUrl("https://api.frankfurter.app")
-    latest_path: str = "/latest"
+    base_url: HttpUrl = HttpUrl("https://api.frankfurter.dev")
+    latest_path: str = "/v1/latest"
     user_agent: str = Field(default="ToolBridge-MCP", min_length=1, max_length=128)
 
     _validate_origin = field_validator("base_url")(_safe_https_origin)

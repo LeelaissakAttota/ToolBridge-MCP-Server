@@ -1,4 +1,4 @@
-﻿import asyncio
+import asyncio
 
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
@@ -18,10 +18,7 @@ async def main():
             print(f"TOOL_COUNT={len(names)}")
             print("TOOLS=" + ",".join(names))
 
-            target = next(
-                tool for tool in tools.tools
-                if tool.name == "hcl_curie_analysis"
-            )
+            target = next(tool for tool in tools.tools if tool.name == "hcl_curie_analysis")
 
             print("HCL_CURIE_DISCOVERED=YES")
             print("INPUT_SCHEMA=")
@@ -35,7 +32,7 @@ async def main():
                         "ToolBridge is an MCP server that exposes validated tools "
                         "and routes LLM analysis through configurable providers."
                     ),
-                    "instructions": "Reply in one short sentence."
+                    "instructions": "Reply in one short sentence.",
                 },
             )
 
