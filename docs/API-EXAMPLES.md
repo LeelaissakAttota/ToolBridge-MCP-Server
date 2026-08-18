@@ -181,7 +181,13 @@ curl.exe -sS http://127.0.0.1:8000/mcp/ `
 
 ## Network- and Provider-Dependent Tools
 
-The following are real interfaces but are intentionally not represented with fabricated successful responses:
+The checked-in request examples remain reproducible interface examples rather than promises of live external behavior. Separate retained screenshots provide the following point-in-time evidence:
+
+- `hcl_curie_analysis` executed through NVIDIA using `meta/llama-3.1-8b-instruct`
+- `stock_price` returned AAPL data from Yahoo Finance
+- `currency_converter` converted USD to INR and EUR through Frankfurter
+
+These captures validate only the providers, inputs, and times shown. They do not establish permanent availability, a production SLA, or successful live execution of Cerebras, OpenRouter, or every tool input. Network- and data-dependent execution still has these requirements:
 
 - `stock_price`: requires an available configured public market-data provider
 - `website_reader`: requires permitted public HTTPS network access and a safe destination
@@ -189,5 +195,4 @@ The following are real interfaces but are intentionally not represented with fab
 - `hcl_curie_analysis`: requires an enabled Cerebras, NVIDIA, or OpenRouter provider with credentials and an approved model
 - `csv_analysis`: requires an approved CSV beneath the configured root
 
-Consult `tools/list` for current schemas and [USER_GUIDE.md](../USER_GUIDE.md) for operating constraints.
-
+See the [screenshot gallery](../screenshots/README.md) for retained evidence. Consult `tools/list` for current schemas and [USER_GUIDE.md](../USER_GUIDE.md) for operating constraints.

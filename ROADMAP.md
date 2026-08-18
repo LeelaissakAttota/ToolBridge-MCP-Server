@@ -13,9 +13,9 @@ This roadmap records delivered outcomes and separately approved post-v1 work.
 | 5. Core MCP Tools | Website, SQLite, CSV, currency, and LLM analysis | Complete |
 | 6. Dashboard & Production Readiness | Read-only operations UI, health/readiness, metrics, lifecycle | Complete |
 | 7. Deployment & v1.0.0 Release | Docker, Compose, CI validation, release docs, tagged version 1.0.0 | Complete and published to `origin/main` |
-| Post-v1 Provider Plugin Platform | Unlimited self-registering adapters, model discovery/ranking, health, budgets, dashboard | Complete in v1.1.0 working tree; awaiting approval |
+| Post-v1 Provider Plugin Platform | Self-registering adapter framework, model discovery/ranking, health, budgets, dashboard | Complete and released as historical tag `v1.1.0` at `4d8d73bb3ffa63102c7059429f14b459eb668546` |
 
-## v1.1.0 exit criteria
+## Completed v1.1.0 exit criteria
 
 - provider adapters self-register and infrastructure discovers them without provider-name switches
 - built-in adapters remain backward compatible and adding a provider does not change router/MCP/tool code
@@ -27,7 +27,7 @@ This roadmap records delivered outcomes and separately approved post-v1 work.
 - MCP Core, all seven tool contracts, existing HTTP paths, and v1.0 deployment architecture remain compatible
 - offline unit, integration, API/MCP, dashboard, and startup suites pass
 
-## Future roadmap - not approved
+## Future / optional roadmap — not approved
 
 - inbound authentication, authorization, tenant isolation, and public topology
 - persistent/distributed health, metrics, budgets, audit, traces, probes, and alerts

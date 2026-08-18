@@ -17,6 +17,8 @@ Show a recruiter or engineering interviewer that ToolBridge:
 
 For a static preview of the verified local UI and interfaces, see the [genuine screenshot gallery](../screenshots/README.md).
 
+The gallery also retains point-in-time NVIDIA LLM, Yahoo Finance AAPL, and Frankfurter currency-validation evidence. Those captures are separate from this credential-free demo and do not imply permanent provider availability or a production SLA.
+
 ## Prerequisites
 
 - Windows PowerShell from the repository root
@@ -186,7 +188,7 @@ Do not make Docker startup a prerequisite for a short recruiter demo. The verifi
 - **Dynamic routing:** hard capability/availability/budget filters run before scoring health, latency, cost, context, and quality.
 - **Budget controls:** daily, monthly, and per-request limits reduce accidental spend; they are process-local safeguards, not billing authority.
 - **Security decisions:** loopback-only publication compensates for the intentionally absent inbound identity layer; all boundaries validate and bound untrusted data.
-- **Test strategy:** 123 deterministic offline tests use fakes, temporary SQLite/CSV data, and mock HTTP transports; CI also performs startup and Compose smoke checks.
+- **Test strategy:** 133 deterministic offline tests use fakes, temporary SQLite/CSV data, and mock HTTP transports; one non-failing Starlette/httpx deprecation warning is documented, and Continuous Integration also performs startup and Compose smoke checks.
 - **Docker:** the release uses a multi-stage image, fixed non-root identity, read-only roots, dropped capabilities, bounded `/tmp`, and health checks.
 - **Known limitations:** no authentication, tenancy, persistent telemetry, distributed budget ledger, public deployment, or live-provider CI.
 

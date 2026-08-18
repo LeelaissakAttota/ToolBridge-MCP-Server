@@ -16,7 +16,7 @@ Built a Python Model Context Protocol server with seven validated tools, plugin-
 - Designed a Clean Architecture provider platform where Cerebras, NVIDIA, and OpenRouter adapters self-register as plugins and route through capability filtering, model ranking, health scoring, retries, failover, and configurable budget controls.
 - Implemented read-only SQLite, CSV, website, market-data, currency, system-status, and LLM-analysis capabilities with conservative SQL validation, filesystem confinement, SSRF-aware URL checks, and bounded external responses.
 - Built a read-only Streamlit operations dashboard backed by FastAPI health, readiness, and allowlisted snapshot endpoints for tool/provider status, metrics, estimated cost, and bounded safe logs.
-- Packaged the service with a multi-stage non-root Docker image, loopback-only Docker Compose topology, GitHub Actions startup/container checks, Ruff gates, and 123 passing automated tests.
+- Packaged the service with a multi-stage non-root Docker image, loopback-only Docker Compose topology, GitHub Actions Continuous Integration checks, Ruff gates, and 133 passing automated tests with one non-failing Starlette/httpx deprecation warning.
 
 ## Tech Stack
 
@@ -67,15 +67,16 @@ The hardest part was keeping protocol, tool, provider, and monitoring boundaries
 
 ## 30-Second Explanation
 
-ToolBridge is a local-first MCP server I built in Python. It exposes seven validated tools through FastMCP, while a Clean Architecture core handles timeouts, errors, lifecycle, and observability. LLM work routes through self-registering Cerebras, NVIDIA, and OpenRouter plugins with capability-aware ranking, health, failover, and budget controls. A read-only Streamlit dashboard shows safe operational state, and the release is packaged with Docker, CI, and 123 passing tests.
+ToolBridge is a local-first MCP server I built in Python. It exposes seven validated tools through FastMCP, while a Clean Architecture core handles timeouts, errors, lifecycle, and observability. LLM work routes through self-registering Cerebras, NVIDIA, and OpenRouter plugins with capability-aware ranking, health, failover, and budget controls. A read-only Streamlit dashboard shows safe operational state, and the project is packaged with Docker, Continuous Integration, and 133 passing automated tests.
 
 ## 2-Minute Explanation
 
 ToolBridge solves the integration problem between MCP-compatible AI clients and a mixed set of local data tools, public APIs, and LLM providers. Instead of giving a client direct access to each dependency, the server exposes one Streamable HTTP MCP endpoint. Clients initialize, discover seven authoritative schemas with `tools/list`, and call tools through a common validated executor.
 
-Internally, I used Clean Architecture. Domain models define provider-neutral and tool-neutral contracts. Application services own validation, timeouts, tool lifecycle, model ranking, budgets, health, retries, failover, and operations aggregation. FastMCP, FastAPI, HTTPX, SQLite, CSV files, provider APIs, logging, and Streamlit are adapters or infrastructure. That separation lets the 123-test offline suite exercise behavior with temporary data and mock transports rather than live credentials.
+Internally, I used Clean Architecture. Domain models define provider-neutral and tool-neutral contracts. Application services own validation, timeouts, tool lifecycle, model ranking, budgets, health, retries, failover, and operations aggregation. FastMCP, FastAPI, HTTPX, SQLite, CSV files, provider APIs, logging, and Streamlit are adapters or infrastructure. That separation lets the 133-test offline suite exercise behavior with temporary data and mock transports rather than live credentials.
 
 The v1.1.0 provider platform discovers self-registering Cerebras, NVIDIA, and OpenRouter plugins. Enabled providers can health-check and discover model metadata, while routing filters by required capability and budget before scoring health, latency, configured cost, context, and quality. Providers are disabled by default, so startup is network-free.
 
 For operations, FastAPI exposes cheap liveness, lifecycle readiness, and a strict read-only snapshot. Streamlit renders provider, model, tool, metric, estimated-cost, and safe-log views without receiving prompts, queries, paths, credentials, or raw external responses. The supported deployment is intentionally loopback-only because inbound authentication is not part of this release. Docker and GitHub Actions validate the same constrained single-host topology.
 
+Later point-in-time portfolio validation captured successful MCP execution through NVIDIA using `meta/llama-3.1-8b-instruct`, AAPL data from Yahoo Finance, and USD-to-INR/EUR conversion through Frankfurter. These captures do not imply permanent provider availability, live validation of every LLM provider, or a production SLA.

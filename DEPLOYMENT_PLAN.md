@@ -16,7 +16,9 @@
 | Validation | `scripts/verify_release.py` checks version, endpoints, registrations, dashboard, safe keys |
 | Rollback | restore prior approved immutable image/config; preserve data volume |
 
-## Promotion sequence
+## Historical v1.0.0 promotion sequence
+
+The following sequence records the release process used to implement the original single-host container profile. It is retained as historical planning context; current operator commands are in [DEPLOYMENT.md](DEPLOYMENT.md).
 
 1. Obtain owner approval of this uncommitted Phase 7 worktree.
 2. Run all quality, test, startup, Compose, image, security, and release checks.
@@ -31,14 +33,18 @@ Automatic publishing, environment deployment, public ingress, credentials, and p
 
 ## Current deployment status
 
-ToolBridge is not production-deployed and has no Dockerfile, container configuration, reverse proxy, CI/CD workflow, cloud manifest, database, or secret manager integration. The only verified deployment mode is local Uvicorn on Python 3.12.
+ToolBridge supports local Python execution and a Docker/Docker Compose profile for a loopback-only or trusted single-host environment. The repository includes a multi-stage non-root Dockerfile, hardened two-service Compose configuration, health checks, and a persistent data volume.
+
+GitHub Actions provides Continuous Integration for dependency, Ruff formatting/lint, automated tests, local startup, image build, Compose smoke validation, and release verification. Tagged workflows create a compressed image artifact and SHA-256 file. They do not publish or deploy the image automatically.
+
+There is no evidence of a public production deployment, reverse proxy, cloud deployment manifest, managed secret store, automated environment promotion, or deployment pipeline.
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
 python -m uvicorn toolbridge.main:app --host 127.0.0.1 --port 8000
 ```
 
-This binds to loopback only and is appropriate for local development. Do not expose the current service publicly: authentication, authorization, rate limiting, transport policy, and production monitoring are not implemented.
+This binds to loopback only and is appropriate for local development. The Docker Compose profile also publishes API and dashboard ports only on host loopback. Do not expose the service publicly: authentication, authorization, rate limiting, transport policy, and production monitoring are not implemented.
 
 ## Deployment principles
 
@@ -60,9 +66,11 @@ This binds to loopback only and is appropriate for local development. Do not exp
 
 The hosting platform and regional requirements are undecided.
 
-## Packaging decision still required
+## Historical packaging decision — resolved
 
-A later phase should evaluate an OCI container versus a managed Python service. Containerization is suggested by the original architecture concept but has not been approved or implemented. The selected option must support:
+The original plan called for evaluating an OCI container versus a managed Python service. The approved release implemented the OCI/Docker option with Python 3.12, non-root execution, read-only container roots through Compose, runtime configuration injection, health/readiness probes, and FastAPI lifespan handling. A managed hosting platform remains unselected and outside the approved scope.
+
+The implemented container profile supports:
 
 - Python 3.12 and pinned dependency installation
 - Non-root execution
@@ -86,14 +94,16 @@ Before production, classify settings as:
 
 Fail startup clearly when required production configuration is missing.
 
-## Health and readiness
+## Implemented health and readiness
 
-- Keep `GET /health` as a cheap process-liveness signal.
-- Add a separate readiness endpoint before external dependencies participate in request handling.
-- Readiness should report only safe aggregate state, not credentials or internal topology.
-- Provider degradation should not necessarily restart a healthy process.
+- `GET /health` remains a cheap process-liveness signal.
+- `GET /ready` reports lifecycle, registry, tool-lifecycle, and provider-router readiness without spending provider quota.
+- Readiness reports only safe aggregate state, not credentials or sensitive provider payloads.
+- Optional provider degradation does not necessarily make a healthy process fail liveness.
 
-## Proposed delivery pipeline
+## Future deployment automation — not implemented
+
+GitHub Actions is the selected Continuous Integration system and implements validation plus tagged artifact creation. The following deployment and promotion sequence remains a future proposal, not an implemented pipeline:
 
 1. Validate metadata and dependency lock/pins.
 2. Install into a clean Python 3.12 environment.
@@ -106,7 +116,7 @@ Fail startup clearly when required production configuration is missing.
 9. Require explicit production approval.
 10. Deploy gradually and monitor defined service-level indicators.
 
-No CI/CD provider has been selected.
+No deployment target, automatic publishing mechanism, environment-promotion workflow, or deployment provider has been selected. Release deployment remains owner-controlled and manual.
 
 ## Release verification
 

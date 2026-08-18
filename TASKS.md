@@ -13,9 +13,18 @@
 - [x] Add nine focused plugin-platform tests.
 - [x] Preserve MCP Core, all seven tool contracts, HTTP paths, and deployment architecture.
 - [x] Synchronize project documentation.
-- [x] Complete dependency, Ruff, 123-test, startup, API/readiness, Docker, and dashboard validation.
-- [ ] Owner review and approval.
-- [ ] After approval only: commit and push v1.1.0 changes.
+- [x] Complete dependency, Ruff, then-current 123-test release baseline, startup, API/readiness, Docker, and dashboard validation.
+- [x] Owner review and approval.
+- [x] Commit and push the approved v1.1.0 changes; preserve the annotated release tag at `4d8d73bb3ffa63102c7059429f14b459eb668546`.
+
+## Post-release compatibility and portfolio validation
+
+- [x] Preserve all seven MCP tools and synchronize strict MCP enum validation with published JSON contracts.
+- [x] Update the Frankfurter endpoint compatibility configuration.
+- [x] Verify the current automated baseline: 133 tests passed with one non-failing Starlette/httpx deprecation warning; Ruff lint and format checks passed.
+- [x] Capture MCP initialization and discovery of all seven tools.
+- [x] Retain point-in-time NVIDIA, Yahoo Finance AAPL, and Frankfurter validation evidence without claiming permanent availability or deployment.
+- [x] Capture rejection of a destructive SQL `DELETE` request.
 
 ## v1.0.0 release status
 

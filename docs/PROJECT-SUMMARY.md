@@ -56,12 +56,14 @@ The release does not include inbound authentication, authorization, tenants, app
 
 ## Testing
 
-- 123 deterministic automated tests passing
+- 133 deterministic automated tests passing with one non-failing Starlette/httpx deprecation warning
 - unit, integration, API/MCP, provider, tool, dashboard, startup, and release-safety coverage
 - temporary SQLite/CSV fixtures and mock HTTP transports; default suite requires no credentials or paid requests
 - Ruff formatting and lint gates
 - local service and Docker Compose smoke validation in GitHub Actions
 - owner manual validation passed with network/configuration-dependent tests clearly separated
+
+Retained point-in-time portfolio evidence includes MCP execution through NVIDIA using `meta/llama-3.1-8b-instruct`, AAPL data from Yahoo Finance, and USD-to-INR/EUR conversion through Frankfurter. These captures do not imply permanent provider availability, successful live execution of every provider, or a production SLA.
 
 ## Deployment
 
@@ -73,6 +75,8 @@ The release includes a multi-stage Python 3.12 Docker image and a two-service Do
 - Release commit: `4d8d73bb3ffa63102c7059429f14b459eb668546`
 - Approved product roadmap: complete
 - All seven MCP contracts remain stable
+
+The historical `v1.1.0` tag remains at the release commit above. Later compatibility, documentation, and portfolio-validation updates exist on `main` and do not redefine that historical release boundary.
 
 ## Known Limitations
 
@@ -86,4 +90,3 @@ The release includes a multi-stage Python 3.12 Docker image and a two-service Do
 ## Future Integration Possibility
 
 An external assistant or agent, including a future system such as JARVIS, could connect to ToolBridge as an MCP client. That possibility is outside the completed ToolBridge v1.1.0 scope and does not require changing the current server contracts.
-

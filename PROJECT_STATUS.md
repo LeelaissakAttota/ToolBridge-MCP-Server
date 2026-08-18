@@ -5,15 +5,15 @@
 | Field | Current status |
 | --- | --- |
 | **Current Version** | `1.1.0`, released as Git tag `v1.1.0` |
-| **Current Phase** | Approved roadmap and v1.1.0 release complete; resume/demo packaging awaiting owner review |
+| **Current Phase** | Approved roadmap and historical v1.1.0 release complete; subsequent compatibility, documentation, and portfolio validation recorded on `main` |
 | **Completion Percentage** | **100% of the approved provider-platform scope implemented and validated** |
 | **Tests Passed** | **133 of 133** automated tests passing; 0 failed |
 | **Current Branch** | `main` |
 | **Repository** | Initialized; GitHub `origin` configured at `git@github.com:LeelaissakAttota/ToolBridge-MCP-Server.git` |
-| **Synchronization** | `main` matches `origin/main` at release commit `4d8d73bb3ffa63102c7059429f14b459eb668546`, tagged `v1.1.0` |
-| **Next Milestone** | Owner review of recruiter-facing resume/demo packaging |
+| **Synchronization** | The historical `v1.1.0` release remains tagged at `4d8d73bb3ffa63102c7059429f14b459eb668546`; subsequent documentation, compatibility, and portfolio-validation updates exist on `main` |
+| **Next Milestone** | No additional implementation milestone is approved; future work remains subject to owner approval |
 | **Known Issues** | One dependency-owned `StarletteDeprecationWarning`; process-local budgets/metrics reset on restart; see `KNOWN_LIMITATIONS.md` |
-| **Last Updated** | 2026-08-16 (Asia/Calcutta) |
+| **Last Updated** | 2026-08-18 (Asia/Calcutta) |
 
 ## v1.1.0 provider platform
 
@@ -38,6 +38,6 @@
 
 - dependency integrity: `pip check`
 - formatting and static checks: Ruff
-- automated suite: 123 unit, integration, API/MCP, dashboard, and startup tests
+- current audited automated suite: 133 passing unit, integration, API/MCP, dashboard, and startup tests
 - local service: health, readiness, operations snapshot, and Streamlit dashboard
 - known non-failing warning: dependency-owned Starlette TestClient/httpx migration warning
