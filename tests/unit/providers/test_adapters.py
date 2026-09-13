@@ -295,3 +295,70 @@ def test_provider_enforces_configured_token_and_prompt_limits() -> None:
 
     assert token_error.category is ProviderErrorCategory.INVALID_REQUEST
     assert prompt_error.category is ProviderErrorCategory.INVALID_REQUEST
+
+
+def test_openrouter_list_models_parses_per_model_pricing() -> None:
+    """OpenRouter adapter reads per-model cost and marks :free models correctly."""
+
+    api_response = {
+        "data": [
+            {
+                "id": "some/model:free",
+                "context_length": 131072,
+                "pricing": {"prompt": "0", "completion": "0"},
+            },
+            {
+                "id": "some/paid-model",
+                "context_length": 32768,
+                "pricing": {"prompt": "0.000003", "completion": "0.000015"},
+            },
+            {
+                "id": "some/no-pricing-model",
+                "context_length": 8192,
+            },
+            {
+                "id": "openrouter/auto",
+                "context_length": 200000,
+                "pricing": {"prompt": "-1", "completion": "-1"},
+            },
+        ]
+    }
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(200, json=api_response, request=request)
+    )
+    provider = OpenRouterProvider(config(), transport=transport)
+
+    async def run() -> tuple[object, ...]:
+        await provider.initialize()
+        models = await provider.list_models()
+        await provider.close()
+        return models
+
+    models = asyncio.run(run())
+
+    assert len(models) == 4
+
+    free_model = models[0]
+    assert free_model.id == "some/model:free"
+    assert free_model.is_free is True
+    assert free_model.input_cost_per_million_tokens_usd == 0.0
+    assert free_model.output_cost_per_million_tokens_usd == 0.0
+    assert free_model.context_window == 131072
+
+    paid_model = models[1]
+    assert paid_model.id == "some/paid-model"
+    assert paid_model.is_free is False
+    assert round(paid_model.input_cost_per_million_tokens_usd, 4) == round(3.0, 4)
+    assert round(paid_model.output_cost_per_million_tokens_usd, 4) == round(15.0, 4)
+    assert paid_model.context_window == 32768
+
+    no_pricing_model = models[2]
+    assert no_pricing_model.id == "some/no-pricing-model"
+    assert no_pricing_model.is_free is True
+    assert no_pricing_model.context_window == 8192
+
+    auto_model = models[3]
+    assert auto_model.id == "openrouter/auto"
+    assert auto_model.input_cost_per_million_tokens_usd == 0.0
+    assert auto_model.output_cost_per_million_tokens_usd == 0.0
+    assert auto_model.is_free is True

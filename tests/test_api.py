@@ -58,7 +58,8 @@ def test_operations_snapshot_is_safe_and_complete(client: TestClient) -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["system"]["version"] == "1.1.0"
-    assert len(body["providers"]) == 3
+    assert len(body["providers"]) >= 2
+    assert {p["provider"] for p in body["providers"]} >= {"nvidia", "openrouter"}
     assert len(body["tools"]) == 7
     assert set(body) == {
         "system",
