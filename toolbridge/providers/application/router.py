@@ -298,7 +298,6 @@ class ProviderRouter:
 
     async def generate(self, request: GenerationRequest) -> GenerationResponse:
         prepared = self._prepare_request(request)
-        assert prepared.request_id is not None
         response = await self._route_generation(prepared)
         self._usage_recorder.record_generation(
             provider=response.provider,
@@ -318,7 +317,6 @@ class ProviderRouter:
 
     async def stream_generate(self, request: GenerationRequest) -> AsyncIterator[GenerationChunk]:
         prepared = self._prepare_request(request)
-        assert prepared.request_id is not None
         candidates = self._generation_candidates(prepared, streaming=True)
         last_error: ProviderError | None = None
         for registration, model, reason, score in candidates:

@@ -138,7 +138,7 @@ def _summarize(name: str, values: list[str], missing_count: int) -> CSVColumnSum
         unique_count=len(set(values)),
         minimum=min(numbers) if numbers else None,
         maximum=max(numbers) if numbers else None,
-        mean=sum(value / len(numbers) for value in numbers) if numbers else None,
+        mean=sum(numbers) / len(numbers) if numbers else None,
     )
 
 

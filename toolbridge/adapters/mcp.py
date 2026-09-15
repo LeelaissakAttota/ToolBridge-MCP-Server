@@ -43,6 +43,9 @@ class MCPToolAdapter:
     def _enforce_strict_transport_validation(self, definition: ToolDefinition) -> None:
         """Align FastMCP's generated argument model with the strict core contract."""
 
+        # FastMCP exposes no public API for post-registration model-config mutation.
+        # _tool_manager.get_tool() is a public method on the private ToolManager attribute;
+        # this is a controlled compatibility risk tracked against FastMCP upgrades.
         registered = self._mcp._tool_manager.get_tool(definition.name)  # type: ignore[attr-defined]
         if registered is None:
             raise RuntimeError(f"FastMCP did not register tool {definition.name!r}")
@@ -61,7 +64,8 @@ class MCPToolAdapter:
         async def execute_tool(**arguments: Any) -> Any:
             response = await self._executor.execute(definition.name, arguments)
             if not response.success:
-                assert response.error is not None
+                if response.error is None:
+                    raise RuntimeError("failure response missing error object")
                 safe_error = response.error.model_dump(mode="json", exclude_none=True)
                 raise ToolError(
                     json.dumps(
@@ -71,7 +75,8 @@ class MCPToolAdapter:
                         sort_keys=True,
                     )
                 )
-            assert response.result is not None
+            if response.result is None:
+                raise RuntimeError("success response missing result object")
             return definition.output_model.model_validate(response.result, strict=False)
 
         execute_tool.__name__ = definition.name
