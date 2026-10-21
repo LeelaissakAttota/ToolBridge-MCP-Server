@@ -1,0 +1,11 @@
+{
+  "jsonrpc": "2.0",
+  "id": 18,
+  "method": "tools/call",
+  "params": {
+    "name": "website_reader",
+    "arguments": {
+      "url": "https://192.168.1.1/"
+    }
+  }
+}

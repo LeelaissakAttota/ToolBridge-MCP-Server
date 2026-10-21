@@ -1,0 +1,12 @@
+{
+  "jsonrpc": "2.0",
+  "id": 21,
+  "method": "tools/call",
+  "params": {
+    "name": "llm_analysis",
+    "arguments": {
+      "operation": "translate",
+      "text": "hello"
+    }
+  }
+}

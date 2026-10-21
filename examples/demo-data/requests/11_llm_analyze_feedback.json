@@ -1,0 +1,13 @@
+{
+  "jsonrpc": "2.0",
+  "id": 11,
+  "method": "tools/call",
+  "params": {
+    "name": "llm_analysis",
+    "arguments": {
+      "operation": "analyze",
+      "text": "Customer feedback - Demo Cafe (fictional), October 2026\n1. The filter coffee at Indiranagar was excellent, but the wait was 20 minutes.\n2. Paneer wrap was cold when delivered. Packaging needs improvement.\n3. Loved the new brownie! Staff were friendly and quick.\n4. UPI payment failed twice at Koramangala; had to pay cash.\n5. Whitefield branch is clean and quiet - great for working.\n6. Prices went up but portion size of the sandwich went down.\n7. Cold coffee is too sweet. Please offer a less-sugar option.\n8. Fast service at HSR Layout during lunch rush. Keep it up.\n",
+      "instructions": "List the top 3 complaints and top 2 compliments."
+    }
+  }
+}

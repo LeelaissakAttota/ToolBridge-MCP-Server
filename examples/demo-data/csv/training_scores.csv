@@ -1,0 +1,16 @@
+trainee_id,name,course,module,score,completed
+T001,Asha,Python Basics,2,49,no
+T002,Ravi,Python Basics,5,80,yes
+T003,Meena,SQL Fundamentals,2,45,yes
+T004,Kiran,SQL Fundamentals,6,48,yes
+T005,Sita,Python Basics,1,100,no
+T006,Arjun,Python Basics,5,60,no
+T007,Divya,SQL Fundamentals,4,58,yes
+T008,Vikram,SQL Fundamentals,5,81,no
+T009,Lakshmi,Python Basics,4,96,no
+T010,Naveen,Python Basics,1,51,no
+T011,Priya,Agentic AI,4,71,no
+T012,Suresh,SQL Fundamentals,1,88,yes
+T013,Anil,Python Basics,4,91,no
+T014,Kavya,Python Basics,2,57,yes
+T015,Rahul,SQL Fundamentals,4,53,no

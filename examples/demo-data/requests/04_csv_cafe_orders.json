@@ -1,0 +1,12 @@
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "method": "tools/call",
+  "params": {
+    "name": "csv_analysis",
+    "arguments": {
+      "relative_path": "cafe_orders.csv",
+      "preview_rows": 5
+    }
+  }
+}

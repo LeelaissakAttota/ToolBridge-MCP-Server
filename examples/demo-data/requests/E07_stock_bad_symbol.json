@@ -1,0 +1,11 @@
+{
+  "jsonrpc": "2.0",
+  "id": 19,
+  "method": "tools/call",
+  "params": {
+    "name": "stock_price",
+    "arguments": {
+      "symbol": "AAPL$$"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "jsonrpc": "2.0",
+  "id": 12,
+  "method": "tools/call",
+  "params": {
+    "name": "llm_analysis",
+    "arguments": {
+      "operation": "summarize",
+      "text": "Meeting notes - Demo Cafe operations sync (fictional), 18 Oct 2026\nAttendees: Operations lead, Kitchen lead, Finance, Marketing\n- Weekend orders rose about 15% after the brownie launch.\n- Koramangala UPI terminal keeps failing; vendor ticket raised, fix expected by Friday.\n- Delivery packaging: test insulated bags for wraps for two weeks.\n- Finance flagged sandwich cost increase; review portion vs price next month.\n- Marketing will run a less-sugar cold coffee poll on social media.\nAction items: Ops to follow up on UPI vendor; Kitchen to trial insulated bags; Finance to share cost sheet by 25 Oct.\n"
+    }
+  }
+}

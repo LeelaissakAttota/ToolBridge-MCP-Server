@@ -1,0 +1,12 @@
+{
+  "jsonrpc": "2.0",
+  "id": 10,
+  "method": "tools/call",
+  "params": {
+    "name": "website_reader",
+    "arguments": {
+      "url": "https://example.com",
+      "max_characters": 2000
+    }
+  }
+}

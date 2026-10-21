@@ -1,0 +1,12 @@
+{
+  "jsonrpc": "2.0",
+  "id": 13,
+  "method": "tools/call",
+  "params": {
+    "name": "sql_query",
+    "arguments": {
+      "query": "DELETE FROM books WHERE book_id = 1",
+      "parameters": {}
+    }
+  }
+}

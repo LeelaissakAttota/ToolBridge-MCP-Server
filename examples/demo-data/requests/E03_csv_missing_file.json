@@ -1,0 +1,11 @@
+{
+  "jsonrpc": "2.0",
+  "id": 15,
+  "method": "tools/call",
+  "params": {
+    "name": "csv_analysis",
+    "arguments": {
+      "relative_path": "does_not_exist.csv"
+    }
+  }
+}

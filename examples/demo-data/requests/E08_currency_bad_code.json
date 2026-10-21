@@ -1,0 +1,15 @@
+{
+  "jsonrpc": "2.0",
+  "id": 20,
+  "method": "tools/call",
+  "params": {
+    "name": "currency_converter",
+    "arguments": {
+      "amount": 100,
+      "source_currency": "US",
+      "target_currencies": [
+        "INR"
+      ]
+    }
+  }
+}

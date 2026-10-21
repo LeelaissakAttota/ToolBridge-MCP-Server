@@ -1,0 +1,12 @@
+{
+  "jsonrpc": "2.0",
+  "id": 5,
+  "method": "tools/call",
+  "params": {
+    "name": "csv_analysis",
+    "arguments": {
+      "relative_path": "training_scores.csv",
+      "preview_rows": 3
+    }
+  }
+}

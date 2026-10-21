@@ -1,0 +1,12 @@
+{
+  "jsonrpc": "2.0",
+  "id": 7,
+  "method": "tools/call",
+  "params": {
+    "name": "sql_query",
+    "arguments": {
+      "query": "SELECT l.loan_id, b.title, l.member_name, l.loan_date FROM loans l JOIN books b ON b.book_id = l.book_id WHERE l.return_date IS NULL ORDER BY l.loan_date",
+      "parameters": {}
+    }
+  }
+}
