@@ -3,10 +3,11 @@
 from datetime import datetime
 from html import escape
 from typing import Literal
+from urllib.parse import urlsplit
 
 import streamlit as st
 
-from toolbridge.config import get_settings
+from toolbridge.config import Settings, get_settings
 from toolbridge.dashboard.client import DashboardClient, DashboardUnavailableError
 from toolbridge.operations.domain.models import (
     OperationsSnapshot,
@@ -47,7 +48,6 @@ def _inject_custom_css() -> None:
   --accent-red: #f85149;
   --accent-yellow: #d29922;
   --sidebar-width: 260px;
-  --right-panel-width: 280px;
   --header-height: 56px;
   --card-radius: 8px;
   --card-shadow: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
@@ -131,7 +131,7 @@ section[data-testid="stSidebar"] .stRadio label[data-selected="true"] {
 /* ── Main Content Area ───────────────────────────────────────── */
 .main .block-container {
   padding: 1.5rem 2rem !important;
-  max-width: calc(100vw - var(--sidebar-width) - var(--right-panel-width) - 2rem) !important;
+  max-width: 100% !important;
   background-color: var(--bg-primary) !important;
 }
 
@@ -166,30 +166,71 @@ div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
 }
 
 /* ── Tables ──────────────────────────────────────────────────── */
-.stDataFrame {
+/* st.dataframe renders on a canvas (glide-data-grid); colours come from these vars */
+div[data-testid="stDataFrame"], .stDataFrame {
   background-color: var(--bg-secondary) !important;
   border: 1px solid var(--border-color) !important;
   border-radius: var(--card-radius) !important;
+  --gdg-bg-cell: #161b22;
+  --gdg-bg-cell-medium: #1c2128;
+  --gdg-bg-header: #21262d;
+  --gdg-bg-header-has-focus: #30363d;
+  --gdg-bg-header-hovered: #30363d;
+  --gdg-bg-bubble: #21262d;
+  --gdg-text-dark: #f0f6fc;
+  --gdg-text-medium: #c9d1d9;
+  --gdg-text-light: #8b949e;
+  --gdg-text-header: #c9d1d9;
+  --gdg-text-group-header: #c9d1d9;
+  --gdg-border-color: #30363d;
+  --gdg-horizontal-border-color: #30363d;
+  --gdg-accent-color: #58a6ff;
+  --gdg-accent-light: rgba(88,166,255,0.15);
 }
-
-.stDataFrame th {
-  background-color: var(--bg-tertiary) !important;
-  color: var(--text-secondary) !important;
-  font-weight: 600 !important;
-  font-size: 0.75rem !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.05em !important;
-  border-bottom: 1px solid var(--border-color) !important;
-}
-
-.stDataFrame td {
+div[data-testid="stTable"] table, .stTable table {
+  background-color: var(--bg-secondary) !important;
   color: var(--text-primary) !important;
-  font-size: 0.875rem !important;
-  border-bottom: 1px solid var(--border-color) !important;
+}
+div[data-testid="stTable"] th, div[data-testid="stTable"] td {
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
 }
 
-.stDataFrame tr:hover td {
-  background-color: var(--bg-tertiary) !important;
+/* ── Status cards row (provider / tool status) ───────────────── */
+.status-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 1rem;
+  margin: 0 0 1rem 0;
+}
+.status-row.compact { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.6rem; }
+.status-card {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--card-radius);
+  padding: 1rem;
+  box-shadow: var(--card-shadow);
+}
+.status-row.compact .status-card { padding: 0.55rem 0.75rem; }
+.status-card .sc-label {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.35rem;
+}
+.status-card .sc-value { color: var(--text-primary); font-size: 1.35rem; font-weight: 700; }
+.status-row.compact .sc-value { font-size: 0.9rem; font-weight: 600; }
+.status-card .sc-sub { color: var(--text-secondary); font-size: 0.8rem; margin-top: 0.2rem; }
+.status-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+.status-dot.healthy { background-color: var(--accent-green); }
+.status-dot.warning { background-color: var(--accent-yellow); }
+.status-dot.error { background-color: var(--accent-red); }
+.status-dot.standby { background-color: var(--text-muted); }
+.status-row-title {
+  color: var(--text-muted); font-size: 0.75rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.05em; margin: 0.25rem 0 0.5rem 0;
 }
 
 /* ── Tabs ────────────────────────────────────────────────────── */
@@ -286,79 +327,6 @@ hr {
   color: var(--text-muted) !important;
   font-size: 0.75rem !important;
 }
-
-/* ── Right Panel Simulation ──────────────────────────────────── */
-.right-panel {
-  position: fixed !important;
-  right: 0 !important;
-  top: var(--header-height) !important;
-  bottom: 48px !important;
-  width: var(--right-panel-width) !important;
-  background-color: var(--bg-secondary) !important;
-  border-left: 1px solid var(--border-color) !important;
-  padding: 1rem !important;
-  overflow-y: auto !important;
-  z-index: 100 !important;
-}
-
-/* Adjust main content for right panel */
-@media (min-width: 1200px) {
-  .main .block-container {
-    margin-right: calc(var(--right-panel-width) + 1rem) !important;
-  }
-}
-
-/* ── Right Panel Content ────────────────────────────────────── */
-.right-panel .panel-section {
-  margin-bottom: 1.5rem !important;
-}
-
-.right-panel .panel-title {
-  font-size: 0.75rem !important;
-  font-weight: 600 !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.05em !important;
-  color: var(--text-muted) !important;
-  margin-bottom: 0.75rem !important;
-}
-
-.right-panel .provider-item,
-.right-panel .tool-item {
-  display: flex !important;
-  justify-content: space-between !important;
-  align-items: center !important;
-  padding: 0.5rem 0 !important;
-  border-bottom: 1px solid var(--border-color) !important;
-}
-
-.right-panel .provider-item:last-child,
-.right-panel .tool-item:last-child {
-  border-bottom: none !important;
-}
-
-.right-panel .item-name {
-  font-size: 0.8125rem !important;
-  color: var(--text-primary) !important;
-}
-
-.right-panel .item-status {
-  display: flex !important;
-  align-items: center !important;
-  gap: 0.375rem !important;
-  font-size: 0.75rem !important;
-  font-weight: 500 !important;
-}
-
-.right-panel .status-dot {
-  width: 8px !important;
-  height: 8px !important;
-  border-radius: 50% !important;
-}
-
-.right-panel .status-dot.healthy { background-color: var(--accent-green) !important; }
-.right-panel .status-dot.warning { background-color: var(--accent-yellow) !important; }
-.right-panel .status-dot.error { background-color: var(--accent-red) !important; }
-.right-panel .status-dot.standby { background-color: var(--text-muted) !important; }
 
 /* ── KPI Row ─────────────────────────────────────────────────── */
 .kpi-row {
@@ -522,74 +490,66 @@ def _render_footer(snapshot: OperationsSnapshot | None) -> None:
     )
 
 
-def _provider_item_html(provider: ProviderMonitor) -> str:
-    """Render one provider row for the right-side status panel."""
+def _dot_class(status: str) -> str:
+    if status in {"healthy", "ready", "ok"}:
+        return "healthy"
+    if status in {"degraded", "starting", "uninitialized", "not_ready"}:
+        return "warning"
+    if status == "disabled":
+        return "standby"
+    return "error"
 
-    status_class = (
-        "healthy"
-        if provider.status == "healthy"
-        else ("warning" if provider.status == "degraded" else "error")
-    )
+
+def _provider_item_html(provider: ProviderMonitor) -> str:
+    """Render one provider as a metric-style status card."""
+
     role_text = (
         "Active" if provider.active else ("Failover" if provider.failover_active else "Standby")
     )
-    name = provider.provider.title()
-    status_text = f"{provider.status.title()} ({role_text})"
     return (
-        f'<div class="provider-item"><span class="item-name">{escape(name)}</span>'
-        f'<span class="item-status"><span class="status-dot {status_class}"></span>'
-        f"<span>{escape(status_text)}</span></span></div>"
+        '<div class="status-card">'
+        f'<div class="sc-label">{escape(provider.provider.title())}</div>'
+        f'<div class="sc-value"><span class="status-dot {_dot_class(provider.status)}"></span>'
+        f"{escape(provider.status.title())}</div>"
+        f'<div class="sc-sub">{escape(role_text)}</div>'
+        "</div>"
     )
 
 
 def _tool_item_html(item: ToolMonitor) -> str:
-    """Render one tool row for the right-side status panel."""
+    """Render one tool as a compact status card."""
 
-    status_class = (
-        "healthy"
-        if item.health == "healthy"
-        else ("warning" if item.health == "degraded" else "error")
-    )
     enabled_text = "Enabled" if item.registered else "Disabled"
     return (
-        f'<div class="tool-item"><span class="item-name">{escape(item.display_name)}</span>'
-        f'<span class="item-status"><span class="status-dot {status_class}"></span>'
-        f"<span>{enabled_text}</span></span></div>"
+        '<div class="status-card">'
+        f'<div class="sc-label">{escape(item.display_name)}</div>'
+        f'<div class="sc-value"><span class="status-dot {_dot_class(item.health)}"></span>'
+        f"{escape(item.health.title())}</div>"
+        f'<div class="sc-sub">{enabled_text}</div>'
+        "</div>"
     )
 
 
-_NO_PROVIDER_DATA_HTML = (
-    '<div class="provider-item"><span class="item-name">No data</span>'
-    '<span class="item-status"><span class="status-dot standby"></span>'
-    "<span>Unavailable</span></span></div>"
-)
+def _render_status_bar(snapshot: OperationsSnapshot | None) -> None:
+    """Render provider and tool status as rows of cards at the top of the page."""
 
-_NO_TOOL_DATA_HTML = (
-    '<div class="tool-item"><span class="item-name">Unavailable</span>'
-    '<span class="item-status"><span class="status-dot standby"></span>'
-    "<span>No snapshot</span></span></div>"
-)
+    if snapshot is None:
+        st.markdown(
+            '<div class="status-row"><div class="status-card">'
+            '<div class="sc-label">Provider Status</div>'
+            '<div class="sc-value"><span class="status-dot standby"></span>Unavailable</div>'
+            '<div class="sc-sub">No snapshot</div></div></div>',
+            unsafe_allow_html=True,
+        )
+        return
 
-
-def _render_right_panel(snapshot: OperationsSnapshot | None) -> None:
-    """Render the right-side status panel matching reference design."""
-
-    if snapshot is not None:
-        provider_rows = "".join(_provider_item_html(provider) for provider in snapshot.providers)
-        tool_rows = "".join(_tool_item_html(item) for item in snapshot.tools)
-        tool_count = len(snapshot.tools)
-    else:
-        provider_rows = _NO_PROVIDER_DATA_HTML
-        tool_rows = _NO_TOOL_DATA_HTML
-        tool_count = 0
-
+    provider_cards = "".join(_provider_item_html(provider) for provider in snapshot.providers)
+    tool_cards = "".join(_tool_item_html(item) for item in snapshot.tools)
     st.markdown(
-        '<div class="right-panel">'
-        '<div class="panel-section"><div class="panel-title">Provider Status</div>'
-        f"{provider_rows}</div>"
-        f'<div class="panel-section"><div class="panel-title">Tools ({tool_count})</div>'
-        f"{tool_rows}</div>"
-        "</div>",
+        '<div class="status-row-title">Provider Status</div>'
+        f'<div class="status-row">{provider_cards}</div>'
+        f'<div class="status-row-title">Tools ({len(snapshot.tools)})</div>'
+        f'<div class="status-row compact">{tool_cards}</div>',
         unsafe_allow_html=True,
     )
 
@@ -1069,6 +1029,13 @@ def _render_costs(snapshot: OperationsSnapshot) -> None:
     st.caption("Data source: /operations/snapshot — read-only, no credentials exposed.")
 
 
+def _mcp_host_port(settings: Settings) -> tuple[str, int]:
+    """Return the host/port of the server the dashboard actually talks to."""
+
+    parsed = urlsplit(str(settings.operations.dashboard_api_url))
+    return parsed.hostname or settings.host, parsed.port or settings.port
+
+
 def _render_settings(snapshot: OperationsSnapshot | None) -> None:
     """Render the Settings page (sanitized read-only config with clean layout)."""
 
@@ -1123,8 +1090,9 @@ def _render_settings(snapshot: OperationsSnapshot | None) -> None:
         st.subheader("🔗 MCP Configuration")
         mcp_cols = st.columns(3)
         mcp_cols[0].markdown("**Transport:** Streamable HTTP")
-        mcp_cols[1].markdown(f"**Host:** `{settings.host}`")
-        mcp_cols[2].markdown(f"**Port:** {settings.port}")
+        mcp_host, mcp_port = _mcp_host_port(settings)
+        mcp_cols[1].markdown(f"**Host:** `{mcp_host}`")
+        mcp_cols[2].markdown(f"**Port:** {mcp_port}")
         st.markdown("**Mount Path:** `/mcp`")
 
     st.markdown("---")
@@ -1499,8 +1467,8 @@ def main() -> None:
     # Render sidebar navigation
     selected_page = _render_sidebar(snapshot)
 
-    # Render right status panel (fixed right sidebar)
-    _render_right_panel(snapshot)
+    # Render provider / tool status cards at the top of the page
+    _render_status_bar(snapshot)
 
     # Render selected page
     _render_page(selected_page, snapshot)
