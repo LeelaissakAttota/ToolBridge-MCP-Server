@@ -1,0 +1,20 @@
+[tool.ruff]
+target-version = "py312"
+line-length = 99
+extend-exclude = ["pytest-cache-files-*"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]
+addopts = ["-p", "no:cacheprovider"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["toolbridge"]
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
