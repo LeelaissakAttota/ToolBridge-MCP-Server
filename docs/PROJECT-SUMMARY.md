@@ -38,7 +38,7 @@ Detailed Mermaid diagrams are available in [ARCHITECTURE.md](../ARCHITECTURE.md)
 4. `sql_query`
 5. `csv_analysis`
 6. `currency_converter`
-7. `hcl_curie_analysis`
+7. `llm_analysis`
 
 Local SQL is restricted to conservative read-only statements. CSV access is confined to a configured root. Website requests validate public destinations and bound responses. External market, website, currency, and LLM behavior remains network/provider dependent.
 

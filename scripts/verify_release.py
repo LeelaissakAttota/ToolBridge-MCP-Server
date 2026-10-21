@@ -14,7 +14,7 @@ from typing import Any
 EXPECTED_TOOLS = {
     "csv_analysis",
     "currency_converter",
-    "hcl_curie_analysis",
+    "llm_analysis",
     "sql_query",
     "stock_price",
     "system_status",

@@ -71,7 +71,7 @@ def test_all_phase5_tools_register_and_discover_automatically() -> None:
     assert names == [
         "csv_analysis",
         "currency_converter",
-        "hcl_curie_analysis",
+        "llm_analysis",
         "sql_query",
         "stock_price",
         "system_status",

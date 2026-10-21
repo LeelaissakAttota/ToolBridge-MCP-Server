@@ -8,7 +8,7 @@ Not collected by pytest (no ``test_`` prefix). Examples::
     TOOLBRIDGE_SMOKE_URL=http://127.0.0.1:8765/mcp/ python tests/live/mcp_live_smoke.py
 
 With ``TOOLBRIDGE_MCP_AUTH_TOKEN`` set (or ``--token``), the bearer token is sent.
-``--analysis`` additionally calls ``hcl_curie_analysis`` (needs an enabled LLM provider).
+``--analysis`` additionally calls ``llm_analysis`` (needs an enabled LLM provider).
 """
 
 from __future__ import annotations
@@ -70,7 +70,7 @@ async def run(arguments: argparse.Namespace) -> int:
                 if arguments.analysis:
                     calls.append(
                         (
-                            "hcl_curie_analysis",
+                            "llm_analysis",
                             {
                                 "operation": "summarize",
                                 "text": "ToolBridge is an MCP server that exposes validated tools.",

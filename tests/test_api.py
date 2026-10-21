@@ -117,7 +117,7 @@ def test_mcp_protocol_discovery_and_execution(client: TestClient) -> None:
     assert [tool["name"] for tool in tools] == [
         "csv_analysis",
         "currency_converter",
-        "hcl_curie_analysis",
+        "llm_analysis",
         "sql_query",
         "stock_price",
         "system_status",
@@ -128,7 +128,7 @@ def test_mcp_protocol_discovery_and_execution(client: TestClient) -> None:
     assert "current_price" in by_name["stock_price"]["outputSchema"]["properties"]
     assert "summaries" in by_name["csv_analysis"]["outputSchema"]["properties"]
     assert "conversions" in by_name["currency_converter"]["outputSchema"]["properties"]
-    assert "content" in by_name["hcl_curie_analysis"]["outputSchema"]["properties"]
+    assert "content" in by_name["llm_analysis"]["outputSchema"]["properties"]
     assert "rows" in by_name["sql_query"]["outputSchema"]["properties"]
     assert "text" in by_name["website_reader"]["outputSchema"]["properties"]
     assert by_name["system_status"]["inputSchema"]["properties"] == {}

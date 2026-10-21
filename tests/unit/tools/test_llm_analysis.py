@@ -1,4 +1,4 @@
-"""Provider Router integration tests for HCL Curie / LLM analysis."""
+"""Provider Router integration tests for LLM analysis."""
 
 import asyncio
 import json
@@ -40,7 +40,7 @@ class AnalysisProvider(BaseProvider):
         return ProviderHealthCheck(provider=self.name, latency_ms=1)
 
     async def list_models(self) -> tuple[ProviderModel, ...]:
-        return (ProviderModel(id="curie-test", provider=self.name),)
+        return (ProviderModel(id="llm-test", provider=self.name),)
 
     async def generate(self, request: GenerationRequest) -> GenerationResponse:
         self.request = request
@@ -48,7 +48,7 @@ class AnalysisProvider(BaseProvider):
         return GenerationResponse(
             provider=self.name,
             request_id=request.request_id,
-            model="curie-test",
+            model="llm-test",
             content="A concise structured analysis.",
             usage=TokenUsage(input_tokens=12, output_tokens=5, total_tokens=17),
         )
@@ -58,7 +58,7 @@ class AnalysisProvider(BaseProvider):
             yield GenerationChunk(
                 provider=self.name,
                 request_id=request.request_id or "unused",
-                model="curie-test",
+                model="llm-test",
                 delta="",
             )
 

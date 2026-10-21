@@ -1,4 +1,4 @@
-"""HCL Curie / LLM Analysis Tool backed by the existing Provider Router."""
+"""LLM Analysis Tool backed by the existing Provider Router."""
 
 from datetime import UTC, datetime
 
@@ -38,7 +38,7 @@ class LLMAnalysisTool(BaseTool):
         self._model = model
         self._system_prompt = system_prompt
         self._definition = ToolDefinition(
-            name="hcl_curie_analysis",
+            name="llm_analysis",
             description=(
                 "Analyze or summarize untrusted text through the configured LLM Provider Router."
             ),

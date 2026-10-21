@@ -93,7 +93,7 @@ Show that discovery returns exactly:
 
 1. `csv_analysis`
 2. `currency_converter`
-3. `hcl_curie_analysis`
+3. `llm_analysis`
 4. `sql_query`
 5. `stock_price`
 6. `system_status`

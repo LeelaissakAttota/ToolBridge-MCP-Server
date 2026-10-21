@@ -93,7 +93,7 @@ The verified discovery order is:
 ```text
 csv_analysis
 currency_converter
-hcl_curie_analysis
+llm_analysis
 sql_query
 stock_price
 system_status
@@ -183,7 +183,7 @@ curl.exe -sS http://127.0.0.1:8000/mcp/ `
 
 The checked-in request examples remain reproducible interface examples rather than promises of live external behavior. Separate retained screenshots provide the following point-in-time evidence:
 
-- `hcl_curie_analysis` executed through NVIDIA using `meta/llama-3.1-8b-instruct`
+- `llm_analysis` executed through NVIDIA using `meta/llama-3.1-8b-instruct`
 - `stock_price` returned AAPL data from Yahoo Finance
 - `currency_converter` converted USD to INR and EUR through Frankfurter
 
@@ -192,7 +192,7 @@ These captures validate only the providers, inputs, and times shown. They do not
 - `stock_price`: requires an available configured public market-data provider
 - `website_reader`: requires permitted public HTTPS network access and a safe destination
 - `currency_converter`: requires the Frankfurter endpoint to be reachable
-- `hcl_curie_analysis`: requires an enabled Cerebras, NVIDIA, or OpenRouter provider with credentials and an approved model
+- `llm_analysis`: requires an enabled Cerebras, NVIDIA, or OpenRouter provider with credentials and an approved model
 - `csv_analysis`: requires an approved CSV beneath the configured root
 
 See the [screenshot gallery](../screenshots/README.md) for retained evidence. Consult `tools/list` for current schemas and [USER_GUIDE.md](../USER_GUIDE.md) for operating constraints.

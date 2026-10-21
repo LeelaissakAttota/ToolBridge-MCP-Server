@@ -60,7 +60,7 @@ def build_analysis_mcp() -> FastMCP:
     registry = ToolRegistry()
     registry.register(
         ToolDefinition(
-            name="hcl_curie_analysis",
+            name="llm_analysis",
             description="Analyze or summarize text.",
             input_model=LLMAnalysisInput,
             output_model=LLMAnalysisOutput,
@@ -133,7 +133,7 @@ def test_mcp_adapter_accepts_advertised_json_enum(operation: str) -> None:
 
     _, structured = asyncio.run(
         mcp.call_tool(
-            "hcl_curie_analysis",
+            "llm_analysis",
             {
                 "operation": operation,
                 "text": "ToolBridge is an MCP server.",
@@ -150,7 +150,7 @@ def test_mcp_adapter_rejects_invalid_json_enum() -> None:
     with pytest.raises(ToolError) as caught:
         asyncio.run(
             build_analysis_mcp().call_tool(
-                "hcl_curie_analysis",
+                "llm_analysis",
                 {"operation": "invalid-operation", "text": "hello"},
             )
         )

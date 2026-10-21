@@ -38,7 +38,7 @@ These 12 genuine screenshots were captured from the released ToolBridge MCP Serv
 
 ![ToolBridge MCP tool dashboard](04-mcp-tools.png)
 
-**What it demonstrates:** All seven tools—System Status, Stock Price, Website Reader, SQL Query, CSV Analysis, Currency Converter, and HCL Curie / LLM Analysis—are registered with healthy local lifecycle state.
+**What it demonstrates:** All seven tools—System Status, Stock Price, Website Reader, SQL Query, CSV Analysis, Currency Converter, and LLM Analysis—are registered with healthy local lifecycle state.
 
 **Why it matters:** It provides a visual inventory of the stable MCP tool surface. Registered/healthy here means local registration and lifecycle health; it does not claim that every network-dependent tool executed successfully.
 
@@ -78,7 +78,7 @@ These 12 genuine screenshots were captured from the released ToolBridge MCP Serv
 
 ![ToolBridge MCP seven-tool discovery and NVIDIA live test](08-mcp-7-tools-nvidia-live-test.png)
 
-**What it demonstrates:** MCP initialization succeeded, all seven registered tools were discovered, and `hcl_curie_analysis` executed successfully. The result came from NVIDIA using `meta/llama-3.1-8b-instruct` and included input, output, and total token accounting.
+**What it demonstrates:** MCP initialization succeeded, all seven registered tools were discovered, and `llm_analysis` executed successfully. The result came from NVIDIA using `meta/llama-3.1-8b-instruct` and included input, output, and total token accounting.
 
 **Why it matters:** It captures a successful end-to-end MCP discovery and live LLM-provider execution path with structured provider, model, and usage metadata.
 

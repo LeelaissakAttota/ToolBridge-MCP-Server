@@ -43,7 +43,7 @@ The [full gallery](screenshots/README.md) includes seven-tool discovery, SQL wri
 | `website_reader` | Extracts bounded text from a web page | Public HTTPS destinations by default |
 | `stock_price` | Retrieves a market quote | External market-data service |
 | `currency_converter` | Converts an amount to multiple currencies | External exchange-rate service |
-| `hcl_curie_analysis` | Analyzes or summarizes text | An enabled LLM provider |
+| `llm_analysis` | Analyzes or summarizes text | An enabled LLM provider |
 
 MCP `tools/list` returns the authoritative input and output schemas. LLM providers are disabled by default; enabling one requires configuration and credentials.
 

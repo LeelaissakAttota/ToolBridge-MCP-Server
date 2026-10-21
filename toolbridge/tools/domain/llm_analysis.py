@@ -1,4 +1,4 @@
-"""Provider-neutral contracts for HCL Curie / LLM text analysis."""
+"""Provider-neutral contracts for LLM text analysis."""
 
 from enum import StrEnum
 

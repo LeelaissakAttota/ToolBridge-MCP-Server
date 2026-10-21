@@ -1,4 +1,4 @@
-"""Streamlit dashboard: read-only ToolBridge monitoring plus supervised-control pages."""
+"""Streamlit dashboard: read-only ToolBridge monitoring."""
 
 from datetime import datetime
 from html import escape
@@ -8,8 +8,6 @@ import streamlit as st
 
 from toolbridge.config import get_settings
 from toolbridge.dashboard.client import DashboardClient, DashboardUnavailableError
-from toolbridge.dashboard.control_client import ProjectId
-from toolbridge.dashboard.control_page import render_control_page
 from toolbridge.operations.domain.models import (
     OperationsSnapshot,
     ProviderMonitor,
@@ -26,14 +24,7 @@ PageName = Literal[
     "Settings",
     "System Health",
     "Costs",
-    "Deep Research Control",
-    "Equity Research Control",
 ]
-
-CONTROL_PAGES: dict[str, ProjectId] = {
-    "Deep Research Control": "deep_research",
-    "Equity Research Control": "equity_research",
-}
 
 
 # ─── Visual Design System ──────────────────────────────────────────────
@@ -468,7 +459,7 @@ def _render_sidebar(snapshot: OperationsSnapshot | None) -> PageName:
     _inject_custom_css()
 
     st.sidebar.markdown("### \U0001f517 ToolBridge Operations")
-    st.sidebar.caption("Local monitoring + supervised control")
+    st.sidebar.caption("Local monitoring (read-only)")
 
     if snapshot is not None:
         system = snapshot.system
@@ -496,8 +487,6 @@ def _render_sidebar(snapshot: OperationsSnapshot | None) -> PageName:
         "Settings",
         "System Health",
         "Costs",
-        "Deep Research Control",
-        "Equity Research Control",
     ]
 
     # Use session state to persist selection
@@ -1273,10 +1262,6 @@ def _render_system_health(snapshot: OperationsSnapshot) -> None:
 
 def _render_page(page: PageName, snapshot: OperationsSnapshot | None) -> None:
     """Dispatch to the appropriate page renderer."""
-
-    if page in CONTROL_PAGES:
-        render_control_page(st, CONTROL_PAGES[page])
-        return
 
     if snapshot is None:
         st.title(page)

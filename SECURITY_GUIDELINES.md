@@ -90,7 +90,7 @@ Confine relative `.csv` paths beneath the configured root; bound bytes, rows, co
 
 Validate finite bounded amounts/codes, require configured HTTPS, disable redirects, validate/bound responses, retry only normalized transient failures, and cache only successful normalized rates.
 
-### HCL Curie / LLM Analysis
+### LLM Analysis
 
 Bound source/instructions/tokens/time/bytes, use only Provider Router secret/failover controls, wrap source as untrusted document data, never log content, and treat output as untrusted. Human review and provider data-processing approval remain required.
 

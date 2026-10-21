@@ -12,7 +12,7 @@ ToolBridge exposes seven MCP tools through one validated MCP endpoint and provid
 | `sql_query` | Run a bounded SQLite read query | Read-only `SELECT`/CTE access under configured root |
 | `csv_analysis` | Inspect columns, preview, missing values, and statistics | Files must be under configured CSV root |
 | `currency_converter` | Convert one amount to multiple currencies | Configured exchange-rate provider and cache apply |
-| `hcl_curie_analysis` | Analyze or summarize text | Requires an enabled LLM provider |
+| `llm_analysis` | Analyze or summarize text | Requires an enabled LLM provider |
 
 ## Connect an MCP client
 

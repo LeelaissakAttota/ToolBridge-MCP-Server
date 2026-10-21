@@ -29,7 +29,7 @@ TOOL_DISPLAY_NAMES = {
     "sql_query": "SQL Query",
     "csv_analysis": "CSV Analysis",
     "currency_converter": "Currency Converter",
-    "hcl_curie_analysis": "HCL Curie / LLM Analysis",
+    "llm_analysis": "LLM Analysis",
 }
 
 

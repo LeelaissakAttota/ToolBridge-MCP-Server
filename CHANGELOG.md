@@ -172,7 +172,7 @@ All notable changes to this project are recorded here. The format follows Keep a
 - `sql_query` with a database-neutral port, SQLite read-only/query-only execution, named parameters, row bounds, and progress timeout
 - `csv_analysis` with confined paths, delimiter and column detection, inferred types, statistics, missing-value analysis, and preview
 - `currency_converter` with configurable Frankfurter integration, multi-target conversion, bounded retries, cache, and request coalescing
-- `hcl_curie_analysis` with analyze/summarize operations and existing LLM Provider Router integration
+- `llm_analysis` with analyze/summarize operations and existing LLM Provider Router integration
 - Typed Phase 5 configuration and safe environment examples for every new tool
 - Stable MCP error categories for website, database, file, currency-rate, and LLM-analysis failures
 - Offline unit and protocol tests for all Phase 5 tools
