@@ -16,6 +16,7 @@ import httpx
 import streamlit as st
 
 from toolbridge.config import get_settings
+from toolbridge.dashboard.simple_tools import SIMPLE_RENDERERS
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 ENV_PATH = PROJECT_ROOT / ".env"
@@ -221,7 +222,9 @@ def _show_result(response: dict[str, Any], seconds: float) -> None:
         st.error("Tool error: " + (" ".join(texts)[:2000] or "unknown error"))
     else:
         st.success(f"Success in {seconds * 1000:,.0f} ms")
-        if isinstance(structured, dict):
+        if isinstance(structured, dict) and "conversions" in structured:
+            _show_currency(structured)
+        elif isinstance(structured, dict):
             scalars = {
                 k: v
                 for k, v in structured.items()
@@ -241,6 +244,52 @@ def _show_result(response: dict[str, Any], seconds: float) -> None:
     st.caption(f"Duration: {seconds * 1000:,.0f} ms")
     with st.expander("Raw JSON result"):
         st.json(structured if structured is not None else result)
+
+
+def tool_call(name: str, arguments: dict[str, Any], quiet: bool = False):
+    """Run tools/call; return (structured result or None, seconds). Shows errors."""
+    start = time.perf_counter()
+    try:
+        with st.spinner(f"Running {name}..."):
+            response = mcp_request("tools/call", {"name": name, "arguments": arguments})
+    except Exception as error:  # noqa: BLE001
+        st.error(f"Call failed: {error}")
+        return None, 0.0
+    seconds = time.perf_counter() - start
+    if "error" in response:
+        st.error(f"Request rejected: {response['error'].get('message', response['error'])}")
+        return None, seconds
+    result = response.get("result", {})
+    texts = [c.get("text", "") for c in result.get("content", []) if c.get("type") == "text"]
+    if result.get("isError"):
+        st.error(f"{name} error: " + (" ".join(texts)[:2000] or "unknown error"))
+        return None, seconds
+    structured = result.get("structuredContent")
+    if structured is None and len(texts) == 1:
+        try:
+            structured = json.loads(texts[0])
+        except ValueError:
+            structured = {"content": texts[0]}
+    return structured or {}, seconds
+
+
+def _show_currency(structured: dict[str, Any]) -> None:
+    st.markdown(f"### {structured.get('source_amount')} {structured.get('source_currency')} ->")
+    st.dataframe(
+        [
+            {
+                "target currency": c.get("currency"),
+                "rate": c.get("rate"),
+                "converted amount (target currency)": c.get("amount"),
+            }
+            for c in structured.get("conversions", [])
+        ],
+        width="stretch",
+        hide_index=True,
+    )
+    st.caption(
+        f"Rate date: {structured.get('rate_date')} | provider: {structured.get('provider')}"
+    )
 
 
 # ---------------------------------------------------------------- page
@@ -266,6 +315,10 @@ def render_playground() -> None:
     schema = tool.get("inputSchema", {}) or {}
     if tool.get("description"):
         st.caption(tool["description"])
+
+    if tool_name in SIMPLE_RENDERERS:
+        SIMPLE_RENDERERS[tool_name](tool_call)
+        return
 
     examples = load_examples().get(tool_name, [])
     if examples:
