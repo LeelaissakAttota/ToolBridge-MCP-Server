@@ -49,7 +49,9 @@ def _configured_names() -> set[str]:
     keys = list(os.environ)
     env_file = Path.cwd() / ".env"
     if env_file.is_file():
-        keys += [line.partition("=")[0].strip() for line in env_file.read_text("utf-8").splitlines()]
+        keys += [
+            line.partition("=")[0].strip() for line in env_file.read_text("utf-8").splitlines()
+        ]
     return {
         name
         for name in PRESET_PROVIDER_NAMES
