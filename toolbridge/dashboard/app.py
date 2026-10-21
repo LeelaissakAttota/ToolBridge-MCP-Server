@@ -9,6 +9,8 @@ import streamlit as st
 
 from toolbridge.config import Settings, get_settings
 from toolbridge.dashboard.client import DashboardClient, DashboardUnavailableError
+from toolbridge.dashboard.playground import render_playground
+from toolbridge.dashboard.setup_wizard import render_provider_setup
 from toolbridge.operations.domain.models import (
     OperationsSnapshot,
     ProviderMonitor,
@@ -19,6 +21,7 @@ from toolbridge.operations.domain.models import (
 PageName = Literal[
     "Overview",
     "Tools",
+    "Tool Playground",
     "Providers",
     "History",
     "Logs",
@@ -427,7 +430,7 @@ def _render_sidebar(snapshot: OperationsSnapshot | None) -> PageName:
     _inject_custom_css()
 
     st.sidebar.markdown("### \U0001f517 ToolBridge Operations")
-    st.sidebar.caption("Local monitoring (read-only)")
+    st.sidebar.caption("Monitoring + Tool Playground")
 
     if snapshot is not None:
         system = snapshot.system
@@ -449,6 +452,7 @@ def _render_sidebar(snapshot: OperationsSnapshot | None) -> PageName:
     navigation_items: list[PageName] = [
         "Overview",
         "Tools",
+        "Tool Playground",
         "Providers",
         "History",
         "Logs",
@@ -1085,6 +1089,8 @@ def _render_settings(snapshot: OperationsSnapshot | None) -> None:
         else:
             st.info("Tool registry unavailable — no operations snapshot.")
 
+    render_provider_setup()
+
     # MCP section
     with st.container(border=True):
         st.subheader("🔗 MCP Configuration")
@@ -1230,6 +1236,10 @@ def _render_system_health(snapshot: OperationsSnapshot) -> None:
 
 def _render_page(page: PageName, snapshot: OperationsSnapshot | None) -> None:
     """Dispatch to the appropriate page renderer."""
+
+    if page == "Tool Playground":
+        render_playground()
+        return
 
     if snapshot is None:
         st.title(page)

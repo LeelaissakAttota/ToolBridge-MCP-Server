@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "toolbridge": {
+      "command": "C:\\Users\\leela\\Desktop\\My Projects\\ToolBridge-MCP-Server\\.venv\\Scripts\\python.exe",
+      "args": ["-m", "toolbridge.stdio_bridge"],
+      "cwd": "C:\\Users\\leela\\Desktop\\My Projects\\ToolBridge-MCP-Server",
+      "env": {
+        "PYTHONPATH": "C:\\Users\\leela\\Desktop\\My Projects\\ToolBridge-MCP-Server",
+        "TOOLBRIDGE_BRIDGE_URL": "http://127.0.0.1:8000/mcp/"
+      }
+    }
+  }
+}

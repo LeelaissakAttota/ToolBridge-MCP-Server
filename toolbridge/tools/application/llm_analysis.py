@@ -1,9 +1,11 @@
 """LLM Analysis Tool backed by the existing Provider Router."""
 
+import logging
 from datetime import UTC, datetime
 
 from toolbridge.core.contracts import ToolDefinition
 from toolbridge.core.errors import RequestValidationError
+from toolbridge.providers.application.budget_selection import estimate_tokens, select_budget_models
 from toolbridge.providers.application.router import ProviderRouter
 from toolbridge.providers.domain.errors import ProviderError
 from toolbridge.providers.domain.models import ChatMessage, GenerationRequest, ProviderStatus
@@ -15,6 +17,8 @@ from toolbridge.tools.domain.llm_analysis import (
 )
 from toolbridge.tools.domain.models import ToolHealthState, ToolHealthStatus
 from toolbridge.tools.domain.tool_errors import LLMAnalysisUnavailableError
+
+_logger = logging.getLogger(__name__)
 
 
 class LLMAnalysisTool(BaseTool):
@@ -89,11 +93,31 @@ class LLMAnalysisTool(BaseTool):
             max_tokens=self._max_tokens,
             temperature=self._temperature,
         )
+        selection_reason = "configured model" if self._model else "router ranking"
         try:
-            response = await self._router.generate(request)
+            response = None
+            for choice in self._budget_choices(arguments):
+                try:
+                    response = await self._router.generate(
+                        request.model_copy(update={"model": choice.model.id})
+                    )
+                except ProviderError:
+                    continue
+                selection_reason = f"auto low-budget: {choice.reason}"
+                break
+            if response is None:
+                response = await self._router.generate(request)
         except ProviderError as error:
             self._last_failure_at = datetime.now(UTC)
             raise LLMAnalysisUnavailableError(error.category.value) from error
+        _logger.info(
+            "llm_analysis model selected",
+            extra={
+                "model": response.model,
+                "provider": response.provider,
+                "reason": selection_reason,
+            },
+        )
         self._last_success_at = datetime.now(UTC)
         return LLMAnalysisOutput(
             operation=arguments.operation,
@@ -104,6 +128,30 @@ class LLMAnalysisTool(BaseTool):
             input_tokens=response.usage.input_tokens,
             output_tokens=response.usage.output_tokens,
             total_tokens=response.usage.total_tokens,
+            model_selection_reason=selection_reason,
+        )
+
+    def _budget_choices(self, arguments: LLMAnalysisInput) -> tuple:
+        """Auto mode (no fixed model): free first, then cheapest paid, task-aware."""
+
+        if self._model is not None:
+            return ()
+        discovered = getattr(self._router, "discovered_models", None)
+        if not callable(discovered):
+            return ()
+        try:
+            models = tuple(discovered())
+        except Exception:  # noqa: BLE001
+            return ()
+        priority = tuple(getattr(self._router, "priority", ()) or ())
+        prompt = arguments.text + (arguments.instructions or "")
+        return select_budget_models(
+            models,
+            provider=priority[0] if priority else None,
+            operation=arguments.operation.value,
+            prompt_tokens=estimate_tokens(prompt),
+            max_output_tokens=self._max_tokens,
+            complex_request=bool(arguments.instructions and len(arguments.instructions) > 200),
         )
 
     async def health_check(self) -> ToolHealthStatus:

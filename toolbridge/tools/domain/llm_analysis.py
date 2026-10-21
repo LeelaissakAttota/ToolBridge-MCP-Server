@@ -34,3 +34,4 @@ class LLMAnalysisOutput(ToolOutput):
     input_tokens: int = Field(ge=0)
     output_tokens: int = Field(ge=0)
     total_tokens: int = Field(ge=0)
+    model_selection_reason: str | None = Field(default=None, max_length=300)
