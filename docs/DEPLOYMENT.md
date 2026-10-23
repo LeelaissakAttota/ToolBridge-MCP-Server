@@ -60,4 +60,4 @@ For rollback, retain the previous immutable image tag and configuration backup, 
 
 ## Public or multi-user deployment
 
-Direct public exposure is unsupported. A future deployment may place ToolBridge behind a trusted TLS identity-aware proxy and network policy after an explicit authentication and authorization review. See [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) and [PRODUCTION_CHECKLIST.md](PRODUCTION_CHECKLIST.md).
+Direct public exposure is unsupported. A future deployment may place ToolBridge behind a trusted TLS identity-aware proxy and network policy after an explicit authentication and authorization review. See [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md).

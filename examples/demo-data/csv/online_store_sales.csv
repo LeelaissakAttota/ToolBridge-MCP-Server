@@ -1,0 +1,51 @@
+order_id,order_date,category,product,quantity,unit_price_inr,total_inr,city,payment,rating
+ORD-1021,2026-09-01,Home,Ceramic Mug Set,3,899,2697,Bengaluru,Card,4
+ORD-1041,2026-09-02,Books,Python Basics,2,599,1198,Hyderabad,COD,2
+ORD-1001,2026-09-04,Books,Python Basics,4,599,2396,Hyderabad,COD,2
+ORD-1028,2026-09-07,Books,Python Basics,2,599,1198,Chennai,COD,4
+ORD-1035,2026-09-07,Books,Python Basics,2,599,1198,Bengaluru,Card,3
+ORD-1011,2026-09-08,Books,Cookbook,1,699,699,Mumbai,Card,3
+ORD-1037,2026-09-08,Books,Cookbook,1,699,699,Pune,COD,3
+ORD-1026,2026-09-10,Electronics,Wireless Earbuds,4,1999,7996,Chennai,,4
+ORD-1040,2026-09-10,Home,Throw Pillow,4,499,1996,Mumbai,COD,5
+ORD-1046,2026-09-10,Home,Throw Pillow,1,499,499,Bengaluru,UPI,5
+ORD-1024,2026-09-11,Electronics,Wireless Earbuds,4,1999,7996,Hyderabad,Card,2
+ORD-1031,2026-09-11,Books,Cookbook,3,699,2097,Chennai,UPI,4
+ORD-1039,2026-09-11,Fitness,Resistance Bands,1,649,649,Bengaluru,UPI,2
+ORD-1042,2026-09-14,Home,Ceramic Mug Set,2,899,1798,,Card,3
+ORD-1004,2026-09-15,Electronics,Smart Watch,1,4999,4999,Mumbai,UPI,5
+ORD-1020,2026-09-15,Electronics,Wireless Earbuds,2,1999,3998,Bengaluru,UPI,5
+ORD-1003,2026-09-16,Fitness,Resistance Bands,1,649,649,Hyderabad,COD,5
+ORD-1032,2026-09-16,Home,Throw Pillow,2,499,998,Pune,COD,3
+ORD-1048,2026-09-16,Electronics,Smart Watch,1,4999,4999,Bengaluru,Card,2
+ORD-1050,2026-09-18,Books,Cookbook,2,699,1398,Pune,COD,5
+ORD-1047,2026-09-21,Electronics,Smart Watch,1,4999,4999,Mumbai,COD,5
+ORD-1015,2026-09-23,Fitness,Resistance Bands,4,649,2596,Hyderabad,Card,4
+ORD-1019,2026-09-23,Books,Cookbook,4,699,2796,Pune,UPI,3
+ORD-1033,2026-09-23,Home,Throw Pillow,4,499,1996,Hyderabad,UPI,4
+ORD-1007,2026-09-24,Electronics,Smart Watch,2,4999,9998,Hyderabad,COD,2
+ORD-1009,2026-09-24,Fitness,Water Bottle,4,399,1596,Chennai,UPI,3
+ORD-1017,2026-09-26,Home,Throw Pillow,2,499,998,Pune,Card,2
+ORD-1012,2026-09-27,Books,Python Basics,4,599,2396,Hyderabad,COD,2
+ORD-1022,2026-09-30,Books,Python Basics,1,599,599,Mumbai,Card,5
+ORD-1044,2026-09-30,Home,Desk Lamp,3,1299,3897,Mumbai,COD,5
+ORD-1014,2026-10-01,Electronics,Wireless Earbuds,3,1999,5997,Hyderabad,UPI,4
+ORD-1023,2026-10-01,Fitness,Resistance Bands,1,649,649,Pune,UPI,3
+ORD-1008,2026-10-02,Electronics,Smart Watch,2,4999,9998,Mumbai,Card,4
+ORD-1016,2026-10-02,Home,Throw Pillow,1,499,499,Hyderabad,UPI,4
+ORD-1027,2026-10-02,Fitness,Yoga Mat,1,1099,1099,Pune,Card,5
+ORD-1002,2026-10-03,Books,Cookbook,1,699,699,Bengaluru,UPI,2
+ORD-1010,2026-10-04,Home,Desk Lamp,3,1299,3897,,Card,5
+ORD-1029,2026-10-04,Fitness,Water Bottle,2,399,798,Hyderabad,UPI,4
+ORD-1030,2026-10-04,Home,Throw Pillow,1,499,499,Chennai,COD,2
+ORD-1045,2026-10-04,Home,Throw Pillow,2,499,998,Mumbai,UPI,5
+ORD-1025,2026-10-05,Electronics,Wireless Earbuds,2,1999,3998,Hyderabad,Card,2
+ORD-1005,2026-10-06,Electronics,Wireless Earbuds,1,1999,1999,Bengaluru,Card,
+ORD-1018,2026-10-06,Home,Ceramic Mug Set,4,899,3596,Chennai,UPI,
+ORD-1049,2026-10-06,Electronics,Smart Watch,4,4999,19996,Hyderabad,UPI,5
+ORD-1006,2026-10-07,Home,Throw Pillow,1,499,499,Chennai,COD,3
+ORD-1043,2026-10-08,Books,Cookbook,2,699,1398,Chennai,Card,5
+ORD-1013,2026-10-09,Books,Mystery Novel,3,349,1047,Pune,COD,5
+ORD-1034,2026-10-09,Fitness,Resistance Bands,2,649,1298,Chennai,Card,
+ORD-1036,2026-10-10,Books,Python Basics,4,599,2396,Mumbai,UPI,5
+ORD-1038,2026-10-11,Fitness,Yoga Mat,4,1099,4396,Chennai,UPI,5

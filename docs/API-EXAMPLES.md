@@ -195,4 +195,4 @@ These captures validate only the providers, inputs, and times shown. They do not
 - `llm_analysis`: requires an enabled Cerebras, NVIDIA, or OpenRouter provider with credentials and an approved model
 - `csv_analysis`: requires an approved CSV beneath the configured root
 
-See the [screenshot gallery](../screenshots/README.md) for retained evidence. Consult `tools/list` for current schemas and [USER_GUIDE.md](../USER_GUIDE.md) for operating constraints.
+See the [screenshot gallery](../screenshots/README.md) for retained evidence. Consult `tools/list` for current schemas and [USER_GUIDE.md](USER_GUIDE.md) for operating constraints.

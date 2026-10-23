@@ -27,7 +27,7 @@ The gallery also retains point-in-time NVIDIA LLM, Yahoo Finance AAPL, and Frank
 - local ports `8000` and `8501` available
 - two terminal windows
 
-No provider credential or Docker daemon is required for the core demo. For a fresh machine, complete [INSTALLATION.md](../INSTALLATION.md) first.
+No provider credential or Docker daemon is required for the core demo. For a fresh machine, complete [INSTALLATION.md](INSTALLATION.md) first.
 
 ## Startup
 

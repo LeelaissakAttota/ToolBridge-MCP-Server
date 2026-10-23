@@ -6,7 +6,7 @@ ToolBridge is a Python project that exposes seven tools through the Model Contex
 
 **Version:** v1.1.0 | **Python:** 3.12 | **Deployment:** local or trusted single-host
 
-[Five-minute interview demo](docs/DEMO.md) | [Architecture](ARCHITECTURE.md) | [Installation](INSTALLATION.md) | [Screenshot gallery](screenshots/README.md)
+[Five-minute interview demo](docs/DEMO.md) | [Architecture](ARCHITECTURE.md) | [Installation](docs/INSTALLATION.md) | [Screenshot gallery](screenshots/README.md)
 
 ## The problem it solves
 
@@ -77,7 +77,7 @@ The code follows Clean Architecture: domain and application logic sit inside rep
 
 ## Run locally
 
-For first-time setup, follow [INSTALLATION.md](INSTALLATION.md). These commands assume Python 3.12 and the project `.venv` are already installed. Run them from the repository root in separate PowerShell terminals.
+For first-time setup, follow [INSTALLATION.md](docs/INSTALLATION.md). These commands assume Python 3.12 and the project `.venv` are already installed. Run them from the repository root in separate PowerShell terminals.
 
 Start the API and MCP server:
 
@@ -125,7 +125,7 @@ Reproduce the checks locally:
 .\.venv\Scripts\python.exe -m pytest tests
 ```
 
-Captured manual evidence includes discovery of all seven tools, successful NVIDIA text analysis, AAPL market data, currency conversion, and SQL write rejection. Live results depend on upstream availability, configuration, and credentials where required. See the [evidence gallery](screenshots/README.md) and [testing strategy](TESTING_STRATEGY.md).
+Captured manual evidence includes discovery of all seven tools, successful NVIDIA text analysis, AAPL market data, currency conversion, and SQL write rejection. Live results depend on upstream availability, configuration, and credentials where required. See the [evidence gallery](screenshots/README.md) and [testing strategy](docs/TESTING_STRATEGY.md).
 
 GitHub Actions also checks startup, image builds, Compose configuration, and release smoke behavior. Tagged builds produce an image archive and SHA-256 artifact; they do not automatically publish or deploy it. The historical `v1.1.0` release is commit `4d8d73bb3ffa63102c7059429f14b459eb668546`; later portfolio captures are separate evidence.
 
@@ -135,15 +135,15 @@ ToolBridge supports local or trusted single-host use. Docker Compose publishes p
 
 There is no inbound authentication, authorization, tenant isolation, or application rate limiting, so the service must not be exposed directly to a public or untrusted network. Metrics, recent logs, health state, caches, and provider budget estimates are process-local and reset on restart. Estimated costs are not authoritative billing records.
 
-Public deployment would require identity and access controls, rate limits, persistent audit/operational storage, and deployment-specific security review. See [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) and [SECURITY_GUIDELINES.md](SECURITY_GUIDELINES.md).
+Public deployment would require identity and access controls, rate limits, persistent audit/operational storage, and deployment-specific security review. See [KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md) and [SECURITY.md](SECURITY.md).
 
 ## Explore further
 
 | Looking for | Start here |
 | --- | --- |
 | A short working demonstration | [Interview demo](docs/DEMO.md) |
-| Technical design | [Architecture](ARCHITECTURE.md) and [decisions](DECISIONS.md) |
-| Setup and troubleshooting | [Installation](INSTALLATION.md) and [troubleshooting](TROUBLESHOOTING.md) |
-| Request examples and contracts | [API examples](docs/API-EXAMPLES.md) and [API guide](API_GUIDE.md) |
-| Project and resume material | [Project summary](docs/PROJECT-SUMMARY.md) and [resume material](docs/RESUME.md) |
-| Deployment details | [Deployment](DEPLOYMENT.md) and [production checklist](PRODUCTION_CHECKLIST.md) |
+| Technical design | [Architecture](ARCHITECTURE.md) |
+| Setup and troubleshooting | [Installation](docs/INSTALLATION.md) and [troubleshooting](docs/TROUBLESHOOTING.md) |
+| Request examples and contracts | [API examples](docs/API-EXAMPLES.md) and [API guide](docs/API_GUIDE.md) |
+| Project summary | [Project summary](docs/PROJECT-SUMMARY.md) |
+| Deployment details | [Deployment](docs/DEPLOYMENT.md) |
