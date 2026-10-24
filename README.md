@@ -1,26 +1,12 @@
 # ToolBridge MCP Server
 
-[![CI](https://github.com/LeelaissakAttota/ToolBridge-MCP-Server/actions/workflows/ci.yml/badge.svg)](https://github.com/LeelaissakAttota/ToolBridge-MCP-Server/actions/workflows/ci.yml)
-![Tests](https://img.shields.io/badge/tests-228%20passing-brightgreen)
-![Python](https://img.shields.io/badge/python-3.12-blue)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-
 **One interface for AI assistants to discover and use tools for APIs, local data, and text analysis.**
 
 ToolBridge is a Python project that exposes seven tools through the Model Context Protocol (MCP). It validates requests, keeps data access bounded, and routes text analysis through interchangeable LLM providers. A read-only dashboard shows service health and execution metrics.
 
-**Version:** v1.1.0 | **Python:** 3.12 | **Deployment:** local or trusted single-host
+**Version:** v1.1.0 | **Python:** 3.12 | **Tests:** 228 passing | **License:** MIT | **Deployment:** local or trusted single-host
 
 [Five-minute interview demo](docs/DEMO.md) | [Architecture](ARCHITECTURE.md) | [Installation](docs/INSTALLATION.md) | [Screenshot gallery](screenshots/README.md)
-
-## Demo video
-
-<!-- DEMO VIDEO LINK: replace both occurrences of https://VIDEO_LINK below with the shared video link
-     (for a Drive file use https://drive.google.com/file/d/<FILE_ID>/preview so it plays directly). -->
-[![Watch the demo](https://img.shields.io/badge/%E2%96%B6%20Watch%20the%20demo-ToolBridge%20walkthrough-red?style=for-the-badge)](https://VIDEO_LINK)
-
-▶ [Watch the ToolBridge demo video](https://VIDEO_LINK)
-<!-- END DEMO VIDEO LINK -->
 
 ## The problem it solves
 
@@ -31,6 +17,13 @@ ToolBridge gives compatible clients a shared way to discover tools and call them
 For example, a client can discover `sql_query`, submit a read-only query, and receive structured rows. An attempted SQL write is rejected before database execution. The dashboard shows operational activity without displaying the query or its result.
 
 ## See it working
+
+<!-- DEMO VIDEO LINK: replace both occurrences of https://VIDEO_LINK below with the shared video link
+     (for a Drive file use https://drive.google.com/file/d/<FILE_ID>/preview so it plays directly). -->
+[![Watch the demo](https://img.shields.io/badge/%E2%96%B6%20Watch%20the%20demo-ToolBridge%20walkthrough-red?style=for-the-badge)](https://VIDEO_LINK)
+
+▶ [Watch the ToolBridge demo video](https://VIDEO_LINK)
+<!-- END DEMO VIDEO LINK -->
 
 **Claude Desktop calling ToolBridge through the stdio bridge** (`Convert $100 into Rupees and Euros` → `currency_converter`)
 
@@ -120,7 +113,7 @@ Open the [dashboard](http://127.0.0.1:8501) or [API documentation](http://127.0.
 
 The [five-minute demo](docs/DEMO.md) includes startup settings for a credential-free walkthrough, copyable requests, expected results, and interview talking points.
 
-## Use it from Claude Desktop
+### Use it from Claude Desktop
 
 Keep the API running, then add this entry to Claude Desktop's `claude_desktop_config.json` (Settings → Developer → Edit config), adjusting the paths to your clone. A full example is in [examples/claude_desktop_config.example.json](examples/claude_desktop_config.example.json).
 
@@ -139,7 +132,7 @@ Keep the API running, then add this entry to Claude Desktop's `claude_desktop_co
 
 Restart Claude Desktop; `toolbridge` shows as **Running** and its seven tools become available. If `TOOLBRIDGE_MCP_AUTH_TOKEN` is set, the bridge reads it from the environment or the project `.env` and sends it as a Bearer token.
 
-## Demo data
+### Demo data
 
 The repository ships small sample data so `sql_query` and `csv_analysis` work out of the box:
 
