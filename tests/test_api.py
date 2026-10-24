@@ -6,6 +6,7 @@ import pytest
 from asgi_client import ASGITestClient as TestClient
 from mcp.types import LATEST_PROTOCOL_VERSION
 
+from toolbridge.config import get_settings
 from toolbridge.main import app
 
 
@@ -80,6 +81,10 @@ def test_mcp_protocol_discovery_and_execution(client: TestClient) -> None:
         "Accept": "application/json, text/event-stream",
         "Content-Type": "application/json",
     }
+    # A developer .env may enable MCP auth; send the configured token if so.
+    token = get_settings().mcp_auth_token_value
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
     initialize = client.post(
         "/mcp/",
         headers=headers,
