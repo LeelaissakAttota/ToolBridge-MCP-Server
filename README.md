@@ -18,12 +18,14 @@ For example, a client can discover `sql_query`, submit a read-only query, and re
 
 ## See it working
 
-<!-- DEMO VIDEO LINK: replace both occurrences of https://VIDEO_LINK below with the shared video link
-     (for a Drive file use https://drive.google.com/file/d/<FILE_ID>/preview so it plays directly). -->
+<!-- DEMO VIDEO (hidden until the shared link is available; replace https://VIDEO_LINK and remove this comment wrapper)
+DEMO VIDEO LINK: replace both occurrences of https://VIDEO_LINK below with the shared video link
+     (for a Drive file use https://drive.google.com/file/d/<FILE_ID>/preview so it plays directly). 
 [![Watch the demo](https://img.shields.io/badge/%E2%96%B6%20Watch%20the%20demo-ToolBridge%20walkthrough-red?style=for-the-badge)](https://VIDEO_LINK)
 
 ▶ [Watch the ToolBridge demo video](https://VIDEO_LINK)
-<!-- END DEMO VIDEO LINK -->
+ END DEMO VIDEO LINK
+-->
 
 **Claude Desktop calling ToolBridge through the stdio bridge** (`Convert $100 into Rupees and Euros` → `currency_converter`)
 
