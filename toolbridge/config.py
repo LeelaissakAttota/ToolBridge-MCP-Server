@@ -303,6 +303,8 @@ class Settings(BaseSettings):
         env_prefix="TOOLBRIDGE_",
         env_nested_delimiter="__",
         nested_model_default_partial_update=True,
+        # Blank values (as in .env.example) fall back to defaults instead of failing.
+        env_ignore_empty=True,
         extra="ignore",
     )
 

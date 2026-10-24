@@ -47,8 +47,8 @@ def csv_root_candidates() -> list[Path]:
         if r and r.is_dir() and r.resolve() not in seen:
             seen.add(r.resolve())
             out.append(r)
-    # Prefer the folder holding the demo data (what the demo API uses).
-    out.sort(key=lambda r: not (r / "cafe_orders.csv").exists())
+    # The configured root comes first so the dashboard matches the API by default;
+    # the bundled demo folder is only offered as a fallback.
     return out
 
 
@@ -84,7 +84,7 @@ def render_csv(call) -> None:
                 key="csv_root",
             )
         )
-    if st.button("Example: Cafe orders CSV", key="csv_ex"):
+    if (root / "cafe_orders.csv").exists() and st.button("Example: Cafe orders CSV", key="csv_ex"):
         st.session_state["csv_file"] = "cafe_orders.csv"
         st.session_state["csv_autorun"] = True
     files = sorted(p.name for p in root.glob("*.csv"))
@@ -248,7 +248,8 @@ def db_candidates() -> list[Path]:
     if configured:
         p = Path(str(configured))
         paths.append(p if p.is_absolute() else (root or PROJECT_ROOT) / p)
-    paths.insert(0, DEMO_DB)
+    # Configured database first (what the API queries); bundled demo DB as fallback.
+    paths.append(DEMO_DB)
     seen, out = set(), []
     for p in paths:
         if p.is_file() and p.resolve() not in seen:
@@ -313,8 +314,9 @@ def render_sql(call) -> None:
             st.code(schema or "(unknown)")
     st.session_state.setdefault("sql_question", "")
     question = st.text_input("Ask in plain language", key="sql_question")
-    cols = st.columns(len(SQL_EXAMPLES))
-    for i, ex in enumerate(SQL_EXAMPLES):
+    examples = SQL_EXAMPLES if "CREATE TABLE books" in schema else ()
+    cols = st.columns(len(examples)) if examples else []
+    for i, ex in enumerate(examples):
         if cols[i].button(ex, key=f"sql_ex_{i}", width="stretch"):
             st.session_state["sql_question"] = ex
             st.rerun()
