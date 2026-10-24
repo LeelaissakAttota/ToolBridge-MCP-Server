@@ -35,8 +35,8 @@ python scripts/verify_release.py --timeout-seconds 90
 
 ## Current result
 
-- total: 185 automated test cases
-- passed: 185
+- total: 228 automated test cases
+- passed: 228
 - failed: 0
 - warnings: none
 - mypy: passed

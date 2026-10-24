@@ -62,16 +62,6 @@ These 12 genuine screenshots were captured from the released ToolBridge MCP Serv
 
 **Why it matters:** It shows plugin discovery and secret-safe operational metadata for that captured configuration state. Live provider execution is demonstrated separately in the later MCP validation screenshots.
 
-## 7. Automated Test Suite — 133 Passed
-
-**File:** `07-automated-tests-133-passed.png`
-
-![ToolBridge automated pytest suite with 133 passing tests](07-automated-tests-133-passed.png)
-
-**What it demonstrates:** This is a historical capture of the automated pytest suite completing with 133 passing tests and one non-failing Starlette/httpx deprecation warning. The current suite has 185 passing tests and no warnings; see the README.
-
-**Why it matters:** It provides reproducible evidence that the tested application behavior completed successfully while transparently retaining the dependency warning in the captured output.
-
 ## 8. MCP Seven-Tool + NVIDIA Live Test
 
 **File:** `08-mcp-7-tools-nvidia-live-test.png`

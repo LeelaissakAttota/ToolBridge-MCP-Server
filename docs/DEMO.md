@@ -188,7 +188,7 @@ Do not make Docker startup a prerequisite for a short recruiter demo. The verifi
 - **Dynamic routing:** hard capability/availability/budget filters run before scoring health, latency, cost, context, and quality.
 - **Budget controls:** daily, monthly, and per-request limits reduce accidental spend; they are process-local safeguards, not billing authority.
 - **Security decisions:** loopback-only publication compensates for the intentionally absent inbound identity layer; all boundaries validate and bound untrusted data.
-- **Test strategy:** 185 deterministic offline tests use fakes, temporary SQLite/CSV data, and mock HTTP transports with no warnings, and Continuous Integration also performs startup and Compose smoke checks.
+- **Test strategy:** 228 deterministic offline tests use fakes, temporary SQLite/CSV data, and mock HTTP transports with no warnings, and Continuous Integration also performs startup and Compose smoke checks.
 - **Docker:** the release uses a multi-stage image, fixed non-root identity, read-only roots, dropped capabilities, bounded `/tmp`, and health checks.
 - **Known limitations:** no authentication, tenancy, persistent telemetry, distributed budget ledger, public deployment, or live-provider CI.
 

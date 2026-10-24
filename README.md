@@ -1,5 +1,10 @@
 # ToolBridge MCP Server
 
+[![CI](https://github.com/LeelaissakAttota/ToolBridge-MCP-Server/actions/workflows/ci.yml/badge.svg)](https://github.com/LeelaissakAttota/ToolBridge-MCP-Server/actions/workflows/ci.yml)
+![Tests](https://img.shields.io/badge/tests-228%20passing-brightgreen)
+![Python](https://img.shields.io/badge/python-3.12-blue)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 **One interface for AI assistants to discover and use tools for APIs, local data, and text analysis.**
 
 ToolBridge is a Python project that exposes seven tools through the Model Context Protocol (MCP). It validates requests, keeps data access bounded, and routes text analysis through interchangeable LLM providers. A read-only dashboard shows service health and execution metrics.
@@ -7,6 +12,15 @@ ToolBridge is a Python project that exposes seven tools through the Model Contex
 **Version:** v1.1.0 | **Python:** 3.12 | **Deployment:** local or trusted single-host
 
 [Five-minute interview demo](docs/DEMO.md) | [Architecture](ARCHITECTURE.md) | [Installation](docs/INSTALLATION.md) | [Screenshot gallery](screenshots/README.md)
+
+## Demo video
+
+<!-- DEMO VIDEO LINK: replace both occurrences of https://VIDEO_LINK below with the shared video link
+     (for a Drive file use https://drive.google.com/file/d/<FILE_ID>/preview so it plays directly). -->
+[![Watch the demo](https://img.shields.io/badge/%E2%96%B6%20Watch%20the%20demo-ToolBridge%20walkthrough-red?style=for-the-badge)](https://VIDEO_LINK)
+
+▶ [Watch the ToolBridge demo video](https://VIDEO_LINK)
+<!-- END DEMO VIDEO LINK -->
 
 ## The problem it solves
 
@@ -18,12 +32,16 @@ For example, a client can discover `sql_query`, submit a read-only query, and re
 
 ## See it working
 
-| Operations dashboard | Successful MCP tool call |
-| --- | --- |
-| ![ToolBridge operations overview](screenshots/01-dashboard-overview.png) | ![Structured system status returned through MCP](screenshots/05-system-status-call.png) |
-| Service health, version, and local readiness. | A captured successful `system_status` execution. |
+**Claude Desktop calling ToolBridge through the stdio bridge** (`Convert $100 into Rupees and Euros` → `currency_converter`)
 
-The [full gallery](screenshots/README.md) includes seven-tool discovery, SQL write rejection, and captured live NVIDIA, stock-price, and currency-conversion results. These are point-in-time validation captures.
+![Claude Desktop using the ToolBridge currency converter tool](docs/images/claude-desktop-toolbridge.png)
+
+| Tool Playground | Guided provider setup |
+| --- | --- |
+| ![Tool Playground running a read-only SQL query](docs/images/playground-sql.png) | ![Guided LLM provider setup with Auto (cheapest) model selection](docs/images/guided-provider-setup.png) |
+| Any tool, run through the real MCP endpoint, with readable results and raw JSON. | Paste a key once (never shown again), pick Auto (cheapest) or a model, test, save. |
+
+The [evidence gallery](screenshots/README.md) adds seven-tool discovery, SQL write rejection, and captured live NVIDIA, stock-price, and currency-conversion results (point-in-time captures).
 
 ## What I built
 
@@ -31,7 +49,12 @@ The [full gallery](screenshots/README.md) includes seven-tool discovery, SQL wri
 - **Bounded data access:** read-only SQL controls, confined CSV paths, website destination checks, timeouts, and response limits.
 - **A provider plugin layer:** Cerebras, NVIDIA, and OpenRouter adapters share provider-neutral contracts, with capability-aware routing, bounded retries, failover, and estimated budget controls.
 - **Operational visibility:** health and readiness endpoints plus a read-only Streamlit dashboard that excludes prompts, tool payloads, and credentials.
-- **Repeatable validation and packaging:** automated tests, GitHub Actions checks, and a non-root Docker/Compose setup.
+- **Tool Playground:** a dashboard page that runs any tool through the real MCP endpoint (JSON-RPC `tools/call`), with demo examples, plain-language-to-SQL, CSV upload, and text or audio input for `llm_analysis`.
+- **Guided provider setup with auto model choice:** pick OpenRouter, OpenAI, Anthropic, Gemini, Groq, Cerebras, NVIDIA, or any OpenAI-compatible endpoint, paste the key once (write-only), and let **Auto (cheapest)** pick the cheapest working model, free models first.
+- **LLM analysis:** `llm_analysis` analyzes or summarizes untrusted text through the provider router, with retries, failover, and budget limits.
+- **Claude Desktop stdio bridge:** `python -m toolbridge.stdio_bridge` relays MCP from Claude Desktop (or any stdio MCP client) to the running server, so desktop calls also appear in History and Logs.
+- **Demo data and logs:** fictional SQL/CSV/text samples plus 12 success and 10 error requests in `examples/demo-data`; History and Logs pages show sanitized activity only.
+- **Repeatable validation and packaging:** 228 automated tests, GitHub Actions checks, and a non-root Docker/Compose setup.
 
 ## Available tools
 
@@ -91,9 +114,30 @@ Start the dashboard:
 .\.venv\Scripts\python.exe -m streamlit run toolbridge/dashboard/app.py --server.address 127.0.0.1 --server.port 8501
 ```
 
+If you start the API on another host or port, point the dashboard at it with `TOOLBRIDGE_OPERATIONS__DASHBOARD_API_URL` (default `http://127.0.0.1:8000`). Copying `.env.example` to `.env` as-is works; blank values fall back to defaults.
+
 Open the [dashboard](http://127.0.0.1:8501) or [API documentation](http://127.0.0.1:8000/docs). The MCP endpoint is `http://127.0.0.1:8000/mcp/`.
 
 The [five-minute demo](docs/DEMO.md) includes startup settings for a credential-free walkthrough, copyable requests, expected results, and interview talking points.
+
+## Use it from Claude Desktop
+
+Keep the API running, then add this entry to Claude Desktop's `claude_desktop_config.json` (Settings → Developer → Edit config), adjusting the paths to your clone. A full example is in [examples/claude_desktop_config.example.json](examples/claude_desktop_config.example.json).
+
+```json
+{
+  "mcpServers": {
+    "toolbridge": {
+      "command": "C:\\path\\to\\ToolBridge-MCP-Server\\.venv\\Scripts\\python.exe",
+      "args": ["-m", "toolbridge.stdio_bridge"],
+      "cwd": "C:\\path\\to\\ToolBridge-MCP-Server",
+      "env": { "TOOLBRIDGE_BRIDGE_URL": "http://127.0.0.1:8000/mcp/" }
+    }
+  }
+}
+```
+
+Restart Claude Desktop; `toolbridge` shows as **Running** and its seven tools become available. If `TOOLBRIDGE_MCP_AUTH_TOKEN` is set, the bridge reads it from the environment or the project `.env` and sends it as a Bearer token.
 
 ## Demo data
 
@@ -109,11 +153,13 @@ Example MCP arguments:
 {"relative_path": "sample_sales.csv", "preview_rows": 5}
 ```
 
+A richer fictional set (library SQLite database, cafe-orders CSV, text samples, and ready-made MCP requests) lives in [examples/demo-data](examples/demo-data/README.md); point `TOOLBRIDGE_PHASE5__SQL_QUERY__DATABASE_ROOT`/`DATABASE_PATH` and `TOOLBRIDGE_PHASE5__CSV_ANALYSIS__ROOT_DIRECTORY` at it, and the dashboard follows the same values.
+
 To regenerate the files, run `python scripts/seed_demo_data.py`. Set `DATABASE_PATH=:memory:` to disable the demo database.
 
 ## Testing and evidence
 
-The latest local validation completed with **185 passing tests** and no warnings. mypy also passes (`python -m mypy`). Earlier retained screenshots show the historical 133-test baseline. Ruff lint and formatting passes are recorded in the existing validation evidence. The tests cover validation, execution, provider routing, tool adapters, operations, and dashboard behavior.
+The suite has **228 passing tests** with no warnings, and Ruff lint/format checks pass. The tests cover validation, execution, provider routing, tool adapters, operations, the dashboard and Tool Playground helpers, `.env.example` loading, and an end-to-end stdio bridge check (a real MCP stdio client lists the seven tools and calls `system_status` through the bridge).
 
 Reproduce the checks locally:
 
@@ -133,7 +179,7 @@ GitHub Actions also checks startup, image builds, Compose configuration, and rel
 
 ToolBridge supports local or trusted single-host use. Docker Compose publishes ports only on `127.0.0.1` and runs containers as non-root with read-only roots and restricted capabilities.
 
-There is no inbound authentication, authorization, tenant isolation, or application rate limiting, so the service must not be exposed directly to a public or untrusted network. Metrics, recent logs, health state, caches, and provider budget estimates are process-local and reset on restart. Estimated costs are not authoritative billing records.
+Apart from an optional shared MCP bearer token (`TOOLBRIDGE_MCP_AUTH_TOKEN`), there is no inbound authentication, authorization, tenant isolation, or application rate limiting, so the service must not be exposed directly to a public or untrusted network. Metrics, recent logs, health state, caches, and provider budget estimates are process-local and reset on restart. Estimated costs are not authoritative billing records.
 
 Public deployment would require identity and access controls, rate limits, persistent audit/operational storage, and deployment-specific security review. See [KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md) and [SECURITY.md](SECURITY.md).
 

@@ -56,7 +56,7 @@ The release does not include inbound authentication, authorization, tenants, app
 
 ## Testing
 
-- 185 deterministic automated tests passing with no warnings; Ruff and mypy clean
+- 228 deterministic automated tests passing with no warnings; Ruff and mypy clean
 - unit, integration, API/MCP, provider, tool, dashboard, startup, and release-safety coverage
 - temporary SQLite/CSV fixtures and mock HTTP transports; default suite requires no credentials or paid requests
 - Ruff formatting and lint gates

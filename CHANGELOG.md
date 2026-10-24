@@ -6,6 +6,19 @@ All notable changes to this project are recorded here. The format follows Keep a
 
 ### Added
 
+- tests for the Claude Desktop stdio bridge (including an end-to-end stdio check), Tool Playground helpers, simplified tool panels, and `.env.example` loading (suite now 228 tests)
+- package metadata so `pip install -e .` works
+- README sections for the Tool Playground, guided provider setup with Auto (cheapest) model choice, Claude Desktop setup, demo video, and fresh screenshots
+
+### Fixed
+
+- copying `.env.example` to `.env` no longer breaks startup (blank values fall back to defaults)
+- the dashboard's SQL/CSV panels now use the API-configured database and CSV root first
+
+### Security
+
+- pillow 13.0.0 (via streamlit 1.66.1), resolving advisories against pillow 12.3.0
+
 - Bundled demo data: `data/demo.db` (companies and financials) and `data/csv` samples, used as the defaults. Rebuild them with `scripts/seed_demo_data.py`.
 - Optional `TOOLBRIDGE_MCP_AUTH_TOKEN` bearer-token protection for `/mcp`, plus `TOOLBRIDGE_MCP_ALLOWED_HOSTS`/`_ORIGINS` for reverse-proxy hostnames. Both are off by default.
 - `TOOLBRIDGE_PROVIDER_STREAM_TIMEOUT_SECONDS` (default 120) sets an overall deadline for streamed LLM responses.
