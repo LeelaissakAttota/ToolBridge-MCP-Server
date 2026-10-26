@@ -2,8 +2,18 @@
 
 from pathlib import PurePath
 from re import fullmatch
+from typing import Literal
+from urllib.parse import parse_qsl, unquote, urlsplit
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    HttpUrl,
+    SecretStr,
+    field_validator,
+    model_validator,
+)
 
 
 def _safe_https_origin(value: HttpUrl) -> HttpUrl:
@@ -66,17 +76,65 @@ class WebsiteReaderSettings(BaseModel):
         return frozenset(filter(None, self.allowed_hosts.split(",")))
 
 
+_POSTGRES_SSL_MODES = frozenset(
+    {"disable", "allow", "prefer", "require", "verify-ca", "verify-full"}
+)
+
+
+def parse_postgres_dsn(value: str) -> dict[str, object]:
+    """Split a PostgreSQL URL into connect fields. The password is not left in a URL."""
+
+    normalized = value.strip()
+    if any(char in normalized for char in "\r\n\x00"):
+        raise ValueError("postgres_dsn contains invalid characters")
+    parts = urlsplit(normalized)
+    if parts.scheme not in {"postgres", "postgresql"}:
+        raise ValueError("postgres_dsn must use a postgresql scheme")
+    if parts.hostname is None or not parts.username or parts.path in {"", "/"}:
+        raise ValueError("postgres_dsn must include a user, host, and database")
+    if parts.fragment:
+        raise ValueError("postgres_dsn must not include a fragment")
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    if set(query) - {"sslmode"}:
+        raise ValueError("postgres_dsn query may only set sslmode")
+    sslmode = query.get("sslmode")
+    if sslmode is not None and sslmode not in _POSTGRES_SSL_MODES:
+        raise ValueError("postgres_dsn sslmode is not allowed")
+    endpoint: dict[str, object] = {
+        "host": parts.hostname,
+        "port": parts.port or 5432,
+        "user": unquote(parts.username),
+        "database": unquote(parts.path.lstrip("/")),
+    }
+    if parts.password is not None:
+        endpoint["password"] = unquote(parts.password)
+    if sslmode is not None:
+        endpoint["ssl"] = sslmode
+    return endpoint
+
+
 class SQLQueryToolSettings(BaseModel):
-    """SQLite read-only execution configuration."""
+    """Read-only SQL execution configuration for SQLite or PostgreSQL."""
 
     model_config = ConfigDict(extra="forbid")
 
     enabled: bool = True
+    backend: Literal["sqlite", "postgres"] = "sqlite"
     timeout_seconds: float = Field(default=5.0, gt=0, le=60)
     database_path: str = Field(default="demo.db", min_length=1, max_length=512)
     database_root: str = Field(default="data", min_length=1, max_length=512)
     max_rows: int = Field(default=250, ge=1, le=1_000)
     progress_operations: int = Field(default=1_000, ge=1, le=1_000_000)
+    max_value_bytes: int = Field(default=1_000_000, ge=1_024, le=10_000_000)
+    postgres_dsn: SecretStr | None = None
+    postgres_host: str = ""
+    postgres_port: int = Field(default=5432, ge=1, le=65_535)
+    postgres_database: str = ""
+    postgres_user: str = ""
+    postgres_password: SecretStr | None = None
+    postgres_ssl: Literal["disable", "allow", "prefer", "require", "verify-ca", "verify-full"] = (
+        "prefer"
+    )
 
     @field_validator("database_path")
     @classmethod
@@ -95,12 +153,59 @@ class SQLQueryToolSettings(BaseModel):
             raise ValueError("database_path must be a relative SQLite database file")
         return normalized
 
-    @field_validator("database_root")
+    @field_validator("database_root", "postgres_host", "postgres_database", "postgres_user")
     @classmethod
-    def validate_database_root(cls, value: str) -> str:
-        """Reject empty database root configuration."""
+    def strip_text(cls, value: str) -> str:
+        """Trim configured text without resolving paths or opening a connection."""
 
         return value.strip()
+
+    @field_validator("postgres_dsn", "postgres_password", mode="before")
+    @classmethod
+    def blank_secret_is_unset(cls, value: object) -> object:
+        """Treat a blank .env value as unset so the SQLite default still starts."""
+
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
+    @model_validator(mode="after")
+    def validate_sql_backend(self) -> "SQLQueryToolSettings":
+        """Require a PostgreSQL target only when that backend is selected."""
+
+        if self.postgres_dsn is not None:
+            parse_postgres_dsn(self.postgres_dsn.get_secret_value())
+        if self.backend != "postgres":
+            return self
+        if self.postgres_dsn is not None:
+            return self
+        if not (self.postgres_host and self.postgres_database and self.postgres_user):
+            raise ValueError("postgres backend requires postgres_dsn or host, database, and user")
+        if fullmatch(r"[A-Za-z0-9.-]{1,253}", self.postgres_host) is None:
+            raise ValueError("postgres_host must be a hostname or IPv4 address")
+        if fullmatch(r"[A-Za-z0-9_-]{1,63}", self.postgres_database) is None:
+            raise ValueError("postgres_database must be a simple database name")
+        if fullmatch(r"[A-Za-z_][A-Za-z0-9_]{0,62}", self.postgres_user) is None:
+            raise ValueError("postgres_user must be a simple role name")
+        return self
+
+    def postgres_connection_target(self) -> dict[str, object]:
+        """Return asyncpg connection fields. Never log the returned password."""
+
+        if self.postgres_dsn is not None:
+            target = parse_postgres_dsn(self.postgres_dsn.get_secret_value())
+            target.setdefault("ssl", self.postgres_ssl)
+            return target
+        target = {
+            "host": self.postgres_host,
+            "port": self.postgres_port,
+            "user": self.postgres_user,
+            "database": self.postgres_database,
+            "ssl": self.postgres_ssl,
+        }
+        if self.postgres_password is not None:
+            target["password"] = self.postgres_password.get_secret_value()
+        return target
 
 
 class CSVAnalysisToolSettings(BaseModel):

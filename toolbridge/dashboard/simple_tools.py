@@ -242,6 +242,8 @@ def render_llm(call) -> None:
 # ------------------------------------------------------------------ SQL
 def db_candidates() -> list[Path]:
     cfg = _phase5("sql_query")
+    if str(getattr(cfg, "backend", "sqlite") or "sqlite") == "postgres":
+        return []
     root = _resolve(getattr(cfg, "database_root", None))
     configured = getattr(cfg, "database_path", None)
     paths = []
@@ -296,9 +298,16 @@ def validate_select(sql: str) -> str | None:
 
 
 def render_sql(call) -> None:
+    cfg = _phase5("sql_query")
+    backend = str(getattr(cfg, "backend", "sqlite") or "sqlite")
     dbs = db_candidates()
     schema = ""
-    if dbs:
+    if backend == "postgres":
+        st.caption(
+            "Queries run on the configured PostgreSQL read-only role. "
+            "Local schema preview is available for SQLite only."
+        )
+    elif dbs:
         db = dbs[0]
         if len(dbs) > 1:
             db = Path(
@@ -322,8 +331,9 @@ def render_sql(call) -> None:
             st.rerun()
     if st.button("Generate SQL", type="primary", key="sql_gen") and question.strip():
         prompt = (
-            f"SQLite schema:\n{schema}\n\nQuestion: {question.strip()}\n"
-            "Write ONE read-only SQLite SELECT query answering the question."
+            f"{'PostgreSQL' if backend == 'postgres' else 'SQLite'} schema:\n{schema}\n\n"
+            f"Question: {question.strip()}\n"
+            "Write ONE read-only SELECT query answering the question."
         )
         result, _ = call(
             "llm_analysis",

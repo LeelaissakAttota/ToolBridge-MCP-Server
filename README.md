@@ -4,7 +4,7 @@
 
 ToolBridge is a Python project that exposes seven tools through the Model Context Protocol (MCP). It validates requests, keeps data access bounded, and routes text analysis through interchangeable LLM providers. A read-only dashboard shows service health and execution metrics.
 
-**Version:** v1.1.0 | **Python:** 3.12 | **Tests:** 228 passing | **License:** MIT | **Deployment:** local or trusted single-host
+**Version:** v1.1.0 | **Python:** 3.12 | **Tests:** 239 passing, 1 skipped | **License:** MIT | **Deployment:** local or trusted single-host
 
 [Five-minute interview demo](docs/DEMO.md) | [Architecture](ARCHITECTURE.md) | [Installation](docs/INSTALLATION.md) | [Screenshot gallery](screenshots/README.md)
 
@@ -49,14 +49,14 @@ The [evidence gallery](screenshots/README.md) adds seven-tool discovery, SQL wri
 - **LLM analysis:** `llm_analysis` analyzes or summarizes untrusted text through the provider router, with retries, failover, and budget limits.
 - **Claude Desktop stdio bridge:** `python -m toolbridge.stdio_bridge` relays MCP from Claude Desktop (or any stdio MCP client) to the running server, so desktop calls also appear in History and Logs.
 - **Demo data and logs:** fictional SQL/CSV/text samples plus 12 success and 10 error requests in `examples/demo-data`; History and Logs pages show sanitized activity only.
-- **Repeatable validation and packaging:** 228 automated tests, GitHub Actions checks, and a non-root Docker/Compose setup.
+- **Repeatable validation and packaging:** 239 passing automated tests (1 live PostgreSQL test skipped unless a database is configured), GitHub Actions checks, and a non-root Docker/Compose setup.
 
 ## Available tools
 
 | Tool | What it does | Dependency or boundary |
 | --- | --- | --- |
 | `system_status` | Returns local service status | No external dependency |
-| `sql_query` | Returns bounded SQLite query results | Conservative read-only SQL validation |
+| `sql_query` | Returns bounded read-only query results | SQLite by default; PostgreSQL via `TOOLBRIDGE_PHASE5__SQL_QUERY__BACKEND` |
 | `csv_analysis` | Summarizes a configured local CSV | Confined file paths and size limits |
 | `website_reader` | Extracts bounded text from a web page | Public HTTPS destinations by default |
 | `stock_price` | Retrieves a market quote | External market-data service |
@@ -154,7 +154,7 @@ To regenerate the files, run `python scripts/seed_demo_data.py`. Set `DATABASE_P
 
 ## Testing and evidence
 
-The suite has **228 passing tests** with no warnings, and Ruff lint/format checks pass. The tests cover validation, execution, provider routing, tool adapters, operations, the dashboard and Tool Playground helpers, `.env.example` loading, and an end-to-end stdio bridge check (a real MCP stdio client lists the seven tools and calls `system_status` through the bridge).
+The suite has **239 passing tests** and 1 skipped live PostgreSQL test, with no warnings, and Ruff lint/format checks pass. The tests cover validation, execution, provider routing, tool adapters, operations, the dashboard and Tool Playground helpers, `.env.example` loading, and an end-to-end stdio bridge check (a real MCP stdio client lists the seven tools and calls `system_status` through the bridge).
 
 Reproduce the checks locally:
 

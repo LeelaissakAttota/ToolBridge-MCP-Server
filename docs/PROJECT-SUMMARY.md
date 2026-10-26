@@ -56,7 +56,7 @@ The release does not include inbound authentication, authorization, tenants, app
 
 ## Testing
 
-- 228 deterministic automated tests passing with no warnings; Ruff and mypy clean
+- 239 deterministic automated tests passing, 1 live PostgreSQL test skipped without a database; Ruff and mypy clean
 - unit, integration, API/MCP, provider, tool, dashboard, startup, and release-safety coverage
 - temporary SQLite/CSV fixtures and mock HTTP transports; default suite requires no credentials or paid requests
 - Ruff formatting and lint gates
@@ -85,7 +85,7 @@ The historical `v1.1.0` tag remains at the release commit above. Later compatibi
 - no distributed state, shared budget ledger, external telemetry backend, or horizontal orchestration
 - live external data and provider calls depend on network access and third-party services
 - LLM calls require separately configured credentials and approved cost/data handling
-- SQLite is the implemented SQL runtime; no production PostgreSQL adapter is included
+- SQL runtimes are SQLite (default) and an optional PostgreSQL read-only adapter. There is no tenant or row-level governance layer.
 
 ## Future Integration Possibility
 

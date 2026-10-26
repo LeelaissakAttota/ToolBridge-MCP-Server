@@ -6,6 +6,7 @@ All notable changes to this project are recorded here. The format follows Keep a
 
 ### Added
 
+- optional PostgreSQL adapter for `sql_query` (`TOOLBRIDGE_PHASE5__SQL_QUERY__BACKEND=postgres`), using the existing read-only port, asyncpg, bound parameters, row limits, and statement timeout. SQLite remains the default. Default suite: 239 passed, 1 skipped live PostgreSQL test.
 - tests for the Claude Desktop stdio bridge (including an end-to-end stdio check), Tool Playground helpers, simplified tool panels, and `.env.example` loading (suite now 228 tests)
 - package metadata so `pip install -e .` works
 - README sections for the Tool Playground, guided provider setup with Auto (cheapest) model choice, Claude Desktop setup, demo video, and fresh screenshots

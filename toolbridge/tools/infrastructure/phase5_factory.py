@@ -6,6 +6,7 @@ from pathlib import Path
 import httpx
 
 from toolbridge.config import Settings
+from toolbridge.phase5_config import SQLQueryToolSettings
 from toolbridge.providers.application.router import ProviderRouter
 from toolbridge.tools.adapters.csv_file import LocalCSVDataSource
 from toolbridge.tools.adapters.frankfurter import FrankfurterExchangeRateProvider
@@ -17,11 +18,32 @@ from toolbridge.tools.application.currency_converter import (
     CurrencyConverterTool,
 )
 from toolbridge.tools.application.llm_analysis import LLMAnalysisTool
+from toolbridge.tools.application.phase5_ports import ReadOnlyQueryExecutor
 from toolbridge.tools.application.ports import BaseTool, StockProviderEventLogger
 from toolbridge.tools.application.sql_query import SQLQueryTool
 from toolbridge.tools.application.website_reader import WebsiteReaderTool
 from toolbridge.tools.domain.models import StockProviderName
 from toolbridge.tools.infrastructure.factory import build_managed_tools
+
+
+def build_sql_query_executor(sql: SQLQueryToolSettings) -> ReadOnlyQueryExecutor:
+    """Select the configured read-only SQL adapter. PostgreSQL is not connected here."""
+
+    if sql.backend == "postgres":
+        from toolbridge.tools.adapters.postgres_query import PostgresReadOnlyQueryExecutor
+
+        return PostgresReadOnlyQueryExecutor(
+            sql.postgres_connection_target(),
+            timeout_seconds=sql.timeout_seconds,
+            max_value_bytes=sql.max_value_bytes,
+        )
+    return SQLiteReadOnlyQueryExecutor(
+        sql.database_path,
+        database_root=Path(sql.database_root),
+        timeout_seconds=sql.timeout_seconds,
+        progress_operations=sql.progress_operations,
+        max_value_bytes=sql.max_value_bytes,
+    )
 
 
 def build_phase5_managed_tools(
@@ -67,12 +89,7 @@ def build_phase5_managed_tools(
 
     sql = phase5.sql_query
     if sql.enabled:
-        sql_executor = SQLiteReadOnlyQueryExecutor(
-            sql.database_path,
-            database_root=Path(sql.database_root),
-            timeout_seconds=sql.timeout_seconds,
-            progress_operations=sql.progress_operations,
-        )
+        sql_executor = build_sql_query_executor(sql)
         tools.append(
             SQLQueryTool(
                 sql_executor,

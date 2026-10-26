@@ -9,7 +9,7 @@ ToolBridge exposes seven MCP tools through one validated MCP endpoint and provid
 | `system_status` | Return service status | No input |
 | `stock_price` | Retrieve a current quote | External market-data availability applies |
 | `website_reader` | Extract clean text from a web page | Public HTTPS destinations only by default |
-| `sql_query` | Run a bounded SQLite read query | Read-only `SELECT`/CTE access under configured root |
+| `sql_query` | Run a bounded read-only query | SQLite by default, or PostgreSQL when `BACKEND=postgres` |
 | `csv_analysis` | Inspect columns, preview, missing values, and statistics | Files must be under configured CSV root |
 | `currency_converter` | Convert one amount to multiple currencies | Configured exchange-rate provider and cache apply |
 | `llm_analysis` | Analyze or summarize text | Requires an enabled LLM provider |

@@ -136,6 +136,8 @@ $sql.result.structuredContent | ConvertTo-Json -Depth 6
 
 The request executes `SELECT 1 AS value` with a separate empty parameter object. The verified structured response reports column `value`, one row containing numeric value `1`, `row_count=1`, `truncated=false`, and a runtime-measured `execution_ms`.
 
+The same `sql_query` contract works against PostgreSQL when `TOOLBRIDGE_PHASE5__SQL_QUERY__BACKEND=postgres`. Set `POSTGRES_DSN` or `POSTGRES_HOST`, `POSTGRES_DATABASE`, and `POSTGRES_USER`. SQLite remains the default.
+
 For a configured file database, use named parameters rather than interpolating values:
 
 ```json

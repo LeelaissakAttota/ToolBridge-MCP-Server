@@ -8,7 +8,7 @@ ToolBridge v1.1.0 is production-ready for its documented local or trusted single
 4. Provider cost is an estimate based on configured rates and returned token usage, not a billing authority. Streaming usage can remain zero when a provider omits it.
 5. External stock, currency, website, and LLM behavior depends on third-party availability, terms, licensing, privacy, quota, cost, and response contracts.
 6. Website connections are pinned to the validated public IP, and redirects are re-validated per hop. Behind a proxy or VPN that returns synthetic DNS answers (for example 198.18.0.0/15 "fake-IP" modes), every site is rejected as non-public. Use an explicit allowlist and outbound firewall for sensitive deployments.
-7. SQL runtime support is SQLite-only. PostgreSQL has a replaceable port but no production adapter in v1.0.0.
+7. SQL backends are SQLite (default) and PostgreSQL (`TOOLBRIDGE_PHASE5__SQL_QUERY__BACKEND=postgres`, asyncpg). PostgreSQL uses one configured database, a read-only transaction, `statement_timeout`, bound parameters, and a row cap. It does not add tenant isolation, a connection pool, or a hosted data platform. Each query opens and closes its own short connection. A least-privilege `SELECT`-only role is still required.
 8. SQL and CSV access have no tenant or data-governance layer beyond configured path and read-only controls.
 9. LLM and website output is untrusted. The release does not include autonomous agents, memory, or tool chaining.
 10. FastMCP strict schema compatibility uses one isolated SDK internal pinned to MCP SDK `1.29.0`.

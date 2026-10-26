@@ -14,6 +14,8 @@ from toolbridge.tools.domain.tool_errors import DatabaseQueryFailedError
 class SQLiteReadOnlyQueryExecutor(ReadOnlyQueryExecutor):
     """Execute one statement in SQLite query-only mode with progress timeout."""
 
+    provider_id = "sqlite_read_only"
+
     def __init__(
         self,
         database_path: str,

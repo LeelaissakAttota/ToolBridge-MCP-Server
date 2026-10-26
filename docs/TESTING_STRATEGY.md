@@ -9,7 +9,7 @@ Testing proves that ToolBridge starts, preserves MCP/HTTP contracts, validates b
 | Layer | Evidence |
 | --- | --- |
 | Unit | domain rules, validation, registry, execution, errors, adapters, provider router, tool services, metrics, dashboard helpers, release scan |
-| Integration | application composition, lifecycle, automatic tool registration, provider/tool monitoring, local SQLite/CSV adapters |
+| Integration | application composition, lifecycle, automatic tool registration, provider/tool monitoring, local SQLite/CSV adapters, mocked PostgreSQL adapter |
 | API/MCP | lifespan, identity, health, readiness, operations snapshot, initialize, discovery, execution |
 | Dashboard | component rendering, safe client behavior, Streamlit process health |
 | Startup/release | local Uvicorn/Streamlit smoke and `scripts/verify_release.py` |
@@ -35,8 +35,9 @@ python scripts/verify_release.py --timeout-seconds 90
 
 ## Current result
 
-- total: 228 automated test cases
-- passed: 228
+- total: 240 automated test cases
+- passed: 239
+- skipped: 1 live PostgreSQL test unless `TOOLBRIDGE_TEST_POSTGRES_DSN` is set
 - failed: 0
 - warnings: none
 - mypy: passed

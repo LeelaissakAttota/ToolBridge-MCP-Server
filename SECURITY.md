@@ -80,7 +80,7 @@ Require credential-free HTTPS, reject local/non-global destinations, follow at m
 
 ### SQL Query
 
-Accept one conservative `SELECT`/`WITH`, bind named parameters separately, use SQLite URI read-only and query-only modes, and enforce row/query/outer time limits. Production requires least-privileged identities, authorization, tenants, governance, and audit.
+Accept one conservative `SELECT`/`WITH`, bind named parameters separately, and enforce row, value, and time limits. SQLite opens files with a read-only URI and query-only mode. PostgreSQL (`BACKEND=postgres`) uses asyncpg with `default_transaction_read_only`, a read-only transaction, and `statement_timeout`. The DSN password is passed as a connect argument, not logged. Production still requires a least-privileged role, authorization, tenants, governance, and audit. PostgreSQL functions with side effects are not a substitute for a read-only role.
 
 ### CSV Analysis
 

@@ -66,6 +66,20 @@ def test_db_candidates_put_the_api_database_first(monkeypatch, tmp_path) -> None
     assert simple_tools.DEMO_DB in candidates  # bundled demo DB stays available
 
 
+def test_db_candidates_skip_local_files_when_backend_is_postgres(monkeypatch, tmp_path) -> None:
+    db = tmp_path / "api.db"
+    sqlite3.connect(db).close()
+    _settings(
+        monkeypatch,
+        sql_query=SimpleNamespace(
+            backend="postgres",
+            database_root=str(tmp_path),
+            database_path="api.db",
+        ),
+    )
+    assert simple_tools.db_candidates() == []
+
+
 def test_csv_roots_put_the_api_root_first(monkeypatch, tmp_path) -> None:
     _settings(monkeypatch, csv_analysis=SimpleNamespace(root_directory=str(tmp_path)))
     roots = simple_tools.csv_root_candidates()

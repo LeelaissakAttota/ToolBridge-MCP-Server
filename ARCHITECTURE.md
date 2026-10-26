@@ -17,7 +17,7 @@ flowchart LR
     Registry --> Tools["Seven managed tools"]
 
     Tools --> Ports["Project-owned ports"]
-    Ports --> Adapters["HTTP / SQLite / files / Provider Router"]
+    Ports --> Adapters["HTTP / SQLite / PostgreSQL / files / Provider Router"]
     Executor --> Observers["Safe logging and metrics observers"]
     Router["Provider Router"] --> Observers
 
@@ -55,7 +55,7 @@ Application code remains independent of FastAPI, FastMCP, and Streamlit.
 ### Adapters
 
 - FastMCP projects registry definitions into MCP discovery/execution.
-- Existing Yahoo/Alpha Vantage, website, SQLite, CSV, Frankfurter, and LLM HTTP adapters remain unchanged.
+- Existing Yahoo/Alpha Vantage, website, SQLite, PostgreSQL, CSV, Frankfurter, and LLM HTTP adapters remain unchanged in their own modules. `sql_query` still depends on the database-neutral `ReadOnlyQueryExecutor` port. SQLite is the default. PostgreSQL is selected with `TOOLBRIDGE_PHASE5__SQL_QUERY__BACKEND=postgres` and is not connected until a query runs.
 - FastAPI exposes liveness, readiness, and safe operational snapshot transport routes.
 - `DashboardClient` performs a credential-free local `GET`, refuses redirects, and validates the JSON against strict domain models.
 - Streamlit renders the immutable snapshot and exposes no server mutation operation.
