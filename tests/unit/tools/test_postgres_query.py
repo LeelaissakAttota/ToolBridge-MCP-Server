@@ -15,7 +15,6 @@ from toolbridge.tools.adapters.postgres_query import (
     PostgresReadOnlyQueryExecutor,
     bind_named_parameters,
 )
-from toolbridge.tools.adapters.sqlite_query import SQLiteReadOnlyQueryExecutor
 from toolbridge.tools.application.sql_query import SQLQueryTool
 from toolbridge.tools.domain.sql_query import SQLQueryInput
 from toolbridge.tools.domain.tool_errors import DatabaseQueryFailedError
@@ -220,10 +219,17 @@ def test_postgres_configuration_requires_a_target_and_hides_the_password() -> No
     assert target["password"] == "secret-password"
     assert target["ssl"] == "prefer"
     assert "secret-password" not in repr(settings)
-    assert Settings(_env_file=None).phase5.sql_query.backend == "sqlite"
+    assert Settings(_env_file=None).phase5.sql_query.backend == "postgres"
 
     with pytest.raises(ValidationError, match="host, database, and user"):
-        SQLQueryToolSettings(backend="postgres")
+        SQLQueryToolSettings(
+            backend="postgres",
+            postgres_host="",
+            postgres_database="",
+            postgres_user="",
+        )
+    with pytest.raises(ValidationError):
+        SQLQueryToolSettings(backend="sqlite")
     with pytest.raises(ValidationError, match="sslmode"):
         SQLQueryToolSettings(
             backend="postgres",
@@ -246,15 +252,16 @@ def test_postgres_dsn_is_split_so_the_password_is_not_a_url() -> None:
     assert "secret-password" not in repr(settings)
 
 
-def test_factory_selects_sqlite_by_default_and_postgres_when_configured() -> None:
-    sqlite_executor = build_sql_query_executor(Settings(_env_file=None).phase5.sql_query)
-    postgres_executor = build_sql_query_executor(postgres_settings())
+def test_factory_uses_postgres_only() -> None:
+    executor = build_sql_query_executor(Settings(_env_file=None).phase5.sql_query)
+    configured = build_sql_query_executor(postgres_settings())
 
-    assert isinstance(sqlite_executor, SQLiteReadOnlyQueryExecutor)
-    assert isinstance(postgres_executor, PostgresReadOnlyQueryExecutor)
-    assert "secret-password" not in repr(postgres_executor)
+    assert isinstance(executor, PostgresReadOnlyQueryExecutor)
+    assert isinstance(configured, PostgresReadOnlyQueryExecutor)
+    assert "secret-password" not in repr(configured)
+    assert Settings(_env_file=None).phase5.sql_query.backend == "postgres"
 
-    tool = SQLQueryTool(postgres_executor, timeout_seconds=5, default_max_rows=10)
+    tool = SQLQueryTool(configured, timeout_seconds=5, default_max_rows=10)
 
     async def health() -> str:
         await tool.initialize()

@@ -85,7 +85,7 @@ The historical `v1.1.0` tag remains at the release commit above. Later compatibi
 - no distributed state, shared budget ledger, external telemetry backend, or horizontal orchestration
 - live external data and provider calls depend on network access and third-party services
 - LLM calls require separately configured credentials and approved cost/data handling
-- SQL runtimes are SQLite (default) and an optional PostgreSQL read-only adapter. There is no tenant or row-level governance layer.
+- `sql_query` uses PostgreSQL only. There is no SQLite fallback and no tenant or row-level governance layer.
 
 ## Future Integration Possibility
 

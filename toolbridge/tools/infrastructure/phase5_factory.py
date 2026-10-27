@@ -10,7 +10,6 @@ from toolbridge.phase5_config import SQLQueryToolSettings
 from toolbridge.providers.application.router import ProviderRouter
 from toolbridge.tools.adapters.csv_file import LocalCSVDataSource
 from toolbridge.tools.adapters.frankfurter import FrankfurterExchangeRateProvider
-from toolbridge.tools.adapters.sqlite_query import SQLiteReadOnlyQueryExecutor
 from toolbridge.tools.adapters.website_reader import HostResolver, HttpWebsiteFetcher
 from toolbridge.tools.application.csv_analysis import CSVAnalysisTool
 from toolbridge.tools.application.currency_converter import (
@@ -27,21 +26,13 @@ from toolbridge.tools.infrastructure.factory import build_managed_tools
 
 
 def build_sql_query_executor(sql: SQLQueryToolSettings) -> ReadOnlyQueryExecutor:
-    """Select the configured read-only SQL adapter. PostgreSQL is not connected here."""
+    """Build the read-only PostgreSQL adapter. No connection is opened here."""
 
-    if sql.backend == "postgres":
-        from toolbridge.tools.adapters.postgres_query import PostgresReadOnlyQueryExecutor
+    from toolbridge.tools.adapters.postgres_query import PostgresReadOnlyQueryExecutor
 
-        return PostgresReadOnlyQueryExecutor(
-            sql.postgres_connection_target(),
-            timeout_seconds=sql.timeout_seconds,
-            max_value_bytes=sql.max_value_bytes,
-        )
-    return SQLiteReadOnlyQueryExecutor(
-        sql.database_path,
-        database_root=Path(sql.database_root),
+    return PostgresReadOnlyQueryExecutor(
+        sql.postgres_connection_target(),
         timeout_seconds=sql.timeout_seconds,
-        progress_operations=sql.progress_operations,
         max_value_bytes=sql.max_value_bytes,
     )
 

@@ -242,7 +242,7 @@ def render_llm(call) -> None:
 # ------------------------------------------------------------------ SQL
 def db_candidates() -> list[Path]:
     cfg = _phase5("sql_query")
-    if str(getattr(cfg, "backend", "sqlite") or "sqlite") == "postgres":
+    if str(getattr(cfg, "backend", "postgres") or "postgres") == "postgres":
         return []
     root = _resolve(getattr(cfg, "database_root", None))
     configured = getattr(cfg, "database_path", None)
@@ -299,7 +299,7 @@ def validate_select(sql: str) -> str | None:
 
 def render_sql(call) -> None:
     cfg = _phase5("sql_query")
-    backend = str(getattr(cfg, "backend", "sqlite") or "sqlite")
+    backend = str(getattr(cfg, "backend", "postgres") or "postgres")
     dbs = db_candidates()
     schema = ""
     if backend == "postgres":

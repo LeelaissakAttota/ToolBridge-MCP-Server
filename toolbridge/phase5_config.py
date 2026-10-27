@@ -114,12 +114,12 @@ def parse_postgres_dsn(value: str) -> dict[str, object]:
 
 
 class SQLQueryToolSettings(BaseModel):
-    """Read-only SQL execution configuration for SQLite or PostgreSQL."""
+    """Read-only PostgreSQL execution configuration. SQLite is not a sql_query backend."""
 
     model_config = ConfigDict(extra="forbid")
 
     enabled: bool = True
-    backend: Literal["sqlite", "postgres"] = "sqlite"
+    backend: Literal["postgres"] = "postgres"
     timeout_seconds: float = Field(default=5.0, gt=0, le=60)
     database_path: str = Field(default="demo.db", min_length=1, max_length=512)
     database_root: str = Field(default="data", min_length=1, max_length=512)
@@ -127,10 +127,10 @@ class SQLQueryToolSettings(BaseModel):
     progress_operations: int = Field(default=1_000, ge=1, le=1_000_000)
     max_value_bytes: int = Field(default=1_000_000, ge=1_024, le=10_000_000)
     postgres_dsn: SecretStr | None = None
-    postgres_host: str = ""
+    postgres_host: str = "127.0.0.1"
     postgres_port: int = Field(default=5432, ge=1, le=65_535)
-    postgres_database: str = ""
-    postgres_user: str = ""
+    postgres_database: str = "toolbridge"
+    postgres_user: str = "toolbridge_ro"
     postgres_password: SecretStr | None = None
     postgres_ssl: Literal["disable", "allow", "prefer", "require", "verify-ca", "verify-full"] = (
         "prefer"
@@ -163,7 +163,7 @@ class SQLQueryToolSettings(BaseModel):
     @field_validator("postgres_dsn", "postgres_password", mode="before")
     @classmethod
     def blank_secret_is_unset(cls, value: object) -> object:
-        """Treat a blank .env value as unset so the SQLite default still starts."""
+        """Treat a blank .env value as unset."""
 
         if isinstance(value, str) and not value.strip():
             return None
@@ -171,13 +171,12 @@ class SQLQueryToolSettings(BaseModel):
 
     @model_validator(mode="after")
     def validate_sql_backend(self) -> "SQLQueryToolSettings":
-        """Require a PostgreSQL target only when that backend is selected."""
+        """Require a PostgreSQL target. SQLite is not accepted."""
 
+        if self.backend != "postgres":
+            raise ValueError("sqlite backend is no longer supported; use postgres")
         if self.postgres_dsn is not None:
             parse_postgres_dsn(self.postgres_dsn.get_secret_value())
-        if self.backend != "postgres":
-            return self
-        if self.postgres_dsn is not None:
             return self
         if not (self.postgres_host and self.postgres_database and self.postgres_user):
             raise ValueError("postgres backend requires postgres_dsn or host, database, and user")

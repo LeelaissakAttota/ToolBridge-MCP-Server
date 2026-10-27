@@ -59,7 +59,10 @@ def test_db_candidates_put_the_api_database_first(monkeypatch, tmp_path) -> None
     db = tmp_path / "api.db"
     sqlite3.connect(db).close()
     _settings(
-        monkeypatch, sql_query=SimpleNamespace(database_root=str(tmp_path), database_path="api.db")
+        monkeypatch,
+        sql_query=SimpleNamespace(
+            backend="sqlite", database_root=str(tmp_path), database_path="api.db"
+        ),
     )
     candidates = simple_tools.db_candidates()
     assert candidates[0] == db

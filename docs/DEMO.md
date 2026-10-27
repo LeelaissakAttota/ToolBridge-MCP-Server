@@ -1,6 +1,6 @@
 # ToolBridge MCP Server Demo
 
-This sequence presents the released v1.1.0 system in about 5 minutes without paid provider calls or repository changes. PostgreSQL is optional. The basic demo uses the bundled SQLite file and does not need a live Postgres database.
+This sequence presents the released v1.1.0 system in about 5 minutes without paid provider calls or repository changes. `sql_query` uses PostgreSQL only. There is no SQLite backend. Non-SQL tools still run without a database.
 
 ## Five-minute clock
 
@@ -142,9 +142,9 @@ $sql = Invoke-RestMethod -Method Post `
 $sql.result.structuredContent | ConvertTo-Json -Depth 6
 ```
 
-The request file runs `SELECT 1 AS value` with an empty parameter object. Expected structured result: column `value`, one row with numeric `1`, `row_count` 1, `truncated` false, and a runtime `execution_ms`. The default database is the bundled SQLite file `data/demo.db`, not an in-memory database. This query does not need that file's tables. Explain that the input model permits only a conservative single `SELECT` or CTE, and the SQLite adapter also opens configured files read-only and sets query-only mode.
+The request file runs `SELECT 1 AS value` with an empty parameter object. Expected structured result, when PostgreSQL is running and the read-only role can connect: column `value`, one row with numeric `1`, `row_count` 1, `truncated` false, and a runtime `execution_ms`. If PostgreSQL is not running, the call fails with a safe database error and does not fall back to SQLite.
 
-PostgreSQL is an optional backend (`TOOLBRIDGE_PHASE5__SQL_QUERY__BACKEND=postgres`). Do not switch to it for this demo. The same `sql_query` contract applies, but a live database and a `SELECT`-only role are required. Leave the backend on `sqlite`.
+`sql_query` always uses `TOOLBRIDGE_PHASE5__SQL_QUERY__BACKEND=postgres`. Set `POSTGRES_DSN` or host, database, and user. Use a `SELECT`-only role. Do not put the password in the demo transcript.
 
 ### 7. Show normalized rejection
 

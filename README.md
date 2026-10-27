@@ -17,7 +17,7 @@ ToolBridge is a Python project that exposes seven tools through the Model Contex
 | --- | --- |
 | One sentence | Seven validated MCP tools, one loopback server, no public exposure. |
 | The boundary | Read-only SQL, confined CSV paths, public-HTTPS website checks, and a provider router that does not log prompts or keys. |
-| The evidence | 239 passing tests, the screenshots below, and a credential-free demo path in [DEMO.md](docs/DEMO.md). The basic demo stays on SQLite. PostgreSQL is optional and is not required. |
+| The evidence | 239 passing tests, the screenshots below, and a credential-free path for non-SQL tools in [DEMO.md](docs/DEMO.md). `sql_query` uses PostgreSQL only. A live database is required for that tool. |
 
 ## The problem it solves
 
@@ -73,7 +73,7 @@ More captures, with what each one proves: [screenshot gallery](screenshots/READM
 | Tool | What it does | Dependency or boundary |
 | --- | --- | --- |
 | 🩺 `system_status` | Returns local service status | No external dependency |
-| 🗄️ `sql_query` | Returns bounded read-only query results | SQLite by default; PostgreSQL via `TOOLBRIDGE_PHASE5__SQL_QUERY__BACKEND` |
+| 🗄️ `sql_query` | Returns bounded read-only query results | PostgreSQL only. Read-only role, bound parameters, row and time limits. |
 | 📊 `csv_analysis` | Summarizes a configured local CSV | Confined file paths and size limits |
 | 🌐 `website_reader` | Extracts bounded text from a web page | Public HTTPS destinations by default |
 | 📈 `stock_price` | Retrieves a market quote | External market-data service |
