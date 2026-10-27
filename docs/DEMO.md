@@ -1,6 +1,21 @@
 # ToolBridge MCP Server Demo
 
-This sequence presents the released v1.1.0 system in approximately 5-10 minutes without credentials, paid provider calls, or repository changes.
+This sequence presents the released v1.1.0 system in about 5 minutes without paid provider calls or repository changes. PostgreSQL is optional. The basic demo uses the bundled SQLite file and does not need a live Postgres database.
+
+## Five-minute clock
+
+| Minute | Show | Say |
+| --- | --- | --- |
+| 0:00 | Start API and dashboard | "One loopback process hosts MCP. The dashboard only reads a safe snapshot." |
+| 0:30 | `GET /` and `/health` | "Version 1.1.0. Health means the process is alive. It does not call providers." |
+| 1:00 | `GET /ready` | "Ready means seven tools are registered. Still no external call." |
+| 1:30 | MCP `tools/list` | "The client discovers the contracts. I do not hard-code seven endpoints." |
+| 2:30 | `system_status` | "A real tool call, not a mock page." |
+| 3:15 | `sql_query` `SELECT 1 AS value` | "Read-only SQL. Parameters stay out of the query text." |
+| 4:00 | Unknown tool, then a `DELETE` | "Bad input is rejected before the database runs." |
+| 4:30 | Dashboard Overview and Logs | "The log does not show the SQL, the result, or any key." |
+
+If `TOOLBRIDGE_MCP_AUTH_TOKEN` is set in `.env`, every `/mcp/` call needs `Authorization: Bearer <token>`. A blank token means no auth, which is the credential-free path. Do not paste the token into slides or the chat transcript.
 
 ## Demo Goal
 
@@ -27,7 +42,7 @@ The gallery also retains point-in-time NVIDIA LLM, Yahoo Finance AAPL, and Frank
 - local ports `8000` and `8501` available
 - two terminal windows
 
-No provider credential or Docker daemon is required for the core demo. For a fresh machine, complete [INSTALLATION.md](INSTALLATION.md) first.
+No provider credential or Docker daemon is required for the core demo. If this machine's `.env` enables an LLM provider, startup may call that provider's model list. That is local configuration, not a demo requirement. For a credential-free walkthrough, leave provider `ENABLED` values false. For a fresh machine, complete [INSTALLATION.md](INSTALLATION.md) first. The one-page speaking card is [INTERVIEW_CHEATSHEET.md](INTERVIEW_CHEATSHEET.md).
 
 ## Startup
 
@@ -55,6 +70,8 @@ Invoke-RestMethod http://127.0.0.1:8000/
 
 Point out version `1.1.0` and the links to health, readiness, operations, MCP, and OpenAPI.
 
+Expected: `name` is `ToolBridge MCP Server`, `version` is `1.1.0`, `status` is `running`. The MCP `initialize` result can show server version `1.29.0`. That number is the MCP SDK, not the application version. Use `GET /` for the product version.
+
 ### 2. Separate liveness from readiness
 
 ```powershell
@@ -62,7 +79,7 @@ Invoke-RestMethod http://127.0.0.1:8000/health
 Invoke-RestMethod http://127.0.0.1:8000/ready | ConvertTo-Json -Depth 6
 ```
 
-`/health` proves that the process is alive. `/ready` verifies lifecycle, registry composition, tool initialization, and provider-router initialization without making external provider calls.
+`/health` proves that the process is alive. Expected: `status` is `ok` and `service` is `toolbridge-mcp`. `/ready` verifies lifecycle, registry composition, tool initialization, and provider-router initialization without making external provider calls. Expected: `ready` is `true` and the registry check says `7 tools registered`.
 
 ### 3. Initialize MCP
 
@@ -112,7 +129,7 @@ $status = Invoke-RestMethod -Method Post `
 $status.result.structuredContent | ConvertTo-Json
 ```
 
-The structured result contains `service`, `status`, and a runtime-generated ISO 8601 `timestamp`.
+The structured result contains `service` = `toolbridge-mcp`, `status` = `ok`, and a runtime-generated ISO 8601 `timestamp`. `result.isError` is false.
 
 ### 6. Execute a safe SQL read
 
@@ -125,7 +142,9 @@ $sql = Invoke-RestMethod -Method Post `
 $sql.result.structuredContent | ConvertTo-Json -Depth 6
 ```
 
-The default isolated in-memory SQLite configuration returns one row for `SELECT 1 AS value`. Explain that the input model permits only a conservative single `SELECT` or CTE and the adapter also uses SQLite read-only/query-only controls for configured files.
+The request file runs `SELECT 1 AS value` with an empty parameter object. Expected structured result: column `value`, one row with numeric `1`, `row_count` 1, `truncated` false, and a runtime `execution_ms`. The default database is the bundled SQLite file `data/demo.db`, not an in-memory database. This query does not need that file's tables. Explain that the input model permits only a conservative single `SELECT` or CTE, and the SQLite adapter also opens configured files read-only and sets query-only mode.
+
+PostgreSQL is an optional backend (`TOOLBRIDGE_PHASE5__SQL_QUERY__BACKEND=postgres`). Do not switch to it for this demo. The same `sql_query` contract applies, but a live database and a `SELECT`-only role are required. Leave the backend on `sqlite`.
 
 ### 7. Show normalized rejection
 
@@ -138,7 +157,7 @@ $invalid = Invoke-RestMethod -Method Post `
 $invalid.result | ConvertTo-Json -Depth 6
 ```
 
-The MCP response sets `isError` and does not crash the service or reveal configuration. For the application-level SQL error envelope, replace the query with a non-read operation such as `DELETE FROM example`; validation rejects it before database execution.
+The MCP response sets `isError` and does not crash the service or reveal configuration. Expected: a normalized tool error for `no_such_tool`, not a stack trace. For the application-level SQL error envelope, replace the query with a non-read operation such as `DELETE FROM example`; validation rejects it before database execution. Say: "The write never reaches SQLite or PostgreSQL."
 
 ### 8. Open the operations dashboard
 

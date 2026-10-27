@@ -1,6 +1,16 @@
 # ToolBridge Screenshot Gallery
 
-These 12 genuine screenshots were captured from the released ToolBridge MCP Server v1.1.0 during portfolio validation. Together they document the operational UI, verified local interfaces, automated test results, MCP tool discovery and execution, point-in-time live external-provider calls, and SQL write-operation rejection.
+Use these three first in a five-minute interview. Every other capture stays below. No image file was removed.
+
+| Show this | File | One sentence |
+| --- | --- | --- |
+| The service is up | [01-dashboard-overview.png](01-dashboard-overview.png) | Read-only overview: version 1.1.0, healthy, seven tools. |
+| The tool surface | [04-mcp-tools.png](04-mcp-tools.png) | All seven tools registered. Healthy here means local lifecycle, not a live provider call. |
+| The safety boundary | [12-sql-write-operation-rejected.png](12-sql-write-operation-rejected.png) | `DELETE` was rejected before the database ran. |
+
+Eleven screenshot files are in this folder. The numbering skips `07`. That file is not here. Do not describe a missing `07` as evidence.
+
+These captures are from ToolBridge MCP Server v1.1.0 portfolio validation. Together they document the operational UI, verified local interfaces, MCP tool discovery and execution, point-in-time live external-provider calls, and SQL write-operation rejection.
 
 ## 1. Operations Overview
 

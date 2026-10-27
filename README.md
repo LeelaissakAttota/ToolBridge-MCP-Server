@@ -11,13 +11,13 @@ ToolBridge is a Python project that exposes seven tools through the Model Contex
 
 **Version:** v1.1.0 | **Python:** 3.12 | **Tests:** 239 passing, 1 skipped | **License:** MIT | **Deployment:** local or trusted single-host
 
-[Five-minute interview demo](docs/DEMO.md) | [Architecture](ARCHITECTURE.md) | [Installation](docs/INSTALLATION.md) | [Screenshot gallery](screenshots/README.md)
+[Five-minute interview demo](docs/DEMO.md) | [Interview cheat sheet](docs/INTERVIEW_CHEATSHEET.md) | [Architecture](ARCHITECTURE.md) | [Installation](docs/INSTALLATION.md) | [Screenshot gallery](screenshots/README.md)
 
 | For an interview | What to show |
 | --- | --- |
 | One sentence | Seven validated MCP tools, one loopback server, no public exposure. |
 | The boundary | Read-only SQL, confined CSV paths, public-HTTPS website checks, and a provider router that does not log prompts or keys. |
-| The evidence | 239 passing tests, the screenshots below, and a credential-free demo path in [DEMO.md](docs/DEMO.md). |
+| The evidence | 239 passing tests, the screenshots below, and a credential-free demo path in [DEMO.md](docs/DEMO.md). The basic demo stays on SQLite. PostgreSQL is optional and is not required. |
 
 ## The problem it solves
 
@@ -225,6 +225,7 @@ Public deployment would require identity and access controls, rate limits, persi
 | Looking for | Start here |
 | --- | --- |
 | A short working demonstration | [Interview demo](docs/DEMO.md) |
+| One-page speaking card | [Interview cheat sheet](docs/INTERVIEW_CHEATSHEET.md) |
 | Technical design | [Architecture](ARCHITECTURE.md) |
 | Setup and troubleshooting | [Installation](docs/INSTALLATION.md) and [troubleshooting](docs/TROUBLESHOOTING.md) |
 | Request examples and contracts | [API examples](docs/API-EXAMPLES.md) and [API guide](docs/API_GUIDE.md) |
