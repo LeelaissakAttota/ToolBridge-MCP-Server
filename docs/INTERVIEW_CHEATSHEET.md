@@ -52,6 +52,6 @@ From the repository root, two PowerShell windows:
 .\.venv\Scripts\python.exe -m streamlit run toolbridge/dashboard/app.py --server.address 127.0.0.1 --server.port 8501
 ```
 
-Then open `http://127.0.0.1:8000/health` and `http://127.0.0.1:8501`.
+Then open `http://127.0.0.1:8000/health` and `http://127.0.0.1:8501`. If `8501` is already taken, use another loopback port for the dashboard and keep the API on port `8000`.
 
 If `.venv` is missing, use the Windows steps in the [README](../README.md). If a provider is enabled in `.env`, startup may call that provider. That is not required for the demo.

@@ -58,7 +58,7 @@ In terminal 2, start the dashboard:
 .\.venv\Scripts\python.exe -m streamlit run toolbridge/dashboard/app.py --server.address 127.0.0.1 --server.port 8501
 ```
 
-Keep both processes on loopback. Stop them with `Ctrl+C` when the demo is complete.
+Keep both processes on loopback. If port `8501` is already in use, start the dashboard on another loopback port, for example `8502`, and keep the API on `127.0.0.1:8000`. Stop them with `Ctrl+C` when the demo is complete.
 
 ## Demo Sequence
 
