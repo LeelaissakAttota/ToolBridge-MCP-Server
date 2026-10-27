@@ -1,5 +1,10 @@
 # ToolBridge MCP Server
 
+![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![MCP](https://img.shields.io/badge/Protocol-MCP-111827?style=for-the-badge)
+![Tests](https://img.shields.io/badge/Tests-239%20passing-2EA44F?style=for-the-badge)
+![License MIT](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
+
 **One interface for AI assistants to discover and use tools for APIs, local data, and text analysis.**
 
 ToolBridge is a Python project that exposes seven tools through the Model Context Protocol (MCP). It validates requests, keeps data access bounded, and routes text analysis through interchangeable LLM providers. A read-only dashboard shows service health and execution metrics.
@@ -7,6 +12,12 @@ ToolBridge is a Python project that exposes seven tools through the Model Contex
 **Version:** v1.1.0 | **Python:** 3.12 | **Tests:** 239 passing, 1 skipped | **License:** MIT | **Deployment:** local or trusted single-host
 
 [Five-minute interview demo](docs/DEMO.md) | [Architecture](ARCHITECTURE.md) | [Installation](docs/INSTALLATION.md) | [Screenshot gallery](screenshots/README.md)
+
+| For an interview | What to show |
+| --- | --- |
+| One sentence | Seven validated MCP tools, one loopback server, no public exposure. |
+| The boundary | Read-only SQL, confined CSV paths, public-HTTPS website checks, and a provider router that does not log prompts or keys. |
+| The evidence | 239 passing tests, the screenshots below, and a credential-free demo path in [DEMO.md](docs/DEMO.md). |
 
 ## The problem it solves
 
@@ -38,6 +49,12 @@ DEMO VIDEO LINK: replace both occurrences of https://VIDEO_LINK below with the s
 
 The [evidence gallery](screenshots/README.md) adds seven-tool discovery, SQL write rejection, and captured live NVIDIA, stock-price, and currency-conversion results (point-in-time captures).
 
+| Operations | Seven tools | SQL write rejected |
+| --- | --- | --- |
+| ![ToolBridge operations overview](screenshots/01-dashboard-overview.png) | ![ToolBridge MCP tool dashboard](screenshots/04-mcp-tools.png) | ![SQL write operation rejected](screenshots/12-sql-write-operation-rejected.png) |
+
+More captures, with what each one proves: [screenshot gallery](screenshots/README.md) (`02` health, `03` readiness, `05` system status, `06` provider platform, `08` NVIDIA live test, `09` health and readiness, `10` stock price, `11` currency converter).
+
 ## What I built
 
 - **A discoverable tool interface:** FastAPI and FastMCP expose seven tools with strict Pydantic input/output schemas and normalized failures.
@@ -55,13 +72,13 @@ The [evidence gallery](screenshots/README.md) adds seven-tool discovery, SQL wri
 
 | Tool | What it does | Dependency or boundary |
 | --- | --- | --- |
-| `system_status` | Returns local service status | No external dependency |
-| `sql_query` | Returns bounded read-only query results | SQLite by default; PostgreSQL via `TOOLBRIDGE_PHASE5__SQL_QUERY__BACKEND` |
-| `csv_analysis` | Summarizes a configured local CSV | Confined file paths and size limits |
-| `website_reader` | Extracts bounded text from a web page | Public HTTPS destinations by default |
-| `stock_price` | Retrieves a market quote | External market-data service |
-| `currency_converter` | Converts an amount to multiple currencies | External exchange-rate service |
-| `llm_analysis` | Analyzes or summarizes text | An enabled LLM provider |
+| 🩺 `system_status` | Returns local service status | No external dependency |
+| 🗄️ `sql_query` | Returns bounded read-only query results | SQLite by default; PostgreSQL via `TOOLBRIDGE_PHASE5__SQL_QUERY__BACKEND` |
+| 📊 `csv_analysis` | Summarizes a configured local CSV | Confined file paths and size limits |
+| 🌐 `website_reader` | Extracts bounded text from a web page | Public HTTPS destinations by default |
+| 📈 `stock_price` | Retrieves a market quote | External market-data service |
+| 💱 `currency_converter` | Converts an amount to multiple currencies | External exchange-rate service |
+| 🧠 `llm_analysis` | Analyzes or summarizes text | An enabled LLM provider |
 
 MCP `tools/list` returns the authoritative input and output schemas. LLM providers are disabled by default; enabling one requires configuration and credentials.
 
@@ -93,29 +110,51 @@ The code follows Clean Architecture: domain and application logic sit inside rep
 | Process-local operational state | Keeps the single-process setup simple | Metrics and budget estimates reset on restart |
 | Loopback-only deployment | Supports local use within the current security boundary | Public access requires additional controls |
 
-## Run locally
+## Install on a Windows laptop
 
-For first-time setup, follow [INSTALLATION.md](docs/INSTALLATION.md). These commands assume Python 3.12 and the project `.venv` are already installed. Run them from the repository root in separate PowerShell terminals.
+These steps match [INSTALLATION.md](docs/INSTALLATION.md). You need Git and Python 3.12. Open PowerShell. If activation is blocked, run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` in that window only.
 
-Start the API and MCP server:
+**1. Clone**
+
+```powershell
+git clone https://github.com/LeelaissakAttota/ToolBridge-MCP-Server.git
+cd ToolBridge-MCP-Server
+```
+
+**2. Create the virtual environment**
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install --requirement requirements-dev.txt
+python -m pip check
+Copy-Item .env.example .env
+```
+
+Copying `.env.example` to `.env` as-is works; blank values fall back to defaults. The example contains no secrets and keeps LLM providers disabled. Put real keys only in `.env`. That file is gitignored.
+
+**3. Start the API and MCP server**
+
+Leave this window open. These commands assume Python 3.12 and the project `.venv` are already installed. Run them from the repository root in separate PowerShell terminals.
 
 ```powershell
 .\.venv\Scripts\python.exe -m uvicorn toolbridge.main:app --host 127.0.0.1 --port 8000
 ```
 
-Start the dashboard:
+**4. Start the dashboard**
 
 ```powershell
 .\.venv\Scripts\python.exe -m streamlit run toolbridge/dashboard/app.py --server.address 127.0.0.1 --server.port 8501
 ```
 
-If you start the API on another host or port, point the dashboard at it with `TOOLBRIDGE_OPERATIONS__DASHBOARD_API_URL` (default `http://127.0.0.1:8000`). Copying `.env.example` to `.env` as-is works; blank values fall back to defaults.
+If you start the API on another host or port, point the dashboard at it with `TOOLBRIDGE_OPERATIONS__DASHBOARD_API_URL` (default `http://127.0.0.1:8000`).
 
 Open the [dashboard](http://127.0.0.1:8501) or [API documentation](http://127.0.0.1:8000/docs). The MCP endpoint is `http://127.0.0.1:8000/mcp/`.
 
-The [five-minute demo](docs/DEMO.md) includes startup settings for a credential-free walkthrough, copyable requests, expected results, and interview talking points.
+The [five-minute demo](docs/DEMO.md) includes startup settings for a credential-free walkthrough, copyable requests, expected results, and interview talking points. Docker Compose steps stay in [DEPLOYMENT.md](docs/DEPLOYMENT.md) and [INSTALLATION.md](docs/INSTALLATION.md).
 
-### Use it from Claude Desktop
+**5. Connect Claude Desktop**
 
 Keep the API running, then add this entry to Claude Desktop's `claude_desktop_config.json` (Settings → Developer → Edit config), adjusting the paths to your clone. A full example is in [examples/claude_desktop_config.example.json](examples/claude_desktop_config.example.json).
 
@@ -126,7 +165,10 @@ Keep the API running, then add this entry to Claude Desktop's `claude_desktop_co
       "command": "C:\\path\\to\\ToolBridge-MCP-Server\\.venv\\Scripts\\python.exe",
       "args": ["-m", "toolbridge.stdio_bridge"],
       "cwd": "C:\\path\\to\\ToolBridge-MCP-Server",
-      "env": { "TOOLBRIDGE_BRIDGE_URL": "http://127.0.0.1:8000/mcp/" }
+      "env": {
+        "PYTHONPATH": "C:\\path\\to\\ToolBridge-MCP-Server",
+        "TOOLBRIDGE_BRIDGE_URL": "http://127.0.0.1:8000/mcp/"
+      }
     }
   }
 }
@@ -188,3 +230,4 @@ Public deployment would require identity and access controls, rate limits, persi
 | Request examples and contracts | [API examples](docs/API-EXAMPLES.md) and [API guide](docs/API_GUIDE.md) |
 | Project summary | [Project summary](docs/PROJECT-SUMMARY.md) |
 | Deployment details | [Deployment](docs/DEPLOYMENT.md) |
+| Screenshot evidence | [Screenshot gallery](screenshots/README.md) |
