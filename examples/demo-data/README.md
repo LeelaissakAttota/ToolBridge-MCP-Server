@@ -7,7 +7,7 @@ All data here is made up for demos and manual tests. No real customers, books or
 | `csv/cafe_orders.csv` | 40 cafe orders (4 Bengaluru branches). Rows ORD-1007 and ORD-1023 have **missing ratings** on purpose. |
 | `csv/training_scores.csv` | 15 trainee scores across 3 courses. |
 | `csv/empty_file.csv` | 0-byte file, used by error test E04. |
-| `sql/demo_library.db` | SQLite with `books` (8 rows) and `loans` (10 rows, some not returned). |
+| `sql/demo_library.db` | Legacy SQLite seed for `books` (8 rows) and `loans` (10 rows, some not returned). The same rows are loaded into the PostgreSQL `toolbridge` database that `sql_query` uses; the file is kept only for the local schema preview and seed script. |
 | `text/customer_feedback.txt`, `text/meeting_notes.txt` | Input text for `llm_analysis` (already embedded in requests 11 and 12). |
 | `requests/01-12_*.json` | Normal MCP requests (should succeed). |
 | `requests/E01-E10_*.json` | Error requests (should be rejected safely). |

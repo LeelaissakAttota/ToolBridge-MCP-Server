@@ -139,7 +139,7 @@ class SQLQueryToolSettings(BaseModel):
     @field_validator("database_path")
     @classmethod
     def validate_database_path(cls, value: str) -> str:
-        """Require an in-memory database or a relative SQLite path."""
+        """Validate the legacy demo file used only by the local schema preview, not sql_query."""
 
         normalized = value.strip().replace("\\", "/")
         if normalized == ":memory:":
@@ -150,7 +150,9 @@ class SQLQueryToolSettings(BaseModel):
             or ".." in path.parts
             or path.suffix.lower() not in {".db", ".sqlite", ".sqlite3"}
         ):
-            raise ValueError("database_path must be a relative SQLite database file")
+            raise ValueError(
+                "database_path must be a relative SQLite database file (local preview only)"
+            )
         return normalized
 
     @field_validator("database_root", "postgres_host", "postgres_database", "postgres_user")

@@ -123,7 +123,7 @@ The verified structured result has:
 
 ## MCP `tools/call`: Safe SQL
 
-The default release configuration uses an isolated in-memory SQLite database, allowing a deterministic read-only demonstration:
+`sql_query` runs against PostgreSQL only (`TOOLBRIDGE_PHASE5__SQL_QUERY__BACKEND=postgres`), using a `SELECT`-only role. Set `POSTGRES_DSN` or `POSTGRES_HOST`, `POSTGRES_DATABASE`, and `POSTGRES_USER`:
 
 ```powershell
 $sql = Invoke-RestMethod -Method Post `
@@ -136,15 +136,13 @@ $sql.result.structuredContent | ConvertTo-Json -Depth 6
 
 The request executes `SELECT 1 AS value` with a separate empty parameter object. The verified structured response reports column `value`, one row containing numeric value `1`, `row_count=1`, `truncated=false`, and a runtime-measured `execution_ms`.
 
-The same `sql_query` contract works against PostgreSQL when `TOOLBRIDGE_PHASE5__SQL_QUERY__BACKEND=postgres`. Set `POSTGRES_DSN` or `POSTGRES_HOST`, `POSTGRES_DATABASE`, and `POSTGRES_USER`. SQLite remains the default.
-
-For a configured file database, use named parameters rather than interpolating values:
+Use named parameters rather than interpolating values:
 
 ```json
 {
   "name": "sql_query",
   "arguments": {
-    "query": "SELECT name, quantity FROM items WHERE quantity >= :minimum ORDER BY quantity",
+    "query": "SELECT title, copies FROM books WHERE copies >= :minimum ORDER BY copies",
     "parameters": {
       "minimum": 2
     },
@@ -153,7 +151,7 @@ For a configured file database, use named parameters rather than interpolating v
 }
 ```
 
-Only use this form when the approved configured SQLite database and table actually exist.
+This example uses the `books` demo table in the local `toolbridge` database.
 
 ## Representative Invalid Tool
 

@@ -32,7 +32,7 @@ Provider credentials belong in `.env` for a local operator deployment or in the 
 
 - Configuration is loaded from environment variables using the `TOOLBRIDGE_` prefix and `__` for nesting.
 - `.env` persists configuration on the host and is ignored by Git and Docker build context.
-- The `toolbridge-data` volume persists `/app/data` for approved SQLite and CSV inputs.
+- The `toolbridge-data` volume persists `/app/data` for approved CSV inputs. `sql_query` connects to PostgreSQL through the `TOOLBRIDGE_PHASE5__SQL_QUERY__POSTGRES_*` settings.
 - Set provider `ENABLED=true`, `API_KEY`, and `DEFAULT_MODEL` together.
 - Keep readiness provider enforcement disabled unless credentials, network access, quota, and provider availability are operational requirements.
 

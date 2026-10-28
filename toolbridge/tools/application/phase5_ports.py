@@ -25,7 +25,7 @@ class WebsiteFetcher(ABC):
 
 
 class ReadOnlyQueryExecutor(ABC):
-    """Database-neutral port ready for SQLite and future PostgreSQL adapters."""
+    """Database-neutral read-only query port; the runtime adapter is PostgreSQL."""
 
     @abstractmethod
     async def execute(

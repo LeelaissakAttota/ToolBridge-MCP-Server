@@ -9,13 +9,13 @@ Testing proves that ToolBridge starts, preserves MCP/HTTP contracts, validates b
 | Layer | Evidence |
 | --- | --- |
 | Unit | domain rules, validation, registry, execution, errors, adapters, provider router, tool services, metrics, dashboard helpers, release scan |
-| Integration | application composition, lifecycle, automatic tool registration, provider/tool monitoring, local SQLite/CSV adapters, mocked PostgreSQL adapter |
+| Integration | application composition, lifecycle, automatic tool registration, provider/tool monitoring, local CSV adapter, mocked PostgreSQL adapter, bundled demo-data checks |
 | API/MCP | lifespan, identity, health, readiness, operations snapshot, initialize, discovery, execution |
 | Dashboard | component rendering, safe client behavior, Streamlit process health |
 | Startup/release | local Uvicorn/Streamlit smoke and `scripts/verify_release.py` |
 | Container | Compose validation, image build, health checks, full stack smoke in CI/local Docker |
 
-The default suite is deterministic and offline. It uses fakes, `httpx.MockTransport`, temporary SQLite/CSV resources, and no live provider credentials or paid requests.
+The default suite is deterministic and offline. It uses fakes, `httpx.MockTransport`, temporary CSV resources, and no live provider credentials or paid requests.
 
 ## Required local gates
 

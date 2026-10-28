@@ -71,7 +71,7 @@ class SQLQueryTool(BaseTool):
             checked_at=datetime.now(UTC),
             last_success_at=self._last_success_at,
             last_failure_at=self._last_failure_at,
-            providers={"database": getattr(self._executor, "provider_id", "sqlite_read_only")},
+            providers={"database": getattr(self._executor, "provider_id", "postgres_read_only")},
         )
 
     async def close(self) -> None:
