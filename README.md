@@ -216,21 +216,22 @@ Restart Claude Desktop; `toolbridge` shows as **Running** and its seven tools be
 
 ### Demo data
 
-The repository ships small sample data so `sql_query` and `csv_analysis` work out of the box:
+`sql_query` reads from PostgreSQL. A small fictional library dataset (`books`, 8 rows; `loans`, 10 rows) lives in [scripts/seed_postgres_demo.sql](scripts/seed_postgres_demo.sql). The script is idempotent and, if the `toolbridge_ro` role exists, grants it SELECT-only access. Run it once as the database owner or a superuser (never as `toolbridge_ro`):
 
-- `data/demo.db` holds the tables `companies` (10 US and Indian tickers) and `financials` (FY2024–2025 revenue and net income). These are **illustrative demo values, not authoritative financials**. It is the default `TOOLBRIDGE_PHASE5__SQL_QUERY__DATABASE_PATH`.
-- `data/csv/sample_sales.csv` holds 60 orders, including one missing value. `data/csv/sample_stock_prices.csv` holds 20 days of OHLCV for AAPL, RELIANCE.NS and NVDA.
+```powershell
+psql -U postgres -d toolbridge -f scripts/seed_postgres_demo.sql
+```
+
+`csv_analysis` uses `data/csv/sample_sales.csv` (60 orders, including one missing value) and `data/csv/sample_stock_prices.csv` (20 days of OHLCV for AAPL, RELIANCE.NS and NVDA). Regenerate them with `python scripts/seed_demo_data.py`.
 
 Example MCP arguments:
 
 ```json
-{"query": "SELECT c.name, f.revenue_billion FROM companies c JOIN financials f ON f.ticker = c.ticker WHERE c.country = :country AND f.fiscal_year = 2025", "parameters": {"country": "IN"}}
+{"query": "SELECT b.title, l.member_name, l.loan_date FROM loans l JOIN books b ON b.book_id = l.book_id WHERE l.return_date IS NULL AND b.genre = :genre", "parameters": {"genre": "Technology"}}
 {"relative_path": "sample_sales.csv", "preview_rows": 5}
 ```
 
-A richer fictional set (library SQLite database, cafe-orders CSV, text samples, and ready-made MCP requests) lives in [examples/demo-data](examples/demo-data/README.md); point `TOOLBRIDGE_PHASE5__SQL_QUERY__DATABASE_ROOT`/`DATABASE_PATH` and `TOOLBRIDGE_PHASE5__CSV_ANALYSIS__ROOT_DIRECTORY` at it, and the dashboard follows the same values.
-
-To regenerate the files, run `python scripts/seed_demo_data.py`. Set `DATABASE_PATH=:memory:` to disable the demo database.
+More fictional samples (cafe-orders CSV, text samples, and ready-made MCP requests) live in [examples/demo-data](examples/demo-data/README.md); point `TOOLBRIDGE_PHASE5__CSV_ANALYSIS__ROOT_DIRECTORY` at it, and the dashboard follows the same value.
 
 ## Testing and evidence
 
