@@ -1,0 +1,1488 @@
+From ac51cd5f6cc47fc55d3403b2b833d4a9ed5de47b Mon Sep 17 00:00:00 2001
+From: leela <leela@local>
+Date: Wed, 14 Oct 2026 17:12:14 +0000
+Subject: [PATCH 1/6] fix(mcp): advertise default_factory fields as optional
+ (sql_query parameters)
+
+---
+ tests/unit/test_mcp_adapter.py | 38 ++++++++++++++++++++++++++++++++++
+ toolbridge/adapters/mcp.py     |  7 ++++++-
+ 2 files changed, 44 insertions(+), 1 deletion(-)
+
+diff --git a/tests/unit/test_mcp_adapter.py b/tests/unit/test_mcp_adapter.py
+index 96688b8..223e160 100644
+--- a/tests/unit/test_mcp_adapter.py
++++ b/tests/unit/test_mcp_adapter.py
+@@ -157,3 +157,41 @@ def test_mcp_adapter_rejects_invalid_json_enum() -> None:
+ 
+     assert "Input should be 'analyze' or 'summarize'" in str(caught.value)
+     assert "invalid-operation" not in str(caught.value)
++
++
++def test_mcp_adapter_treats_default_factory_fields_as_optional() -> None:
++    from toolbridge.tools.domain.sql_query import SQLQueryInput, SQLQueryOutput
++
++    registry = ToolRegistry()
++    registry.register(
++        ToolDefinition(
++            name="sql_query",
++            description="Run SQL.",
++            input_model=SQLQueryInput,
++            output_model=SQLQueryOutput,
++            handler=lambda data: SQLQueryOutput(
++                columns=["n"],
++                rows=[{"n": len(data.parameters)}],
++                row_count=1,
++                truncated=False,
++                execution_ms=0.0,
++            ),
++            timeout_seconds=1.0,
++        )
++    )
++    executor = ToolExecutor(
++        registry,
++        RequestValidator(max_request_bytes=1_024),
++        ResponseValidator(max_response_bytes=1_024),
++    )
++    mcp = FastMCP("sql-adapter-test", stateless_http=True, json_response=True)
++    MCPToolAdapter(mcp, registry, executor).register_tools()
++
++    tools = asyncio.run(mcp.list_tools())
++    assert tools[0].inputSchema["required"] == ["query"]
++    _, structured = asyncio.run(mcp.call_tool("sql_query", {"query": "SELECT 1"}))
++    assert structured["rows"] == [{"n": 0}]
++    _, structured = asyncio.run(
++        mcp.call_tool("sql_query", {"query": "SELECT 1", "parameters": {"a": 1}})
++    )
++    assert structured["rows"] == [{"n": 1}]
+diff --git a/toolbridge/adapters/mcp.py b/toolbridge/adapters/mcp.py
+index 946a90a..a965f5e 100644
+--- a/toolbridge/adapters/mcp.py
++++ b/toolbridge/adapters/mcp.py
+@@ -90,7 +90,12 @@ class MCPToolAdapter:
+ 
+         parameters: list[inspect.Parameter] = []
+         for name, field in definition.input_model.model_fields.items():
+-            default = inspect.Parameter.empty if field.is_required() else field.default
++            if field.is_required():
++                default: Any = inspect.Parameter.empty
++            else:
++                # default_factory fields expose PydanticUndefined as .default; materialize
++                # the factory value so MCP advertises the field as optional.
++                default = field.get_default(call_default_factory=True)
+             annotation = field.annotation or Any
+             if isinstance(annotation, type) and issubclass(annotation, StrEnum):
+                 # MCP sends the JSON value advertised by the schema, not a Python enum.
+-- 
+2.47.3
+
+
+From c4d7e9e01da4dd32466aaaaf40f0123a1786714f Mon Sep 17 00:00:00 2001
+From: leela <leela@local>
+Date: Wed, 14 Oct 2026 17:12:33 +0000
+Subject: [PATCH 2/6] fix(sql): cap SQLite value and statement length to
+ prevent memory exhaustion
+
+---
+ tests/unit/tools/test_sql_query.py        | 36 +++++++++++++++++++++++
+ toolbridge/tools/adapters/sqlite_query.py |  7 +++++
+ 2 files changed, 43 insertions(+)
+
+diff --git a/tests/unit/tools/test_sql_query.py b/tests/unit/tools/test_sql_query.py
+index b194f60..995490c 100644
+--- a/tests/unit/tools/test_sql_query.py
++++ b/tests/unit/tools/test_sql_query.py
+@@ -2,6 +2,7 @@
+ 
+ import asyncio
+ import sqlite3
++from pathlib import Path
+ 
+ import pytest
+ from pydantic import ValidationError
+@@ -125,3 +126,38 @@ def test_sql_query_progress_handler_enforces_timeout() -> None:
+         assert captured.value.retryable is True
+ 
+     asyncio.run(run())
++
++
++@pytest.mark.parametrize(
++    "query",
++    [
++        "SELECT length(hex(zeroblob(200000000))) AS n",
++        "SELECT length(randomblob(50000000)) AS n",
++    ],
++)
++def test_sql_query_rejects_oversized_values(query: str) -> None:
++    executor = SQLiteReadOnlyQueryExecutor(
++        ":memory:",
++        database_root=Path("."),
++        timeout_seconds=5,
++        progress_operations=100,
++        max_value_bytes=1_000_000,
++    )
++
++    with pytest.raises(DatabaseQueryFailedError):
++        asyncio.run(executor.execute(query, {}, max_rows=1))
++
++
++def test_sql_query_allows_values_within_limit() -> None:
++    executor = SQLiteReadOnlyQueryExecutor(
++        ":memory:",
++        database_root=Path("."),
++        timeout_seconds=5,
++        progress_operations=100,
++        max_value_bytes=1_000_000,
++    )
++
++    result = asyncio.run(
++        executor.execute("SELECT length(hex(zeroblob(1000))) AS n", {}, max_rows=1)
++    )
++    assert result.rows == [{"n": 2000}]
+diff --git a/toolbridge/tools/adapters/sqlite_query.py b/toolbridge/tools/adapters/sqlite_query.py
+index f9d1852..01af968 100644
+--- a/toolbridge/tools/adapters/sqlite_query.py
++++ b/toolbridge/tools/adapters/sqlite_query.py
+@@ -21,11 +21,13 @@ class SQLiteReadOnlyQueryExecutor(ReadOnlyQueryExecutor):
+         database_root: Path,
+         timeout_seconds: float,
+         progress_operations: int,
++        max_value_bytes: int = 1_000_000,
+     ) -> None:
+         self._database_path = database_path
+         self._database_root = database_root.resolve()
+         self._timeout_seconds = timeout_seconds
+         self._progress_operations = progress_operations
++        self._max_value_bytes = max_value_bytes
+ 
+     async def execute(
+         self,
+@@ -54,6 +56,11 @@ class SQLiteReadOnlyQueryExecutor(ReadOnlyQueryExecutor):
+         try:
+             connection = self._connect()
+             try:
++                # Bound per-value allocation (strings/blobs such as zeroblob/hex/printf
++                # padding) and statement size; the progress handler cannot interrupt a
++                # single huge allocation.
++                connection.setlimit(sqlite3.SQLITE_LIMIT_LENGTH, self._max_value_bytes)
++                connection.setlimit(sqlite3.SQLITE_LIMIT_SQL_LENGTH, 100_000)
+                 connection.execute("PRAGMA query_only = ON")
+                 connection.set_progress_handler(
+                     lambda: int(monotonic() >= deadline),
+-- 
+2.47.3
+
+
+From d526e4456f9f5c4f89856922a377d1a9795abcd6 Mon Sep 17 00:00:00 2001
+From: leela <leela@local>
+Date: Wed, 14 Oct 2026 17:13:57 +0000
+Subject: [PATCH 3/6] fix(website_reader): pin TCP connection to validated IP
+ to close DNS-rebinding SSRF
+
+---
+ tests/unit/tools/test_website_reader.py     | 56 ++++++++++++-
+ toolbridge/tools/adapters/website_reader.py | 87 +++++++++++++++++++--
+ 2 files changed, 135 insertions(+), 8 deletions(-)
+
+diff --git a/tests/unit/tools/test_website_reader.py b/tests/unit/tools/test_website_reader.py
+index a920d1a..1af1f46 100644
+--- a/tests/unit/tools/test_website_reader.py
++++ b/tests/unit/tools/test_website_reader.py
+@@ -2,12 +2,16 @@
+ 
+ import asyncio
+ 
++import httpcore
+ import httpx
+ import pytest
+ 
+-from toolbridge.tools.adapters.website_reader import HttpWebsiteFetcher
++from toolbridge.tools.adapters.website_reader import HttpWebsiteFetcher, PinnedNetworkBackend
+ from toolbridge.tools.application.website_reader import WebsiteReaderTool
+-from toolbridge.tools.domain.tool_errors import WebsiteUnavailableError
++from toolbridge.tools.domain.tool_errors import (
++    ExternalDataError,
++    WebsiteUnavailableError,
++)
+ from toolbridge.tools.domain.website import WebsiteReaderInput
+ 
+ 
+@@ -136,3 +140,51 @@ def test_website_reader_normalizes_network_status_and_response_limits() -> None:
+         await tool.close()
+ 
+     asyncio.run(run())
++
++
++class _RecordingBackend(httpcore.AsyncNetworkBackend):
++    """Fake network backend that records TCP destinations and refuses to connect."""
++
++    def __init__(self) -> None:
++        self.destinations: list[tuple[str, int]] = []
++
++    async def connect_tcp(self, host, port, timeout=None, local_address=None, socket_options=None):
++        self.destinations.append((host, port))
++        raise httpcore.ConnectError("recorded")
++
++    async def sleep(self, seconds: float) -> None:
++        await asyncio.sleep(seconds)
++
++
++def test_website_reader_connects_to_validated_ip_not_a_fresh_lookup() -> None:
++    backend = _RecordingBackend()
++    fetcher = HttpWebsiteFetcher(
++        timeout_seconds=1,
++        max_response_bytes=10_000,
++        user_agent="ToolBridge-Tests",
++        allowed_hosts=frozenset(),
++        require_public_ip=True,
++        resolver=public_resolver,
++        network_backend=backend,
++    )
++
++    async def run() -> None:
++        await fetcher.initialize()
++        try:
++            await fetcher.fetch("https://rebind.example.com/", max_characters=100)
++        finally:
++            await fetcher.close()
++
++    with pytest.raises(ExternalDataError):
++        asyncio.run(run())
++    # TCP goes to the validated address; the hostname (SNI/Host) is never re-resolved.
++    assert backend.destinations == [("93.184.216.34", 443)]
++
++
++def test_pinned_backend_refuses_unvalidated_hosts() -> None:
++    backend = _RecordingBackend()
++    pinned = PinnedNetworkBackend(backend)
++
++    with pytest.raises(httpcore.ConnectError):
++        asyncio.run(pinned.connect_tcp("internal.example", 443))
++    assert backend.destinations == []
+diff --git a/toolbridge/tools/adapters/website_reader.py b/toolbridge/tools/adapters/website_reader.py
+index 99852bb..964dd5a 100644
+--- a/toolbridge/tools/adapters/website_reader.py
++++ b/toolbridge/tools/adapters/website_reader.py
+@@ -2,13 +2,15 @@
+ 
+ import asyncio
+ import socket
+-from collections.abc import Awaitable, Callable
++from collections.abc import Awaitable, Callable, Iterable
++from contextvars import ContextVar
+ from datetime import UTC, datetime
+ from html.parser import HTMLParser
+ from ipaddress import ip_address
+ from re import sub
+ from urllib.parse import urlsplit
+ 
++import httpcore
+ import httpx
+ 
+ from toolbridge.tools.application.phase5_ports import WebsiteFetcher
+@@ -17,6 +19,70 @@ from toolbridge.tools.domain.website import WebsiteDocument
+ 
+ HostResolver = Callable[[str], Awaitable[tuple[str, ...]]]
+ 
++# Per-request host -> validated IP pins. A ContextVar keeps concurrent tool calls isolated.
++_PINNED_ADDRESSES: ContextVar[dict[str, str] | None] = ContextVar(
++    "toolbridge_website_pins", default=None
++)
++
++
++class PinnedNetworkBackend(httpcore.AsyncNetworkBackend):
++    """Connect only to the IP address that passed destination validation.
++
++    The URL host is still used for TLS SNI, certificate verification, and the Host
++    header; only the TCP destination is replaced. This closes the DNS-rebinding
++    window between validation-time and connect-time resolution.
++    """
++
++    def __init__(self, inner: httpcore.AsyncNetworkBackend | None = None) -> None:
++        self._inner = inner or httpcore.AnyIOBackend()
++
++    async def connect_tcp(
++        self,
++        host: str,
++        port: int,
++        timeout: float | None = None,
++        local_address: str | None = None,
++        socket_options: Iterable[httpcore.SOCKET_OPTION] | None = None,
++    ) -> httpcore.AsyncNetworkStream:
++        pins = _PINNED_ADDRESSES.get()
++        address = pins.get(host.lower().rstrip(".")) if pins else None
++        if address is None:
++            raise httpcore.ConnectError("destination was not validated")
++        return await self._inner.connect_tcp(
++            address,
++            port,
++            timeout=timeout,
++            local_address=local_address,
++            socket_options=socket_options,
++        )
++
++    async def connect_unix_socket(
++        self,
++        path: str,
++        timeout: float | None = None,
++        socket_options: Iterable[httpcore.SOCKET_OPTION] | None = None,
++    ) -> httpcore.AsyncNetworkStream:
++        raise httpcore.ConnectError("unix sockets are not permitted")
++
++    async def sleep(self, seconds: float) -> None:
++        await self._inner.sleep(seconds)
++
++
++def build_pinned_transport(
++    network_backend: httpcore.AsyncNetworkBackend | None = None,
++) -> httpx.AsyncHTTPTransport:
++    """Build an httpx transport whose TCP connections honor validated IP pins."""
++
++    transport = httpx.AsyncHTTPTransport()
++    # httpx exposes no public network-backend option; replace its pool with an
++    # equivalent public httpcore pool that uses the pinning backend.
++    transport._pool = httpcore.AsyncConnectionPool(  # noqa: SLF001
++        ssl_context=httpx.create_ssl_context(),
++        network_backend=PinnedNetworkBackend(network_backend),
++    )
++    return transport
++
++
+ _BOILERPLATE_TAGS = {
+     "script",
+     "style",
+@@ -116,6 +182,7 @@ class HttpWebsiteFetcher(WebsiteFetcher):
+         require_public_ip: bool,
+         transport: httpx.AsyncBaseTransport | None = None,
+         resolver: HostResolver | None = None,
++        network_backend: httpcore.AsyncNetworkBackend | None = None,
+     ) -> None:
+         self._timeout = httpx.Timeout(timeout_seconds)
+         self._max_response_bytes = max_response_bytes
+@@ -124,16 +191,20 @@ class HttpWebsiteFetcher(WebsiteFetcher):
+         self._require_public_ip = require_public_ip
+         self._transport = transport
+         self._resolver = resolver or _resolve_host
++        self._network_backend = network_backend
+         self._client: httpx.AsyncClient | None = None
+ 
+     async def initialize(self) -> None:
+         """Create the HTTP client without performing a request."""
+ 
+         if self._client is None:
++            transport = self._transport
++            if transport is None and self._require_public_ip:
++                transport = build_pinned_transport(self._network_backend)
+             self._client = httpx.AsyncClient(
+                 timeout=self._timeout,
+                 follow_redirects=False,
+-                transport=self._transport,
++                transport=transport,
+                 headers={"User-Agent": self._user_agent},
+             )
+ 
+@@ -143,7 +214,8 @@ class HttpWebsiteFetcher(WebsiteFetcher):
+         if self._client is None:
+             raise ExternalDataError(ExternalErrorCategory.UNAVAILABLE, retryable=True)
+         host = (urlsplit(url).hostname or "").lower().rstrip(".")
+-        await self._validate_destination(host)
++        addresses = await self._validate_destination(host)
++        token = _PINNED_ADDRESSES.set({host: addresses[0]} if addresses else None)
+         try:
+             async with self._client.stream("GET", url) as response:
+                 self._validate_status(response.status_code)
+@@ -165,6 +237,8 @@ class HttpWebsiteFetcher(WebsiteFetcher):
+             raise ExternalDataError(ExternalErrorCategory.TIMEOUT, retryable=True) from error
+         except httpx.RequestError as error:
+             raise ExternalDataError(ExternalErrorCategory.NETWORK, retryable=True) from error
++        finally:
++            _PINNED_ADDRESSES.reset(token)
+ 
+         text_value = bytes(body).decode(response.encoding or "utf-8", errors="replace")
+         if content_type == "text/plain":
+@@ -194,19 +268,20 @@ class HttpWebsiteFetcher(WebsiteFetcher):
+             await self._client.aclose()
+             self._client = None
+ 
+-    async def _validate_destination(self, host: str) -> None:
++    async def _validate_destination(self, host: str) -> tuple[str, ...]:
+         if not host or host == "localhost" or host.endswith(".local"):
+             raise ExternalDataError(ExternalErrorCategory.INVALID_INPUT, retryable=False)
+         if self._allowed_hosts and host not in self._allowed_hosts:
+             raise ExternalDataError(ExternalErrorCategory.INVALID_INPUT, retryable=False)
+         if not self._require_public_ip:
+-            return
++            return ()
+         try:
+             addresses = await self._resolver(host)
+         except OSError as error:
+             raise ExternalDataError(ExternalErrorCategory.NETWORK, retryable=True) from error
+         if not addresses or any(not _is_public_address(value) for value in addresses):
+             raise ExternalDataError(ExternalErrorCategory.INVALID_INPUT, retryable=False)
++        return addresses
+ 
+     @staticmethod
+     def _validate_status(status_code: int) -> None:
+@@ -228,7 +303,7 @@ async def _resolve_host(host: str) -> tuple[str, ...]:
+     """Resolve all destination addresses without blocking the event loop."""
+ 
+     records = await asyncio.to_thread(socket.getaddrinfo, host, 443, type=socket.SOCK_STREAM)
+-    return tuple(sorted({record[4][0] for record in records}))
++    return tuple(sorted({str(record[4][0]) for record in records}))
+ 
+ 
+ def _is_public_address(value: str) -> bool:
+-- 
+2.47.3
+
+
+From f3c522fdce4863775985b24278079c3d6c4eb226 Mon Sep 17 00:00:00 2001
+From: leela <leela@local>
+Date: Wed, 14 Oct 2026 17:14:37 +0000
+Subject: [PATCH 4/6] fix(sql): tokenize SQL so keywords in literals and
+ replace() calls are allowed
+
+---
+ tests/unit/tools/test_sql_query.py   | 33 +++++++++++
+ toolbridge/tools/domain/sql_query.py | 88 ++++++++++++++++++++++++----
+ 2 files changed, 110 insertions(+), 11 deletions(-)
+
+diff --git a/tests/unit/tools/test_sql_query.py b/tests/unit/tools/test_sql_query.py
+index 995490c..d8e9275 100644
+--- a/tests/unit/tools/test_sql_query.py
++++ b/tests/unit/tools/test_sql_query.py
+@@ -161,3 +161,36 @@ def test_sql_query_allows_values_within_limit() -> None:
+         executor.execute("SELECT length(hex(zeroblob(1000))) AS n", {}, max_rows=1)
+     )
+     assert result.rows == [{"n": 2000}]
++
++
++@pytest.mark.parametrize(
++    "query",
++    [
++        "SELECT replace('ab', 'a', 'x') AS v",
++        "SELECT 'delete me' AS v",
++        "SELECT 'it''s; -- not a comment' AS v",
++        'SELECT "update" FROM items',
++        "SELECT [drop] FROM items",
++        "SELECT 1 - -1 AS v",
++        "WITH x AS (SELECT 1 AS a) SELECT a FROM x",
++    ],
++)
++def test_sql_query_accepts_keywords_inside_literals_and_functions(query: str) -> None:
++    assert SQLQueryInput(query=query).query == query
++
++
++@pytest.mark.parametrize(
++    "query",
++    [
++        "SELECT 1; DROP TABLE items",
++        "SELECT 1 -- trailing",
++        "SELECT 1 /* block */",
++        "SELECT * FROM items WHERE name REPLACE x",
++        "SELECT 'unterminated",
++        "REPLACE INTO items VALUES ('a', 1)",
++        "WITH x AS (SELECT 1) DELETE FROM items",
++    ],
++)
++def test_sql_query_still_rejects_mutations_and_comments(query: str) -> None:
++    with pytest.raises(ValidationError):
++        SQLQueryInput(query=query)
+diff --git a/toolbridge/tools/domain/sql_query.py b/toolbridge/tools/domain/sql_query.py
+index 6e19dcd..081fa36 100644
+--- a/toolbridge/tools/domain/sql_query.py
++++ b/toolbridge/tools/domain/sql_query.py
+@@ -1,6 +1,5 @@
+ """Provider-neutral contracts for bounded read-only SQL queries."""
+ 
+-from re import IGNORECASE
+ from re import compile as compile_pattern
+ 
+ from pydantic import Field, field_validator
+@@ -9,24 +8,91 @@ from toolbridge.core.contracts import ToolInput, ToolOutput
+ 
+ SqlValue = str | int | float | bool | None
+ 
+-_FORBIDDEN_SQL = compile_pattern(
+-    r"\b(?:INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|REPLACE|ATTACH|DETACH|"
+-    r"PRAGMA|VACUUM|REINDEX|ANALYZE|BEGIN|COMMIT|ROLLBACK|SAVEPOINT|RELEASE)\b",
+-    IGNORECASE,
++_FORBIDDEN_KEYWORDS = frozenset(
++    {
++        "INSERT",
++        "UPDATE",
++        "DELETE",
++        "DROP",
++        "ALTER",
++        "CREATE",
++        "REPLACE",
++        "ATTACH",
++        "DETACH",
++        "PRAGMA",
++        "VACUUM",
++        "REINDEX",
++        "ANALYZE",
++        "BEGIN",
++        "COMMIT",
++        "ROLLBACK",
++        "SAVEPOINT",
++        "RELEASE",
++    }
+ )
+-_READ_ONLY_START = compile_pattern(r"^\s*(?:SELECT|WITH)\b", IGNORECASE)
++# Keywords that are also legitimate read-only scalar functions when called as name(...).
++_FUNCTION_KEYWORDS = frozenset({"REPLACE"})
++_WORD = compile_pattern(r"[A-Za-z_][A-Za-z0-9_$]*")
++_QUOTES = {"'": "'", '"': '"', "`": "`", "[": "]"}
++
++
++def _scan_sql(query: str) -> list[tuple[str, str]]:
++    """Split SQL into bare words and punctuation, skipping literals and quoted names.
++
++    Returns ``(kind, value)`` pairs where kind is ``word`` or ``char``. Content inside
++    string literals and quoted identifiers is never returned, so keywords there do
++    not trigger the read-only checks.
++    """
++
++    tokens: list[tuple[str, str]] = []
++    index = 0
++    length = len(query)
++    while index < length:
++        char = query[index]
++        if char in _QUOTES:
++            closing = _QUOTES[char]
++            index += 1
++            while True:
++                if index >= length:
++                    raise ValueError("query contains an unterminated quoted value")
++                if query[index] == closing:
++                    # SQL escapes a quote by doubling it ('it''s'); brackets cannot double.
++                    if closing != "]" and index + 1 < length and query[index + 1] == closing:
++                        index += 2
++                        continue
++                    index += 1
++                    break
++                index += 1
++            tokens.append(("literal", ""))
++            continue
++        match = _WORD.match(query, index)
++        if match:
++            tokens.append(("word", match.group(0).upper()))
++            index = match.end()
++            continue
++        if query.startswith(("--", "/*", "*/"), index):
++            raise ValueError("query comments and statement separators are not allowed")
++        if not char.isspace():
++            tokens.append(("char", char))
++        index += 1
++    return tokens
+ 
+ 
+ def validate_read_only_sql(query: str) -> str:
+     """Reject multi-statement, commented, or mutating SQL before execution."""
+ 
+     normalized = query.strip()
+-    if not normalized or not _READ_ONLY_START.match(normalized):
++    tokens = _scan_sql(normalized) if normalized else []
++    if not tokens or tokens[0] not in {("word", "SELECT"), ("word", "WITH")}:
+         raise ValueError("query must start with SELECT or WITH")
+-    if ";" in normalized or "--" in normalized or "/*" in normalized or "*/" in normalized:
+-        raise ValueError("query comments and statement separators are not allowed")
+-    if _FORBIDDEN_SQL.search(normalized):
+-        raise ValueError("query contains a forbidden SQL operation")
++    for position, (kind, value) in enumerate(tokens):
++        if kind == "char" and value == ";":
++            raise ValueError("query comments and statement separators are not allowed")
++        if kind == "word" and value in _FORBIDDEN_KEYWORDS:
++            is_call = tokens[position + 1 : position + 2] == [("char", "(")]
++            if value in _FUNCTION_KEYWORDS and is_call:
++                continue
++            raise ValueError("query contains a forbidden SQL operation")
+     return normalized
+ 
+ 
+-- 
+2.47.3
+
+
+From 8a2d46d14b21d2935a63b22e3ed43969061777da Mon Sep 17 00:00:00 2001
+From: leela <leela@local>
+Date: Wed, 14 Oct 2026 17:15:42 +0000
+Subject: [PATCH 5/6] fix(website_reader): follow redirects safely with per-hop
+ validation and hop cap
+
+---
+ .env.example                                  |  1 +
+ SECURITY_GUIDELINES.md                        |  2 +-
+ tests/unit/tools/test_website_reader.py       | 96 +++++++++++++++++++
+ toolbridge/phase5_config.py                   |  1 +
+ toolbridge/tools/adapters/website_reader.py   | 76 ++++++++++-----
+ toolbridge/tools/domain/website.py            | 30 +++---
+ .../tools/infrastructure/phase5_factory.py    |  1 +
+ 7 files changed, 171 insertions(+), 36 deletions(-)
+
+diff --git a/.env.example b/.env.example
+index f41d9bc..ae29619 100644
+--- a/.env.example
++++ b/.env.example
+@@ -108,6 +108,7 @@ TOOLBRIDGE_PHASE5__WEBSITE_READER__DEFAULT_MAX_CHARACTERS=50000
+ TOOLBRIDGE_PHASE5__WEBSITE_READER__USER_AGENT=ToolBridge-MCP
+ TOOLBRIDGE_PHASE5__WEBSITE_READER__ALLOWED_HOSTS=
+ TOOLBRIDGE_PHASE5__WEBSITE_READER__REQUIRE_PUBLIC_IP=true
++TOOLBRIDGE_PHASE5__WEBSITE_READER__MAX_REDIRECTS=5
+ 
+ TOOLBRIDGE_PHASE5__SQL_QUERY__ENABLED=true
+ TOOLBRIDGE_PHASE5__SQL_QUERY__TIMEOUT_SECONDS=5
+diff --git a/SECURITY_GUIDELINES.md b/SECURITY_GUIDELINES.md
+index 3d058eb..561efbf 100644
+--- a/SECURITY_GUIDELINES.md
++++ b/SECURITY_GUIDELINES.md
+@@ -76,7 +76,7 @@ Treat MCP arguments, URLs, DNS, website content, SQL, parameters, SQLite values,
+ 
+ ### Website Reader
+ 
+-Require credential-free HTTPS, reject local/non-global destinations, refuse redirects and unsupported/oversized content, and use an explicit production allowlist plus outbound firewall. DNS rebinding remains a residual risk.
++Require credential-free HTTPS, reject local/non-global destinations, follow at most `MAX_REDIRECTS` (default 5) redirects while re-validating scheme, port, credentials, allowlist, and resolved IP on every hop, refuse unsupported/oversized content, and use an explicit production allowlist plus outbound firewall. Each TCP connection is pinned to the IP address that passed validation (TLS SNI and the Host header still use the URL hostname), which closes the DNS-rebinding window.
+ 
+ ### SQL Query
+ 
+diff --git a/tests/unit/tools/test_website_reader.py b/tests/unit/tools/test_website_reader.py
+index 1af1f46..65e3ec6 100644
+--- a/tests/unit/tools/test_website_reader.py
++++ b/tests/unit/tools/test_website_reader.py
+@@ -188,3 +188,99 @@ def test_pinned_backend_refuses_unvalidated_hosts() -> None:
+     with pytest.raises(httpcore.ConnectError):
+         asyncio.run(pinned.connect_tcp("internal.example", 443))
+     assert backend.destinations == []
++
++
++def _redirecting_fetcher(routes: dict[str, httpx.Response], resolver=public_resolver, **kw):
++    seen: list[str] = []
++
++    def handler(request: httpx.Request) -> httpx.Response:
++        seen.append(str(request.url))
++        return routes[str(request.url)]
++
++    fetcher = HttpWebsiteFetcher(
++        timeout_seconds=1,
++        max_response_bytes=10_000,
++        user_agent="ToolBridge-Tests",
++        allowed_hosts=frozenset(),
++        require_public_ip=True,
++        transport=httpx.MockTransport(handler),
++        resolver=resolver,
++        **kw,
++    )
++    return fetcher, seen
++
++
++def _run_fetch(fetcher: HttpWebsiteFetcher, url: str) -> object:
++    async def run() -> object:
++        await fetcher.initialize()
++        try:
++            return await fetcher.fetch(url, max_characters=1_000)
++        finally:
++            await fetcher.close()
++
++    return asyncio.run(run())
++
++
++def _html(text: str) -> httpx.Response:
++    return httpx.Response(200, text=f"<p>{text}</p>", headers={"content-type": "text/html"})
++
++
++def test_website_reader_follows_safe_redirects_and_reports_final_url() -> None:
++    fetcher, seen = _redirecting_fetcher(
++        {
++            "https://a.example/": httpx.Response(
++                301, headers={"location": "https://www.a.example/x"}
++            ),
++            "https://www.a.example/x": httpx.Response(302, headers={"location": "/final"}),
++            "https://www.a.example/final": _html("Done"),
++        }
++    )
++
++    result = _run_fetch(fetcher, "https://a.example/")
++
++    assert result.text == "Done"
++    assert result.url == "https://www.a.example/final"
++    assert seen == ["https://a.example/", "https://www.a.example/x", "https://www.a.example/final"]
++
++
++@pytest.mark.parametrize(
++    "location",
++    ["http://a.example/insecure", "https://user:pw@a.example/", "https://a.example:8443/"],
++)
++def test_website_reader_rejects_unsafe_redirect_targets(location: str) -> None:
++    fetcher, seen = _redirecting_fetcher(
++        {"https://a.example/": httpx.Response(302, headers={"location": location})}
++    )
++
++    with pytest.raises(ExternalDataError):
++        _run_fetch(fetcher, "https://a.example/")
++    assert seen == ["https://a.example/"]
++
++
++def test_website_reader_revalidates_redirect_destination_ip() -> None:
++    async def resolver(host: str) -> tuple[str, ...]:
++        return ("10.0.0.5",) if host == "internal.example" else ("93.184.216.34",)
++
++    fetcher, seen = _redirecting_fetcher(
++        {
++            "https://a.example/": httpx.Response(
++                302, headers={"location": "https://internal.example/admin"}
++            )
++        },
++        resolver=resolver,
++    )
++
++    with pytest.raises(ExternalDataError):
++        _run_fetch(fetcher, "https://a.example/")
++    assert seen == ["https://a.example/"]
++
++
++def test_website_reader_caps_redirect_hops() -> None:
++    fetcher, seen = _redirecting_fetcher(
++        {"https://a.example/": httpx.Response(302, headers={"location": "https://a.example/"})},
++        max_redirects=3,
++    )
++
++    with pytest.raises(ExternalDataError):
++        _run_fetch(fetcher, "https://a.example/")
++    assert len(seen) == 4
+diff --git a/toolbridge/phase5_config.py b/toolbridge/phase5_config.py
+index 5e1f0f8..f4403e2 100644
+--- a/toolbridge/phase5_config.py
++++ b/toolbridge/phase5_config.py
+@@ -43,6 +43,7 @@ class WebsiteReaderSettings(BaseModel):
+     user_agent: str = Field(default="ToolBridge-MCP", min_length=1, max_length=128)
+     allowed_hosts: str = ""
+     require_public_ip: bool = True
++    max_redirects: int = Field(default=5, ge=0, le=10)
+ 
+     @field_validator("allowed_hosts")
+     @classmethod
+diff --git a/toolbridge/tools/adapters/website_reader.py b/toolbridge/tools/adapters/website_reader.py
+index 964dd5a..d9af899 100644
+--- a/toolbridge/tools/adapters/website_reader.py
++++ b/toolbridge/tools/adapters/website_reader.py
+@@ -8,14 +8,14 @@ from datetime import UTC, datetime
+ from html.parser import HTMLParser
+ from ipaddress import ip_address
+ from re import sub
+-from urllib.parse import urlsplit
++from urllib.parse import urljoin, urlsplit
+ 
+ import httpcore
+ import httpx
+ 
+ from toolbridge.tools.application.phase5_ports import WebsiteFetcher
+ from toolbridge.tools.domain.tool_errors import ExternalDataError, ExternalErrorCategory
+-from toolbridge.tools.domain.website import WebsiteDocument
++from toolbridge.tools.domain.website import WebsiteDocument, normalize_https_url
+ 
+ HostResolver = Callable[[str], Awaitable[tuple[str, ...]]]
+ 
+@@ -83,6 +83,8 @@ def build_pinned_transport(
+     return transport
+ 
+ 
++_REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
++
+ _BOILERPLATE_TAGS = {
+     "script",
+     "style",
+@@ -183,6 +185,7 @@ class HttpWebsiteFetcher(WebsiteFetcher):
+         transport: httpx.AsyncBaseTransport | None = None,
+         resolver: HostResolver | None = None,
+         network_backend: httpcore.AsyncNetworkBackend | None = None,
++        max_redirects: int = 5,
+     ) -> None:
+         self._timeout = httpx.Timeout(timeout_seconds)
+         self._max_response_bytes = max_response_bytes
+@@ -192,6 +195,7 @@ class HttpWebsiteFetcher(WebsiteFetcher):
+         self._transport = transport
+         self._resolver = resolver or _resolve_host
+         self._network_backend = network_backend
++        self._max_redirects = max_redirects
+         self._client: httpx.AsyncClient | None = None
+ 
+     async def initialize(self) -> None:
+@@ -213,32 +217,44 @@ class HttpWebsiteFetcher(WebsiteFetcher):
+ 
+         if self._client is None:
+             raise ExternalDataError(ExternalErrorCategory.UNAVAILABLE, retryable=True)
+-        host = (urlsplit(url).hostname or "").lower().rstrip(".")
+-        addresses = await self._validate_destination(host)
+-        token = _PINNED_ADDRESSES.set({host: addresses[0]} if addresses else None)
+-        try:
+-            async with self._client.stream("GET", url) as response:
+-                self._validate_status(response.status_code)
+-                content_type = response.headers.get("content-type", "").split(";", 1)[0].lower()
+-                if content_type not in {"text/html", "text/plain", "application/xhtml+xml"}:
+-                    raise ExternalDataError(
+-                        ExternalErrorCategory.INVALID_RESPONSE,
+-                        retryable=False,
++        current_url = url
++        for _ in range(self._max_redirects + 1):
++            host = (urlsplit(current_url).hostname or "").lower().rstrip(".")
++            addresses = await self._validate_destination(host)
++            token = _PINNED_ADDRESSES.set({host: addresses[0]} if addresses else None)
++            try:
++                async with self._client.stream("GET", current_url) as response:
++                    if response.status_code in _REDIRECT_STATUSES:
++                        current_url = self._redirect_target(current_url, response)
++                        continue
++                    self._validate_status(response.status_code)
++                    content_type = (
++                        response.headers.get("content-type", "").split(";", 1)[0].lower()
+                     )
+-                body = bytearray()
+-                async for chunk in response.aiter_bytes():
+-                    body.extend(chunk)
+-                    if len(body) > self._max_response_bytes:
++                    if content_type not in {"text/html", "text/plain", "application/xhtml+xml"}:
+                         raise ExternalDataError(
+                             ExternalErrorCategory.INVALID_RESPONSE,
+                             retryable=False,
+                         )
+-        except httpx.TimeoutException as error:
+-            raise ExternalDataError(ExternalErrorCategory.TIMEOUT, retryable=True) from error
+-        except httpx.RequestError as error:
+-            raise ExternalDataError(ExternalErrorCategory.NETWORK, retryable=True) from error
+-        finally:
+-            _PINNED_ADDRESSES.reset(token)
++                    body = bytearray()
++                    async for chunk in response.aiter_bytes():
++                        body.extend(chunk)
++                        if len(body) > self._max_response_bytes:
++                            raise ExternalDataError(
++                                ExternalErrorCategory.INVALID_RESPONSE,
++                                retryable=False,
++                            )
++                    break
++            except httpx.TimeoutException as error:
++                raise ExternalDataError(ExternalErrorCategory.TIMEOUT, retryable=True) from error
++            except httpx.RequestError as error:
++                raise ExternalDataError(ExternalErrorCategory.NETWORK, retryable=True) from error
++            finally:
++                _PINNED_ADDRESSES.reset(token)
++        else:
++            # Redirect chain exceeded the hop limit.
++            raise ExternalDataError(ExternalErrorCategory.INVALID_RESPONSE, retryable=False)
++        url = current_url
+ 
+         text_value = bytes(body).decode(response.encoding or "utf-8", errors="replace")
+         if content_type == "text/plain":
+@@ -283,6 +299,20 @@ class HttpWebsiteFetcher(WebsiteFetcher):
+             raise ExternalDataError(ExternalErrorCategory.INVALID_INPUT, retryable=False)
+         return addresses
+ 
++    @staticmethod
++    def _redirect_target(current_url: str, response: httpx.Response) -> str:
++        """Resolve and re-validate a redirect Location (HTTPS, no credentials, port 443)."""
++
++        location = response.headers.get("location")
++        if not location:
++            raise ExternalDataError(ExternalErrorCategory.INVALID_RESPONSE, retryable=False)
++        try:
++            return normalize_https_url(urljoin(current_url, location))
++        except ValueError as error:
++            raise ExternalDataError(
++                ExternalErrorCategory.INVALID_RESPONSE, retryable=False
++            ) from error
++
+     @staticmethod
+     def _validate_status(status_code: int) -> None:
+         if status_code == 404:
+diff --git a/toolbridge/tools/domain/website.py b/toolbridge/tools/domain/website.py
+index a42f4fe..a752a9f 100644
+--- a/toolbridge/tools/domain/website.py
++++ b/toolbridge/tools/domain/website.py
+@@ -8,6 +8,23 @@ from pydantic import Field, field_validator
+ from toolbridge.core.contracts import ToolInput, ToolOutput
+ 
+ 
++def normalize_https_url(value: str) -> str:
++    """Require a credential-free HTTPS URL on the standard port and drop its fragment."""
++
++    normalized = value.strip()
++    parsed = urlsplit(normalized)
++    if (
++        parsed.scheme.lower() != "https"
++        or not parsed.hostname
++        or parsed.username is not None
++        or parsed.password is not None
++    ):
++        raise ValueError("url must be a credential-free HTTPS URL")
++    if parsed.port not in {None, 443}:
++        raise ValueError("url must use the standard HTTPS port")
++    return urlunsplit(("https", parsed.netloc, parsed.path or "/", parsed.query, ""))
++
++
+ class WebsiteReaderInput(ToolInput):
+     """Validated public web page request."""
+ 
+@@ -19,18 +36,7 @@ class WebsiteReaderInput(ToolInput):
+     def validate_url(cls, value: str) -> str:
+         """Require a credential-free HTTPS URL and remove its fragment."""
+ 
+-        normalized = value.strip()
+-        parsed = urlsplit(normalized)
+-        if (
+-            parsed.scheme.lower() != "https"
+-            or not parsed.hostname
+-            or parsed.username is not None
+-            or parsed.password is not None
+-        ):
+-            raise ValueError("url must be a credential-free HTTPS URL")
+-        if parsed.port not in {None, 443}:
+-            raise ValueError("url must use the standard HTTPS port")
+-        return urlunsplit(("https", parsed.netloc, parsed.path or "/", parsed.query, ""))
++        return normalize_https_url(value)
+ 
+ 
+ class WebsiteDocument(ToolOutput):
+diff --git a/toolbridge/tools/infrastructure/phase5_factory.py b/toolbridge/tools/infrastructure/phase5_factory.py
+index 0fd6296..00bb50b 100644
+--- a/toolbridge/tools/infrastructure/phase5_factory.py
++++ b/toolbridge/tools/infrastructure/phase5_factory.py
+@@ -55,6 +55,7 @@ def build_phase5_managed_tools(
+             require_public_ip=website.require_public_ip,
+             transport=website_transport,
+             resolver=website_resolver,
++            max_redirects=website.max_redirects,
+         )
+         tools.append(
+             WebsiteReaderTool(
+-- 
+2.47.3
+
+
+From 2127bfb7d7d83e7a8c60fb9b824768370f183be2 Mon Sep 17 00:00:00 2001
+From: leela <leela@local>
+Date: Wed, 14 Oct 2026 17:17:20 +0000
+Subject: [PATCH 6/6] feat(demo): ship sample SQLite DB and CSV files and make
+ them the default
+
+---
+ .dockerignore                                |   5 +
+ .env.example                                 |   2 +-
+ .gitignore                                   |   6 +-
+ Dockerfile                                   |   2 +
+ README.md                                    |  16 ++
+ data/csv/sample_sales.csv                    |  61 ++++++++
+ data/csv/sample_stock_prices.csv             |  61 ++++++++
+ data/demo.db                                 | Bin 0 -> 20480 bytes
+ scripts/seed_demo_data.py                    | 153 +++++++++++++++++++
+ tests/unit/tools/test_demo_data.py           |  54 +++++++
+ tests/unit/tools/test_phase5_registration.py |   2 +-
+ toolbridge/phase5_config.py                  |   2 +-
+ 12 files changed, 360 insertions(+), 4 deletions(-)
+ create mode 100644 data/csv/sample_sales.csv
+ create mode 100644 data/csv/sample_stock_prices.csv
+ create mode 100644 data/demo.db
+ create mode 100644 scripts/seed_demo_data.py
+ create mode 100644 tests/unit/tools/test_demo_data.py
+
+diff --git a/.dockerignore b/.dockerignore
+index ffc518a..29d034c 100644
+--- a/.dockerignore
++++ b/.dockerignore
+@@ -17,3 +17,8 @@ tests
+ pytest-cache-files-*
+ *.md
+ !README.md
++data/*
++!data/demo.db
++!data/csv
++data/csv/*
++!data/csv/sample_*.csv
+diff --git a/.env.example b/.env.example
+index ae29619..5248622 100644
+--- a/.env.example
++++ b/.env.example
+@@ -112,7 +112,7 @@ TOOLBRIDGE_PHASE5__WEBSITE_READER__MAX_REDIRECTS=5
+ 
+ TOOLBRIDGE_PHASE5__SQL_QUERY__ENABLED=true
+ TOOLBRIDGE_PHASE5__SQL_QUERY__TIMEOUT_SECONDS=5
+-TOOLBRIDGE_PHASE5__SQL_QUERY__DATABASE_PATH=:memory:
++TOOLBRIDGE_PHASE5__SQL_QUERY__DATABASE_PATH=demo.db
+ TOOLBRIDGE_PHASE5__SQL_QUERY__DATABASE_ROOT=data
+ TOOLBRIDGE_PHASE5__SQL_QUERY__MAX_ROWS=250
+ TOOLBRIDGE_PHASE5__SQL_QUERY__PROGRESS_OPERATIONS=1000
+diff --git a/.gitignore b/.gitignore
+index 64b8cf2..82a8890 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -18,5 +18,9 @@ build/
+ test-results.xml
+ *.tar.gz
+ *.sha256
+-data/
++data/*
++!data/demo.db
++!data/csv/
++data/csv/*
++!data/csv/sample_*.csv
+ .venv-repro-test/
+diff --git a/Dockerfile b/Dockerfile
+index f17b095..7d4b7e4 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -40,6 +40,8 @@ RUN groupadd --gid "$TOOLBRIDGE_GID" toolbridge \
+ COPY --from=builder /opt/venv /opt/venv
+ WORKDIR /app
+ COPY --chown=toolbridge:toolbridge toolbridge ./toolbridge
++# Bundled demo data; a fresh named volume mounted at /app/data is seeded from it.
++COPY --chown=toolbridge:toolbridge data ./data
+ 
+ USER toolbridge:toolbridge
+ 
+diff --git a/README.md b/README.md
+index 845461f..c5970c3 100644
+--- a/README.md
++++ b/README.md
+@@ -95,6 +95,22 @@ Open the [dashboard](http://127.0.0.1:8501) or [API documentation](http://127.0.
+ 
+ The [five-minute demo](docs/DEMO.md) includes startup settings for a credential-free walkthrough, copyable requests, expected results, and interview talking points.
+ 
++## Demo data
++
++The repository ships small sample data so `sql_query` and `csv_analysis` work out of the box:
++
++- `data/demo.db` holds the tables `companies` (10 US and Indian tickers) and `financials` (FY2024–2025 revenue and net income). These are **illustrative demo values, not authoritative financials**. It is the default `TOOLBRIDGE_PHASE5__SQL_QUERY__DATABASE_PATH`.
++- `data/csv/sample_sales.csv` holds 60 orders, including one missing value. `data/csv/sample_stock_prices.csv` holds 20 days of OHLCV for AAPL, RELIANCE.NS and NVDA.
++
++Example MCP arguments:
++
++```json
++{"query": "SELECT c.name, f.revenue_billion FROM companies c JOIN financials f ON f.ticker = c.ticker WHERE c.country = :country AND f.fiscal_year = 2025", "parameters": {"country": "IN"}}
++{"relative_path": "sample_sales.csv", "preview_rows": 5}
++```
++
++To regenerate the files, run `python scripts/seed_demo_data.py`. Set `DATABASE_PATH=:memory:` to disable the demo database.
++
+ ## Testing and evidence
+ 
+ The latest local validation for this documentation update completed with **134 passing tests** and one non-failing Starlette/httpx deprecation warning. Earlier retained screenshots show the 133-test baseline. Ruff lint and formatting passes are recorded in the existing validation evidence. The tests cover validation, execution, provider routing, tool adapters, operations, and dashboard behavior.
+diff --git a/data/csv/sample_sales.csv b/data/csv/sample_sales.csv
+new file mode 100644
+index 0000000..4dda776
+--- /dev/null
++++ b/data/csv/sample_sales.csv
+@@ -0,0 +1,61 @@
++order_id,order_date,region,product,units,unit_price,returned
++ORD-0001,2026-02-02,South,Monitor,8,199.00,false
++ORD-0002,2026-03-03,East,Keyboard,15,49.50,false
++ORD-0003,2026-04-04,West,Headset,7,79.00,false
++ORD-0004,2026-05-05,North,Laptop,14,899.00,false
++ORD-0005,2026-06-06,South,Monitor,,199.00,false
++ORD-0006,2026-07-07,East,Keyboard,13,49.50,false
++ORD-0007,2026-08-08,West,Headset,5,79.00,false
++ORD-0008,2026-09-09,North,Laptop,12,899.00,false
++ORD-0009,2026-01-10,South,Monitor,4,199.00,false
++ORD-0010,2026-02-11,East,Keyboard,11,49.50,false
++ORD-0011,2026-03-12,West,Headset,3,79.00,true
++ORD-0012,2026-04-13,North,Laptop,10,899.00,false
++ORD-0013,2026-05-14,South,Monitor,2,199.00,false
++ORD-0014,2026-06-15,East,Keyboard,9,49.50,false
++ORD-0015,2026-07-16,West,Headset,1,79.00,false
++ORD-0016,2026-08-17,North,Laptop,8,899.00,false
++ORD-0017,2026-09-18,South,Monitor,15,199.00,false
++ORD-0018,2026-01-19,East,Keyboard,7,49.50,false
++ORD-0019,2026-02-20,West,Headset,14,79.00,false
++ORD-0020,2026-03-21,North,Laptop,6,899.00,false
++ORD-0021,2026-04-22,South,Monitor,13,199.00,false
++ORD-0022,2026-05-23,East,Keyboard,5,49.50,true
++ORD-0023,2026-06-24,West,Headset,12,79.00,false
++ORD-0024,2026-07-25,North,Laptop,4,899.00,false
++ORD-0025,2026-08-26,South,Monitor,11,199.00,false
++ORD-0026,2026-09-27,East,Keyboard,3,49.50,false
++ORD-0027,2026-01-01,West,Headset,10,79.00,false
++ORD-0028,2026-02-02,North,Laptop,2,899.00,false
++ORD-0029,2026-03-03,South,Monitor,9,199.00,false
++ORD-0030,2026-04-04,East,Keyboard,1,49.50,false
++ORD-0031,2026-05-05,West,Headset,8,79.00,false
++ORD-0032,2026-06-06,North,Laptop,15,899.00,false
++ORD-0033,2026-07-07,South,Monitor,7,199.00,true
++ORD-0034,2026-08-08,East,Keyboard,14,49.50,false
++ORD-0035,2026-09-09,West,Headset,6,79.00,false
++ORD-0036,2026-01-10,North,Laptop,13,899.00,false
++ORD-0037,2026-02-11,South,Monitor,5,199.00,false
++ORD-0038,2026-03-12,East,Keyboard,12,49.50,false
++ORD-0039,2026-04-13,West,Headset,4,79.00,false
++ORD-0040,2026-05-14,North,Laptop,11,899.00,false
++ORD-0041,2026-06-15,South,Monitor,3,199.00,false
++ORD-0042,2026-07-16,East,Keyboard,10,49.50,false
++ORD-0043,2026-08-17,West,Headset,2,79.00,false
++ORD-0044,2026-09-18,North,Laptop,9,899.00,true
++ORD-0045,2026-01-19,South,Monitor,1,199.00,false
++ORD-0046,2026-02-20,East,Keyboard,8,49.50,false
++ORD-0047,2026-03-21,West,Headset,15,79.00,false
++ORD-0048,2026-04-22,North,Laptop,7,899.00,false
++ORD-0049,2026-05-23,South,Monitor,14,199.00,false
++ORD-0050,2026-06-24,East,Keyboard,6,49.50,false
++ORD-0051,2026-07-25,West,Headset,13,79.00,false
++ORD-0052,2026-08-26,North,Laptop,5,899.00,false
++ORD-0053,2026-09-27,South,Monitor,12,199.00,false
++ORD-0054,2026-01-01,East,Keyboard,4,49.50,false
++ORD-0055,2026-02-02,West,Headset,11,79.00,true
++ORD-0056,2026-03-03,North,Laptop,3,899.00,false
++ORD-0057,2026-04-04,South,Monitor,10,199.00,false
++ORD-0058,2026-05-05,East,Keyboard,2,49.50,false
++ORD-0059,2026-06-06,West,Headset,9,79.00,false
++ORD-0060,2026-07-07,North,Laptop,1,899.00,false
+diff --git a/data/csv/sample_stock_prices.csv b/data/csv/sample_stock_prices.csv
+new file mode 100644
+index 0000000..d0ed70d
+--- /dev/null
++++ b/data/csv/sample_stock_prices.csv
+@@ -0,0 +1,61 @@
++date,ticker,open,high,low,close,volume
++2026-09-01,AAPL,228.85,232.30,226.55,230.00,1012345
++2026-09-01,RELIANCE.NS,1243.75,1262.50,1231.25,1250.00,1012345
++2026-09-01,NVDA,119.40,121.20,118.20,120.00,1012345
++2026-09-02,AAPL,231.60,235.09,229.27,232.76,1024690
++2026-09-02,RELIANCE.NS,1258.67,1277.65,1246.03,1265.00,1024690
++2026-09-02,NVDA,120.83,122.65,119.62,121.44,1024690
++2026-09-03,AAPL,227.93,231.37,225.64,229.08,1037035
++2026-09-03,RELIANCE.NS,1238.78,1257.45,1226.33,1245.00,1037035
++2026-09-03,NVDA,118.92,120.72,117.73,119.52,1037035
++2026-09-04,AAPL,230.68,234.16,228.36,231.84,1049380
++2026-09-04,RELIANCE.NS,1253.70,1272.60,1241.10,1260.00,1049380
++2026-09-04,NVDA,120.36,122.17,119.15,120.96,1049380
++2026-09-05,AAPL,227.02,230.44,224.74,228.16,1061725
++2026-09-05,RELIANCE.NS,1233.80,1252.40,1221.40,1240.00,1061725
++2026-09-05,NVDA,118.44,120.23,117.25,119.04,1061725
++2026-09-06,AAPL,229.77,233.23,227.46,230.92,1074070
++2026-09-06,RELIANCE.NS,1248.72,1267.55,1236.17,1255.00,1074070
++2026-09-06,NVDA,119.88,121.68,118.67,120.48,1074070
++2026-09-07,AAPL,226.10,229.51,223.83,227.24,1086415
++2026-09-07,RELIANCE.NS,1228.83,1247.35,1216.47,1235.00,1086415
++2026-09-07,NVDA,117.97,119.75,116.78,118.56,1086415
++2026-09-08,AAPL,228.85,232.30,226.55,230.00,1098760
++2026-09-08,RELIANCE.NS,1243.75,1262.50,1231.25,1250.00,1098760
++2026-09-08,NVDA,119.40,121.20,118.20,120.00,1098760
++2026-09-09,AAPL,231.60,235.09,229.27,232.76,1111105
++2026-09-09,RELIANCE.NS,1258.67,1277.65,1246.03,1265.00,1111105
++2026-09-09,NVDA,120.83,122.65,119.62,121.44,1111105
++2026-09-10,AAPL,227.93,231.37,225.64,229.08,1123450
++2026-09-10,RELIANCE.NS,1238.78,1257.45,1226.33,1245.00,1123450
++2026-09-10,NVDA,118.92,120.72,117.73,119.52,1123450
++2026-09-11,AAPL,230.68,234.16,228.36,231.84,1135795
++2026-09-11,RELIANCE.NS,1253.70,1272.60,1241.10,1260.00,1135795
++2026-09-11,NVDA,120.36,122.17,119.15,120.96,1135795
++2026-09-12,AAPL,227.02,230.44,224.74,228.16,1148140
++2026-09-12,RELIANCE.NS,1233.80,1252.40,1221.40,1240.00,1148140
++2026-09-12,NVDA,118.44,120.23,117.25,119.04,1148140
++2026-09-13,AAPL,229.77,233.23,227.46,230.92,1160485
++2026-09-13,RELIANCE.NS,1248.72,1267.55,1236.17,1255.00,1160485
++2026-09-13,NVDA,119.88,121.68,118.67,120.48,1160485
++2026-09-14,AAPL,226.10,229.51,223.83,227.24,1172830
++2026-09-14,RELIANCE.NS,1228.83,1247.35,1216.47,1235.00,1172830
++2026-09-14,NVDA,117.97,119.75,116.78,118.56,1172830
++2026-09-15,AAPL,228.85,232.30,226.55,230.00,1185175
++2026-09-15,RELIANCE.NS,1243.75,1262.50,1231.25,1250.00,1185175
++2026-09-15,NVDA,119.40,121.20,118.20,120.00,1185175
++2026-09-16,AAPL,231.60,235.09,229.27,232.76,1197520
++2026-09-16,RELIANCE.NS,1258.67,1277.65,1246.03,1265.00,1197520
++2026-09-16,NVDA,120.83,122.65,119.62,121.44,1197520
++2026-09-17,AAPL,227.93,231.37,225.64,229.08,1209865
++2026-09-17,RELIANCE.NS,1238.78,1257.45,1226.33,1245.00,1209865
++2026-09-17,NVDA,118.92,120.72,117.73,119.52,1209865
++2026-09-18,AAPL,230.68,234.16,228.36,231.84,1222210
++2026-09-18,RELIANCE.NS,1253.70,1272.60,1241.10,1260.00,1222210
++2026-09-18,NVDA,120.36,122.17,119.15,120.96,1222210
++2026-09-19,AAPL,227.02,230.44,224.74,228.16,1234555
++2026-09-19,RELIANCE.NS,1233.80,1252.40,1221.40,1240.00,1234555
++2026-09-19,NVDA,118.44,120.23,117.25,119.04,1234555
++2026-09-20,AAPL,229.77,233.23,227.46,230.92,1246900
++2026-09-20,RELIANCE.NS,1248.72,1267.55,1236.17,1255.00,1246900
++2026-09-20,NVDA,119.88,121.68,118.67,120.48,1246900
+diff --git a/data/demo.db b/data/demo.db
+new file mode 100644
+index 0000000000000000000000000000000000000000..fe4ecffb5aff4adcd1f8f87dcc5db493690914c6
+GIT binary patch
+literal 20480
+zcmeI3Pi)&%9LH_PiJi3ZTbia_$fmhe&{cGWt^+pyjJT=0g(Y5>q+>;(%=4VhYGQYG
+zI@U>Wm_S^{5g`T=LYyWp(~uBIg98#0VjzJyA;dTUl6~TU5R;G)?>TJ}FJ(oXhWI_j
+z>hHbx`}zI+dG6u&eM$L9!D#AY&9WP6Q=F!@P&7?tMUkQ?7GGg}t+x<1$k=+L*Nxl!
+zWvR*YXX5B4#rEHzgcIn~{u{!s+xWv25C8%|00;m9AOHk_01yBIK;T~zxKIdj!y_Z~
+zi&|4XQP*pRshXOh)}4;U=1Q_uk;RHMQ;@~ZxVSSW-qM<ewxru)MLt#$mBaX2C=|q!
+zJSUfAB`23f&1x*GrlC7KTb|<+J-4VCj;7YDtGa57d8HyBkW1}b^?KX-S>0UGt0#<l
+z-LOo&mQ=WnyQw#;hKaNI#}V_Td{HVbiihMyaV_Zy%%Gj)c;ErXr`gExff1TA%#->#
+z=S&?}j#YJ~Y5DzXhh255V}~ysr@7%BJLs2?zXxqdZG#EyKzn$T4d_a}7o4d!^x!`A
+z`snAh)2exDQ$NjGF`M@4X18;6t!drza`Y~$t=P71YMb7zq1sD$H#K#6<INB5%M=qC
+zmUsN!zO;!}r`jf|<$3Z?6~|XB{yBxdMz5h~(75oc@Sbp1m=Sn92n`4T0U!VbfB+Bx
+z0zd!=00AHX1nxirkHz@0>11Lg$yB6@R6JZcTq;j0<%-%=#iE64Q%5Wq4P3IHRLXK*
+zk#ODKu&}bA=ao`y=iVqkdcPliaCR;?BPoY)EHT9y)m#ch&b3t(9J%|m-8`SU&yUP2
+zbBj1CZ`LelHMm+u*G`*O-8!|3W42#;l;hJ+v~tb0lgwGBvr=zjg=SSO>-Jeg(;Yw6
+zK=4CX_DA^9Tr!bPG9|f?m$3AL7cJ>^14rs&-aNVDG;OTH1d^6b-S!tROza8s$p=#e
+z)RXf?{ITp)sww79tBx+-E9R_8Ww9(Tlsk{PP@ZLuO|g7xS30ph$w<Yg6{(?~x6Dag
+zPfy?#wMj)P&q_xY%KkGnbQ_0o^?e~eHI+_`CmH4FtfU;x&*mk3e|y=o)h5<+)`QA=
+z!_X|8H&GBA9NPcWUWQLSoF+LI%X5{Yq1l#W)tVbccj%DFZM$ebHR4A~(tJT$Uak`+
+zoeTr+@q;n^Cdbf43f)A%pdZjT=sNlYeTXh&HQ?eM_>x0PKmZ5;0U!VbfB+Bx0zd!=
+z00AHX1pe~`Vxcr$@%0cc5gMZdGENMIM(HlSBf^JLG?5iT#2_L8!-bMGmNUYAp$xqy
+z#qcDmOVEiDXQE%QTqqSK0s%Sy9~7o2<e_iTHS`v`fOMpw{pfC#6#fu?6uuHZ5-tm`
+z3eO9=a0oj>0|Gz*2mk>f00e*l5C8%|00;nq{|AAsgW)lT34X_b^AZoxTel`Rm~j)^
+z=tqVI!lO8*s}SY9zCW3_hY~&GZlAy$AJ`JkVE?rumh&Rd(tQIcFy=-mI+75=X_8B;
+zX7-{t>7Ntv?jbj7(AS6h{Z+b(XU@ClDsye9uV>sH-OYRukA;&ALrQ7Rqu$?lR}^<S
+zj&$8@ZQ5_yV%Fbnfe)v!E2*eCkGVRR;z*zK`!4fBw)i?}mogDN%yFb#=e+Fkc|SH=
+z+Si&4cP8De;<Ofc{0q{)%&`6>sqb;*nKxRKi!G;2s59wi&39UpM<X@T1O`vy)NqZ@
+zdGsYcMUy_~_g(ts>{E4r0doF7D11ku->?GkJ^mHI$LL-3CVB<y0MDT%R7GWU0PR5|
+zs9*S9@USB^AOHk_01yBIKmZ5;0U!VbfB+Bx0(TaHIGbkH&(l4jyXVFS*)crV{W}TH
+z8{A;fO%AZ5O!vV%=k@mtxqW?Xit&%*u~^Zu-LP-Bs&}?yyP+7HTvHfgZPSekY=&7s
+py63ztfv$`EWdj<@K+lky@K<RG5`4#Yxt8s#0Za^M>!1E}?q33Lbr}Ev
+
+literal 0
+HcmV?d00001
+
+diff --git a/scripts/seed_demo_data.py b/scripts/seed_demo_data.py
+new file mode 100644
+index 0000000..fd3a563
+--- /dev/null
++++ b/scripts/seed_demo_data.py
+@@ -0,0 +1,153 @@
++"""Regenerate the bundled demo SQLite database and CSV samples.
++
++Usage: python scripts/seed_demo_data.py [--root data]
++The output is deterministic so the committed files can be rebuilt byte-for-byte
++in content (SQLite page layout may differ between SQLite versions).
++"""
++
++from __future__ import annotations
++
++import argparse
++import csv
++import sqlite3
++from pathlib import Path
++
++COMPANIES = [
++    # ticker, name, exchange, country, sector, currency, market_cap_billion
++    ("AAPL", "Apple Inc.", "NASDAQ", "US", "Technology", "USD", 3400.0),
++    ("MSFT", "Microsoft Corporation", "NASDAQ", "US", "Technology", "USD", 3100.0),
++    ("NVDA", "NVIDIA Corporation", "NASDAQ", "US", "Semiconductors", "USD", 3300.0),
++    ("AMZN", "Amazon.com, Inc.", "NASDAQ", "US", "Consumer", "USD", 1900.0),
++    ("JPM", "JPMorgan Chase & Co.", "NYSE", "US", "Financials", "USD", 600.0),
++    ("RELIANCE.NS", "Reliance Industries Limited", "NSE", "IN", "Energy", "INR", 19500.0),
++    ("TCS.NS", "Tata Consultancy Services", "NSE", "IN", "Technology", "INR", 14000.0),
++    ("INFY.NS", "Infosys Limited", "NSE", "IN", "Technology", "INR", 7600.0),
++    ("HDFCBANK.NS", "HDFC Bank Limited", "NSE", "IN", "Financials", "INR", 13000.0),
++    ("TATAMOTORS.NS", "Tata Motors Limited", "NSE", "IN", "Automobile", "INR", 2600.0),
++]
++
++# ticker, fiscal_year, revenue_billion, net_income_billion (illustrative demo values)
++FINANCIALS = [
++    ("AAPL", 2024, 391.0, 93.7),
++    ("AAPL", 2025, 410.0, 101.0),
++    ("MSFT", 2024, 245.1, 88.1),
++    ("MSFT", 2025, 281.7, 101.8),
++    ("NVDA", 2024, 60.9, 29.8),
++    ("NVDA", 2025, 130.5, 72.9),
++    ("AMZN", 2024, 638.0, 59.2),
++    ("AMZN", 2025, 690.0, 70.0),
++    ("JPM", 2024, 177.6, 58.5),
++    ("JPM", 2025, 182.0, 57.0),
++    ("RELIANCE.NS", 2024, 9010.0, 696.0),
++    ("RELIANCE.NS", 2025, 9650.0, 700.0),
++    ("TCS.NS", 2024, 2409.0, 459.0),
++    ("TCS.NS", 2025, 2552.0, 485.0),
++    ("INFY.NS", 2024, 1536.0, 262.0),
++    ("INFY.NS", 2025, 1629.0, 267.0),
++    ("HDFCBANK.NS", 2024, 2830.0, 608.0),
++    ("HDFCBANK.NS", 2025, 3070.0, 673.0),
++    ("TATAMOTORS.NS", 2024, 4380.0, 314.0),
++    ("TATAMOTORS.NS", 2025, 4400.0, 280.0),
++]
++
++SALES_HEADER = ["order_id", "order_date", "region", "product", "units", "unit_price", "returned"]
++REGIONS = ["North", "South", "East", "West"]
++PRODUCTS = [("Laptop", 899.0), ("Monitor", 199.0), ("Keyboard", 49.5), ("Headset", 79.0)]
++
++PRICES_HEADER = ["date", "ticker", "open", "high", "low", "close", "volume"]
++
++
++def build_database(path: Path) -> None:
++    path.parent.mkdir(parents=True, exist_ok=True)
++    if path.exists():
++        path.unlink()
++    connection = sqlite3.connect(path)
++    try:
++        connection.executescript(
++            """
++            CREATE TABLE companies (
++                ticker TEXT PRIMARY KEY,
++                name TEXT NOT NULL,
++                exchange TEXT NOT NULL,
++                country TEXT NOT NULL,
++                sector TEXT NOT NULL,
++                currency TEXT NOT NULL,
++                market_cap_billion REAL NOT NULL
++            );
++            CREATE TABLE financials (
++                ticker TEXT NOT NULL REFERENCES companies(ticker),
++                fiscal_year INTEGER NOT NULL,
++                revenue_billion REAL NOT NULL,
++                net_income_billion REAL NOT NULL,
++                PRIMARY KEY (ticker, fiscal_year)
++            );
++            """
++        )
++        connection.executemany("INSERT INTO companies VALUES (?, ?, ?, ?, ?, ?, ?)", COMPANIES)
++        connection.executemany("INSERT INTO financials VALUES (?, ?, ?, ?)", FINANCIALS)
++        connection.commit()
++        connection.execute("VACUUM")
++    finally:
++        connection.close()
++
++
++def build_sales_csv(path: Path) -> None:
++    rows = []
++    for index in range(1, 61):
++        product, price = PRODUCTS[index % len(PRODUCTS)]
++        rows.append(
++            [
++                f"ORD-{index:04d}",
++                f"2026-{(index % 9) + 1:02d}-{(index % 27) + 1:02d}",
++                REGIONS[index % len(REGIONS)],
++                product,
++                str((index * 7) % 15 + 1),
++                f"{price:.2f}",
++                "true" if index % 11 == 0 else "false",
++            ]
++        )
++    rows[4][4] = ""  # one missing value so the analyzer shows missing_count
++    _write_csv(path, SALES_HEADER, rows)
++
++
++def build_prices_csv(path: Path) -> None:
++    base = {"AAPL": 230.0, "RELIANCE.NS": 1250.0, "NVDA": 120.0}
++    rows = []
++    for day in range(1, 21):
++        for ticker, start in base.items():
++            close = round(start * (1 + 0.004 * ((day * 3) % 7 - 3)), 2)
++            rows.append(
++                [
++                    f"2026-09-{day:02d}",
++                    ticker,
++                    f"{close * 0.995:.2f}",
++                    f"{close * 1.01:.2f}",
++                    f"{close * 0.985:.2f}",
++                    f"{close:.2f}",
++                    str(1_000_000 + day * 12_345),
++                ]
++            )
++    _write_csv(path, PRICES_HEADER, rows)
++
++
++def _write_csv(path: Path, header: list[str], rows: list[list[str]]) -> None:
++    path.parent.mkdir(parents=True, exist_ok=True)
++    with path.open("w", encoding="utf-8", newline="") as handle:
++        writer = csv.writer(handle, lineterminator="\n")
++        writer.writerow(header)
++        writer.writerows(rows)
++
++
++def main() -> None:
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--root", default="data", type=Path)
++    arguments = parser.parse_args()
++    root: Path = arguments.root
++    build_database(root / "demo.db")
++    build_sales_csv(root / "csv" / "sample_sales.csv")
++    build_prices_csv(root / "csv" / "sample_stock_prices.csv")
++    print(f"Demo data written under {root.resolve()}")
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/tests/unit/tools/test_demo_data.py b/tests/unit/tools/test_demo_data.py
+new file mode 100644
+index 0000000..dd3268d
+--- /dev/null
++++ b/tests/unit/tools/test_demo_data.py
+@@ -0,0 +1,54 @@
++"""The bundled demo data must work with the default tool configuration."""
++
++import asyncio
++from pathlib import Path
++
++from toolbridge.phase5_config import Phase5ToolSettings
++from toolbridge.tools.adapters.csv_file import LocalCSVDataSource
++from toolbridge.tools.adapters.sqlite_query import SQLiteReadOnlyQueryExecutor
++
++REPO_ROOT = Path(__file__).resolve().parents[3]
++
++
++def test_default_sql_config_queries_bundled_demo_database() -> None:
++    sql = Phase5ToolSettings().sql_query
++    executor = SQLiteReadOnlyQueryExecutor(
++        sql.database_path,
++        database_root=REPO_ROOT / sql.database_root,
++        timeout_seconds=sql.timeout_seconds,
++        progress_operations=sql.progress_operations,
++    )
++
++    result = asyncio.run(
++        executor.execute(
++            "SELECT c.ticker, f.revenue_billion FROM companies c JOIN financials f "
++            "ON f.ticker = c.ticker WHERE c.country = :country AND f.fiscal_year = 2025 "
++            "ORDER BY c.ticker",
++            {"country": "IN"},
++            max_rows=50,
++        )
++    )
++
++    assert result.row_count == 5
++    assert result.rows[0]["ticker"] == "HDFCBANK.NS"
++
++
++def test_default_csv_root_contains_analyzable_samples() -> None:
++    settings = Phase5ToolSettings().csv_analysis
++    source = LocalCSVDataSource(
++        REPO_ROOT / settings.root_directory,
++        encoding=settings.encoding,
++        max_file_bytes=settings.max_file_bytes,
++        max_rows_scanned=settings.max_rows_scanned,
++        max_columns=settings.max_columns,
++        max_field_characters=settings.max_field_characters,
++    )
++
++    sales = asyncio.run(source.analyze("sample_sales.csv", preview_rows=3))
++    prices = asyncio.run(source.analyze("sample_stock_prices.csv", preview_rows=3))
++
++    assert sales.row_count == 60
++    units = next(summary for summary in sales.summaries if summary.name == "units")
++    assert units.missing_count == 1
++    assert prices.row_count == 60
++    assert "close" in prices.columns
+diff --git a/tests/unit/tools/test_phase5_registration.py b/tests/unit/tools/test_phase5_registration.py
+index 3c235bd..93b442b 100644
+--- a/tests/unit/tools/test_phase5_registration.py
++++ b/tests/unit/tools/test_phase5_registration.py
+@@ -87,7 +87,7 @@ def test_phase5_configuration_is_bounded_and_rejects_unsafe_values() -> None:
+     settings = Settings(_env_file=None).phase5
+ 
+     assert settings.website_reader.require_public_ip is True
+-    assert settings.sql_query.database_path == ":memory:"
++    assert settings.sql_query.database_path == "demo.db"
+     assert settings.csv_analysis.max_rows_scanned == 10_000
+     assert settings.currency_converter.provider == "frankfurter"
+     assert settings.llm_analysis.max_input_characters == 50_000
+diff --git a/toolbridge/phase5_config.py b/toolbridge/phase5_config.py
+index f4403e2..33e831a 100644
+--- a/toolbridge/phase5_config.py
++++ b/toolbridge/phase5_config.py
+@@ -73,7 +73,7 @@ class SQLQueryToolSettings(BaseModel):
+ 
+     enabled: bool = True
+     timeout_seconds: float = Field(default=5.0, gt=0, le=60)
+-    database_path: str = Field(default=":memory:", min_length=1, max_length=512)
++    database_path: str = Field(default="demo.db", min_length=1, max_length=512)
+     database_root: str = Field(default="data", min_length=1, max_length=512)
+     max_rows: int = Field(default=250, ge=1, le=1_000)
+     progress_operations: int = Field(default=1_000, ge=1, le=1_000_000)
+-- 
+2.47.3
+

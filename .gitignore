@@ -34,3 +34,15 @@ data/csv/*
 *.p12
 logs/
 *.log
+
+# Local-only archives, media and secrets (never commit)
+archive/
+media/
+archive/secrets/
+*.env.backup
+.env.bak*
+
+# dashboard patches containing key-like strings (local only)
+dashboards/toolbridge-control-dashboards.patch
+dashboards/toolbridge-trading-panel.patch
+
