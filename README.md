@@ -88,7 +88,7 @@ MCP `tools/list` returns the authoritative input and output schemas. LLM provide
 flowchart TD
     Client["MCP client"] --> API["FastAPI / FastMCP"]
     API --> Executor["Tool registry + validated execution"]
-    Executor --> Data["HTTP / read-only SQLite / CSV tools"]
+    Executor --> Data["HTTP / read-only PostgreSQL / CSV tools"]
     Executor --> Analysis["Text analysis tool"]
     Analysis --> Router["Provider routing + budgets + failover"]
     Router --> Providers["Cerebras / NVIDIA / OpenRouter"]
@@ -134,7 +134,45 @@ Copy-Item .env.example .env
 
 Copying `.env.example` to `.env` as-is works; blank values fall back to defaults. The example contains no secrets and keeps LLM providers disabled. Put real keys only in `.env`. That file is gitignored.
 
-**3. Start the API and MCP server**
+**3. Set up PostgreSQL (needed only for `sql_query`)**
+
+`sql_query` uses PostgreSQL only. The other six tools work without a database, so you can skip this step if you don't need SQL yet.
+
+1. Install PostgreSQL 16 or newer from [postgresql.org](https://www.postgresql.org/download/windows/) and make sure the PostgreSQL service is running (Services app, or `Start-Service postgresql-x64-18` for version 18).
+2. Open `psql` as the `postgres` superuser and create a read-only role and a database. Pick your own password:
+
+```sql
+CREATE ROLE toolbridge_ro LOGIN PASSWORD 'choose-a-password';
+CREATE DATABASE toolbridge;
+\connect toolbridge
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+GRANT CONNECT ON DATABASE toolbridge TO toolbridge_ro;
+GRANT USAGE ON SCHEMA public TO toolbridge_ro;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO toolbridge_ro;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO toolbridge_ro;
+ALTER ROLE toolbridge_ro SET default_transaction_read_only = on;
+```
+
+3. Create your tables and load data as `postgres` (not as `toolbridge_ro`). The default privileges above let the read-only role select from new tables automatically.
+4. Put the connection in your `.env` (never commit it):
+
+```dotenv
+TOOLBRIDGE_PHASE5__SQL_QUERY__BACKEND=postgres
+TOOLBRIDGE_PHASE5__SQL_QUERY__POSTGRES_HOST=127.0.0.1
+TOOLBRIDGE_PHASE5__SQL_QUERY__POSTGRES_PORT=5432
+TOOLBRIDGE_PHASE5__SQL_QUERY__POSTGRES_DATABASE=toolbridge
+TOOLBRIDGE_PHASE5__SQL_QUERY__POSTGRES_USER=toolbridge_ro
+TOOLBRIDGE_PHASE5__SQL_QUERY__POSTGRES_PASSWORD=choose-a-password
+TOOLBRIDGE_PHASE5__SQL_QUERY__POSTGRES_SSL=prefer
+```
+
+You can use a single `TOOLBRIDGE_PHASE5__SQL_QUERY__POSTGRES_DSN=postgresql://toolbridge_ro:choose-a-password@127.0.0.1:5432/toolbridge?sslmode=prefer` instead of the separate fields.
+
+5. Check it: `psql -U toolbridge_ro -d toolbridge -c "SELECT 1"` should return `1`, and an `INSERT` as that role should fail with a read-only error. To run the one live PostgreSQL test, set `TOOLBRIDGE_TEST_POSTGRES_DSN` to the same DSN and run `python -m pytest tests/unit/tools/test_postgres_query.py`.
+
+If PostgreSQL isn't running, `sql_query` returns a safe database error. There is no SQLite fallback.
+
+**4. Start the API and MCP server**
 
 Leave this window open. These commands assume Python 3.12 and the project `.venv` are already installed. Run them from the repository root in separate PowerShell terminals.
 
@@ -142,7 +180,7 @@ Leave this window open. These commands assume Python 3.12 and the project `.venv
 .\.venv\Scripts\python.exe -m uvicorn toolbridge.main:app --host 127.0.0.1 --port 8000
 ```
 
-**4. Start the dashboard**
+**5. Start the dashboard**
 
 ```powershell
 .\.venv\Scripts\python.exe -m streamlit run toolbridge/dashboard/app.py --server.address 127.0.0.1 --server.port 8501
@@ -154,7 +192,7 @@ Open the [dashboard](http://127.0.0.1:8501) or [API documentation](http://127.0.
 
 The [five-minute demo](docs/DEMO.md) includes startup settings for a credential-free walkthrough, copyable requests, expected results, and interview talking points. Docker Compose steps stay in [DEPLOYMENT.md](docs/DEPLOYMENT.md) and [INSTALLATION.md](docs/INSTALLATION.md).
 
-**5. Connect Claude Desktop**
+**6. Connect Claude Desktop**
 
 Keep the API running, then add this entry to Claude Desktop's `claude_desktop_config.json` (Settings → Developer → Edit config), adjusting the paths to your clone. A full example is in [examples/claude_desktop_config.example.json](examples/claude_desktop_config.example.json).
 
