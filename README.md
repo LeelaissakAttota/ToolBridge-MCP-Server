@@ -11,13 +11,7 @@ ToolBridge is a Python project that exposes seven tools through the Model Contex
 
 **Version:** v1.1.0 | **Python:** 3.12 | **Tests:** 239 passing, 1 skipped | **License:** MIT | **Deployment:** local or trusted single-host
 
-[Five-minute interview demo](docs/DEMO.md) | [Interview cheat sheet](docs/INTERVIEW_CHEATSHEET.md) | [Architecture](ARCHITECTURE.md) | [Installation](docs/INSTALLATION.md) | [Screenshot gallery](screenshots/README.md)
-
-| For an interview | What to show |
-| --- | --- |
-| One sentence | Seven validated MCP tools, one loopback server, no public exposure. |
-| The boundary | Read-only SQL, confined CSV paths, public-HTTPS website checks, and a provider router that does not log prompts or keys. |
-| The evidence | 239 passing tests, the screenshots below, and a credential-free path for non-SQL tools in [DEMO.md](docs/DEMO.md). `sql_query` uses PostgreSQL only. A live database is required for that tool. |
+[Demo walkthrough](docs/DEMO.md) | [Architecture](ARCHITECTURE.md) | [Installation](docs/INSTALLATION.md) | [Screenshot gallery](screenshots/README.md)
 
 ## The problem it solves
 
@@ -185,7 +179,7 @@ If you start the API on another host or port, point the dashboard at it with `TO
 
 Open the [dashboard](http://127.0.0.1:8501) or [API documentation](http://127.0.0.1:8000/docs). The MCP endpoint is `http://127.0.0.1:8000/mcp/`.
 
-The [five-minute demo](docs/DEMO.md) includes startup settings for a credential-free walkthrough, copyable requests, expected results, and interview talking points. Docker Compose steps stay in [DEPLOYMENT.md](docs/DEPLOYMENT.md) and [INSTALLATION.md](docs/INSTALLATION.md).
+The [five-minute demo](docs/DEMO.md) includes startup settings for a credential-free walkthrough, copyable requests, and expected results. Docker Compose steps stay in [DEPLOYMENT.md](docs/DEPLOYMENT.md) and [INSTALLATION.md](docs/INSTALLATION.md).
 
 **6. Connect Claude Desktop**
 
@@ -244,7 +238,7 @@ Reproduce the checks locally:
 
 Captured manual evidence includes discovery of all seven tools, successful NVIDIA text analysis, AAPL market data, currency conversion, and SQL write rejection. Live results depend on upstream availability, configuration, and credentials where required. See the [evidence gallery](screenshots/README.md) and [testing strategy](docs/TESTING_STRATEGY.md).
 
-GitHub Actions also checks startup, image builds, Compose configuration, and release smoke behavior. Tagged builds produce an image archive and SHA-256 artifact; they do not automatically publish or deploy it. The historical `v1.1.0` release is commit `4d8d73bb3ffa63102c7059429f14b459eb668546`; later portfolio captures are separate evidence.
+GitHub Actions also checks startup, image builds, Compose configuration, and release smoke behavior. Tagged builds produce an image archive and SHA-256 artifact; they do not automatically publish or deploy it. The historical `v1.1.0` release is commit `4d8d73bb3ffa63102c7059429f14b459eb668546`; later screenshot captures are separate evidence.
 
 ## Current scope and limitations
 
@@ -254,12 +248,11 @@ Apart from an optional shared MCP bearer token (`TOOLBRIDGE_MCP_AUTH_TOKEN`), th
 
 Public deployment would require identity and access controls, rate limits, persistent audit/operational storage, and deployment-specific security review. See [KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md) and [SECURITY.md](SECURITY.md).
 
-## Explore further
+## Documentation
 
 | Looking for | Start here |
 | --- | --- |
-| A short working demonstration | [Interview demo](docs/DEMO.md) |
-| One-page speaking card | [Interview cheat sheet](docs/INTERVIEW_CHEATSHEET.md) |
+| A short working demonstration | [Demo walkthrough](docs/DEMO.md) |
 | Technical design | [Architecture](ARCHITECTURE.md) |
 | Setup and troubleshooting | [Installation](docs/INSTALLATION.md) and [troubleshooting](docs/TROUBLESHOOTING.md) |
 | Request examples and contracts | [API examples](docs/API-EXAMPLES.md) and [API guide](docs/API_GUIDE.md) |

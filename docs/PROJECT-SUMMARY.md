@@ -1,4 +1,4 @@
-# ToolBridge MCP Server — Recruiter Project Summary
+# ToolBridge MCP Server — Project Summary
 
 ## Problem
 
@@ -63,7 +63,7 @@ The release does not include inbound authentication, authorization, tenants, app
 - local service and Docker Compose smoke validation in GitHub Actions
 - owner manual validation passed with network/configuration-dependent tests clearly separated
 
-Retained point-in-time portfolio evidence includes MCP execution through NVIDIA using `meta/llama-3.1-8b-instruct`, AAPL data from Yahoo Finance, and USD-to-INR/EUR conversion through Frankfurter. These captures do not imply permanent provider availability, successful live execution of every provider, or a production SLA.
+Retained point-in-time evidence includes MCP execution through NVIDIA using `meta/llama-3.1-8b-instruct`, AAPL data from Yahoo Finance, and USD-to-INR/EUR conversion through Frankfurter. These captures do not imply permanent provider availability, successful live execution of every provider, or a production SLA.
 
 ## Deployment
 
@@ -73,10 +73,9 @@ The release includes a multi-stage Python 3.12 Docker image and a two-service Do
 
 - Version/tag: `v1.1.0`
 - Release commit: `4d8d73bb3ffa63102c7059429f14b459eb668546`
-- Approved product roadmap: complete
 - All seven MCP contracts remain stable
 
-The historical `v1.1.0` tag remains at the release commit above. Later compatibility, documentation, and portfolio-validation updates exist on `main` and do not redefine that historical release boundary.
+The historical `v1.1.0` tag remains at the release commit above. Later compatibility, documentation, and validation updates exist on `main` and do not redefine that historical release boundary.
 
 ## Known Limitations
 

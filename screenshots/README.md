@@ -1,6 +1,6 @@
 # ToolBridge Screenshot Gallery
 
-Use these three first in a five-minute interview. Every other capture stays below. No image file was removed.
+Start with these three. Every other capture is listed below.
 
 | Show this | File | One sentence |
 | --- | --- | --- |
@@ -10,7 +10,7 @@ Use these three first in a five-minute interview. Every other capture stays belo
 
 Eleven screenshot files are in this folder. The numbering skips `07`. That file is not here. Do not describe a missing `07` as evidence.
 
-These captures are from ToolBridge MCP Server v1.1.0 portfolio validation. Together they document the operational UI, verified local interfaces, MCP tool discovery and execution, point-in-time live external-provider calls, and SQL write-operation rejection.
+These captures are from ToolBridge MCP Server v1.1.0 validation. Together they document the operational UI, verified local interfaces, MCP tool discovery and execution, point-in-time live external-provider calls, and SQL write-operation rejection.
 
 ## 1. Operations Overview
 
@@ -126,4 +126,4 @@ These captures are from ToolBridge MCP Server v1.1.0 portfolio validation. Toget
 
 The published images were reviewed for visible API keys, bearer tokens, passwords, authorization headers, private email addresses, personal filesystem paths, browser tabs/bookmarks, notifications, and unrelated application content. None were observed.
 
-These screenshots support the documented portfolio-validation scope, including the specific point-in-time NVIDIA, Yahoo Finance, and Frankfurter executions shown. They do not prove public-cloud deployment, production traffic, authentication, persistent distributed state, production availability or SLAs, or successful execution for providers, tools, inputs, and times not captured here.
+These screenshots support the documented validation scope, including the specific point-in-time NVIDIA, Yahoo Finance, and Frankfurter executions shown. They do not prove public-cloud deployment, production traffic, authentication, persistent distributed state, production availability or SLAs, or successful execution for providers, tools, inputs, and times not captured here.

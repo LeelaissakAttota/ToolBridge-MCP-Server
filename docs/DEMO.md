@@ -2,24 +2,11 @@
 
 This sequence presents the released v1.1.0 system in about 5 minutes without paid provider calls or repository changes. `sql_query` uses PostgreSQL only. There is no SQLite backend. Non-SQL tools still run without a database.
 
-## Five-minute clock
-
-| Minute | Show | Say |
-| --- | --- | --- |
-| 0:00 | Start API and dashboard | "One loopback process hosts MCP. The dashboard only reads a safe snapshot." |
-| 0:30 | `GET /` and `/health` | "Version 1.1.0. Health means the process is alive. It does not call providers." |
-| 1:00 | `GET /ready` | "Ready means seven tools are registered. Still no external call." |
-| 1:30 | MCP `tools/list` | "The client discovers the contracts. I do not hard-code seven endpoints." |
-| 2:30 | `system_status` | "A real tool call, not a mock page." |
-| 3:15 | `sql_query` `SELECT 1 AS value` | "Read-only SQL. Parameters stay out of the query text." |
-| 4:00 | Unknown tool, then a `DELETE` | "Bad input is rejected before the database runs." |
-| 4:30 | Dashboard Overview and Logs | "The log does not show the SQL, the result, or any key." |
-
-If `TOOLBRIDGE_MCP_AUTH_TOKEN` is set in `.env`, every `/mcp/` call needs `Authorization: Bearer <token>`. A blank token means no auth, which is the credential-free path. Do not paste the token into slides or the chat transcript.
+If `TOOLBRIDGE_MCP_AUTH_TOKEN` is set in `.env`, every `/mcp/` call needs `Authorization: Bearer <token>`. A blank token means no auth, which is the credential-free path. Do not share the token.
 
 ## Demo Goal
 
-Show a recruiter or engineering interviewer that ToolBridge:
+This walkthrough shows that ToolBridge:
 
 - starts as a local FastAPI/FastMCP service
 - reports liveness and lifecycle readiness separately
@@ -42,7 +29,7 @@ The gallery also retains point-in-time NVIDIA LLM, Yahoo Finance AAPL, and Frank
 - local ports `8000` and `8501` available
 - two terminal windows
 
-No provider credential or Docker daemon is required for the core demo. If this machine's `.env` enables an LLM provider, startup may call that provider's model list. That is local configuration, not a demo requirement. For a credential-free walkthrough, leave provider `ENABLED` values false. For a fresh machine, complete [INSTALLATION.md](INSTALLATION.md) first. The one-page speaking card is [INTERVIEW_CHEATSHEET.md](INTERVIEW_CHEATSHEET.md).
+No provider credential or Docker daemon is required for the core demo. If this machine's `.env` enables an LLM provider, startup may call that provider's model list. That is local configuration, not a demo requirement. For a credential-free walkthrough, leave provider `ENABLED` values false. For a fresh machine, complete [INSTALLATION.md](INSTALLATION.md) first.
 
 ## Startup
 
@@ -196,20 +183,7 @@ docker compose up --build --detach
 .\.venv\Scripts\python.exe scripts/verify_release.py --timeout-seconds 90
 ```
 
-Do not make Docker startup a prerequisite for a short recruiter demo. The verified deployment design is a non-root, loopback-published, single-host Compose stack.
-
-## Talking Points
-
-- **Why MCP:** one discoverable, schema-driven protocol lets compatible clients initialize, list tools, and call them without custom client endpoints for every capability.
-- **Why Clean Architecture:** provider SDKs, HTTP, SQLite, files, FastAPI, FastMCP, and Streamlit remain outer adapters; domain and application policies are independently testable.
-- **Provider abstraction:** application code depends on provider-neutral ports and normalized models, not vendor response shapes.
-- **Plugin registration:** built-ins self-register and are discovered from the adapter package, avoiding a provider-name switch in the router/factory.
-- **Dynamic routing:** hard capability/availability/budget filters run before scoring health, latency, cost, context, and quality.
-- **Budget controls:** daily, monthly, and per-request limits reduce accidental spend; they are process-local safeguards, not billing authority.
-- **Security decisions:** loopback-only publication compensates for the intentionally absent inbound identity layer; all boundaries validate and bound untrusted data.
-- **Test strategy:** 239 deterministic offline tests pass, and one live PostgreSQL test is skipped unless `TOOLBRIDGE_TEST_POSTGRES_DSN` is set. The offline suite uses fakes, temporary SQLite/CSV data, and mock HTTP transports with no warnings. Continuous Integration also performs startup and Compose smoke checks.
-- **Docker:** the release uses a multi-stage image, fixed non-root identity, read-only roots, dropped capabilities, bounded `/tmp`, and health checks.
-- **Known limitations:** no authentication, tenancy, persistent telemetry, distributed budget ledger, public deployment, or live-provider CI.
+Docker is optional for this walkthrough. The verified deployment design is a non-root, loopback-published, single-host Compose stack.
 
 ## Demo Limitations
 
