@@ -145,7 +145,7 @@ def test_history_page_shows_usage_and_empty_states(monkeypatch: Any) -> None:
     app._render_history(_ready_snapshot())
 
     subheaders = [value for name, value in fake.calls if name == "subheader"]
-    assert subheaders == ["Tool Usage", "Model Routing", "Recent Events"]
+    assert subheaders == ["Tool Usage", "Recent Events"]
     assert any(name == "metric" for name, _ in fake.calls)
 
 

@@ -17,7 +17,6 @@ from toolbridge.providers.application.ports import (
     ProviderEventLogger,
     ProviderUsageRecorder,
 )
-from toolbridge.providers.application.routing_history import ModelRoutingHistory
 from toolbridge.providers.application.scoring import ModelRankingEngine
 from toolbridge.providers.domain.errors import ProviderError, ProviderRoutingError
 from toolbridge.providers.domain.models import (
@@ -136,7 +135,6 @@ class ProviderRouter:
         self._active_provider: str | None = None
         self._active_model: str | None = None
         self._last_selection: ModelSelection | None = None
-        self._routing_history = ModelRoutingHistory()
         self._initialized = False
         self._closed = False
         self._lifecycle_lock = asyncio.Lock()
@@ -152,12 +150,6 @@ class ProviderRouter:
     @property
     def active_model(self) -> str | None:
         return self._active_model
-
-    @property
-    def routing_history(self) -> ModelRoutingHistory:
-        """Sanitized per-request model routing records (no prompts/payloads)."""
-
-        return self._routing_history
 
     @property
     def last_selection(self) -> ModelSelection | None:

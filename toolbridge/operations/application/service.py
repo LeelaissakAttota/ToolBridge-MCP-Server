@@ -15,13 +15,10 @@ from toolbridge.operations.domain.models import (
     ProviderMonitor,
     ReadinessCheck,
     ReadinessSnapshot,
-    SafeLogEntry,
-    SafeLogLevel,
     SystemOverview,
     ToolMonitor,
 )
 from toolbridge.providers.application.router import ProviderRouter
-from toolbridge.providers.domain.routing import ModelRoutingRecord, RoutingOutcome
 from toolbridge.tools.application.manager import ToolManager
 from toolbridge.tools.domain.models import ToolHealthState, ToolStatusSnapshot
 
@@ -189,7 +186,6 @@ class OperationsService:
 
         readiness = self.readiness()
         providers = self._provider_monitors()
-        routing = self.model_routing(self._recent_log_limit)
         tool_statuses = self._tool_manager.monitoring_statuses()
         tools = self._tool_monitors(tool_statuses)
         total_requests = sum(item.metrics.total_executions for item in tool_statuses)
@@ -246,52 +242,8 @@ class OperationsService:
                 requests_per_provider=provider_usage,
                 cost_per_provider={item.provider: item.estimated_cost_usd for item in providers},
             ),
-            logs=self._merged_logs(routing),
-            routing=routing,
+            logs=self._metrics.recent_logs(self._recent_log_limit),
         )
-
-    def model_routing(self, limit: int = 50) -> tuple[ModelRoutingRecord, ...]:
-        """Newest-first sanitized model routing records (no prompts/payloads)."""
-
-        history = getattr(self._provider_router, "routing_history", None)
-        if history is None or limit <= 0:
-            return ()
-        return tuple(history.recent(limit))
-
-    def _merged_logs(self, routing: tuple[ModelRoutingRecord, ...]) -> tuple[SafeLogEntry, ...]:
-        entries = list(self._metrics.recent_logs(self._recent_log_limit))
-        for record in routing:
-            if record.status is RoutingOutcome.FAILED:
-                level, event = SafeLogLevel.ERROR, "llm_model_routing_failed"
-            elif record.failover:
-                level, event = SafeLogLevel.WARNING, "llm_model_failover"
-            else:
-                level, event = SafeLogLevel.INFO, "llm_model_routed"
-            failed = [a for a in record.attempts if a.outcome is RoutingOutcome.FAILED]
-            selected = (
-                f"{record.selected_provider}/{record.selected_model}"
-                if record.selected_model
-                else "none"
-            )
-            status = f"{record.mode.value}: {selected}"
-            if record.failover:
-                status += f" via {record.chain()}"
-            entries.append(
-                SafeLogEntry(
-                    timestamp=record.timestamp,
-                    level=level,
-                    source="provider_routing",
-                    event=event,
-                    component=record.tool,
-                    status=status[:300],
-                    request_id=record.request_id,
-                    error_category=(
-                        record.error_category or (failed[-1].error_category if failed else None)
-                    ),
-                )
-            )
-        entries.sort(key=lambda item: item.timestamp, reverse=True)
-        return tuple(entries[: self._recent_log_limit])
 
     def _provider_monitors(self) -> tuple[ProviderMonitor, ...]:
         statuses = {str(item.provider): item for item in self._provider_router.provider_status()}

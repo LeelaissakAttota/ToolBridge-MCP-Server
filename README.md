@@ -2,14 +2,14 @@
 
 ![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![MCP](https://img.shields.io/badge/Protocol-MCP-111827?style=for-the-badge)
-![Tests](https://img.shields.io/badge/Tests-245%20passing-2EA44F?style=for-the-badge)
+![Tests](https://img.shields.io/badge/Tests-239%20passing-2EA44F?style=for-the-badge)
 ![License MIT](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
 
 **One interface for AI assistants to discover and use tools for APIs, local data, and text analysis.**
 
 ToolBridge is a Python project that exposes seven tools through the Model Context Protocol (MCP). It validates requests, keeps data access bounded, and routes text analysis through interchangeable LLM providers. A read-only dashboard shows service health and execution metrics.
 
-**Version:** v1.1.0 | **Python:** 3.12 | **Tests:** 245 passing, 1 skipped | **License:** MIT | **Deployment:** local or trusted single-host
+**Version:** v1.1.0 | **Python:** 3.12 | **Tests:** 239 passing, 1 skipped | **License:** MIT | **Deployment:** local or trusted single-host
 
 [Demo walkthrough](docs/DEMO.md) | [Architecture](ARCHITECTURE.md) | [Installation](docs/INSTALLATION.md) | [Screenshot gallery](screenshots/README.md)
 
@@ -54,9 +54,8 @@ More captures, with what each one proves: [screenshot gallery](screenshots/READM
 - **Guided provider setup with auto model choice:** pick OpenRouter, OpenAI, Anthropic, Gemini, Groq, Cerebras, NVIDIA, or any OpenAI-compatible endpoint, paste the key once (write-only), and let **Auto (cheapest)** pick the cheapest working model, free models first.
 - **LLM analysis:** `llm_analysis` analyzes or summarizes untrusted text through the provider router, with retries, failover, and budget limits.
 - **Claude Desktop stdio bridge:** `python -m toolbridge.stdio_bridge` relays MCP from Claude Desktop (or any stdio MCP client) to the running server, so desktop calls also appear in History and Logs.
-- **Model routing transparency:** in Auto (cheapest) mode, History and Logs show which provider/model answered each LLM call, why it was chosen (free / cheapest paid / task type), and any failover chain with its error category (e.g. `free-model (rate_limit) -> cheap-model`). Also at `GET /operations/model-routing`. Metadata only; prompts, documents, and outputs are never recorded.
 - **Demo data and logs:** fictional SQL/CSV/text samples plus 12 success and 10 error requests in `examples/demo-data`; History and Logs pages show sanitized activity only.
-- **Repeatable validation and packaging:** 245 passing automated tests (1 live PostgreSQL test skipped unless a database is configured), GitHub Actions checks, and a non-root Docker/Compose setup.
+- **Repeatable validation and packaging:** 239 passing automated tests (1 live PostgreSQL test skipped unless a database is configured), GitHub Actions checks, and a non-root Docker/Compose setup.
 
 ## Available tools
 
@@ -225,7 +224,7 @@ More fictional samples (cafe-orders CSV, text samples, and ready-made MCP reques
 
 ## Testing and evidence
 
-The suite has **245 passing tests** and 1 skipped live PostgreSQL test, with no warnings, and Ruff lint/format checks pass. The tests cover validation, execution, provider routing, tool adapters, operations, the dashboard and Tool Playground helpers, `.env.example` loading, and an end-to-end stdio bridge check (a real MCP stdio client lists the seven tools and calls `system_status` through the bridge).
+The suite has **239 passing tests** and 1 skipped live PostgreSQL test, with no warnings, and Ruff lint/format checks pass. The tests cover validation, execution, provider routing, tool adapters, operations, the dashboard and Tool Playground helpers, `.env.example` loading, and an end-to-end stdio bridge check (a real MCP stdio client lists the seven tools and calls `system_status` through the bridge).
 
 Reproduce the checks locally:
 

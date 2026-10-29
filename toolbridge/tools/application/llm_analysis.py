@@ -9,12 +9,6 @@ from toolbridge.providers.application.budget_selection import estimate_tokens, s
 from toolbridge.providers.application.router import ProviderRouter
 from toolbridge.providers.domain.errors import ProviderError
 from toolbridge.providers.domain.models import ChatMessage, GenerationRequest, ProviderStatus
-from toolbridge.providers.domain.routing import (
-    ModelRoutingAttempt,
-    ModelRoutingRecord,
-    RoutingMode,
-    RoutingOutcome,
-)
 from toolbridge.tools.application.ports import BaseTool
 from toolbridge.tools.domain.llm_analysis import (
     AnalysisOperation,
@@ -100,7 +94,6 @@ class LLMAnalysisTool(BaseTool):
             temperature=self._temperature,
         )
         selection_reason = "configured model" if self._model else "router ranking"
-        attempts: list[ModelRoutingAttempt] = []
         try:
             response = None
             for choice in self._budget_choices(arguments):
@@ -108,53 +101,21 @@ class LLMAnalysisTool(BaseTool):
                     response = await self._router.generate(
                         request.model_copy(update={"model": choice.model.id})
                     )
-                except ProviderError as error:
-                    attempts.append(
-                        ModelRoutingAttempt(
-                            provider=_name(choice.model.provider),
-                            model=choice.model.id,
-                            outcome=RoutingOutcome.FAILED,
-                            error_category=error.category.value,
-                            reason=choice.reason,
-                        )
-                    )
+                except ProviderError:
                     continue
                 selection_reason = f"auto low-budget: {choice.reason}"
                 break
             if response is None:
-                if attempts:
-                    selection_reason = "router ranking (all low-budget candidates failed)"
                 response = await self._router.generate(request)
         except ProviderError as error:
-            attempts.append(
-                ModelRoutingAttempt(
-                    provider=None,
-                    model=self._model or "router-ranked model",
-                    outcome=RoutingOutcome.FAILED,
-                    error_category=error.category.value,
-                    reason=selection_reason,
-                )
-            )
-            self._record_routing(None, selection_reason, attempts, error.category.value)
             self._last_failure_at = datetime.now(UTC)
             raise LLMAnalysisUnavailableError(error.category.value) from error
-        attempts.append(
-            ModelRoutingAttempt(
-                provider=_name(response.provider),
-                model=response.model,
-                outcome=RoutingOutcome.SUCCEEDED,
-                reason=selection_reason,
-            )
-        )
-        record = self._record_routing(response, selection_reason, attempts, None)
         _logger.info(
             "llm_analysis model selected",
             extra={
                 "model": response.model,
                 "provider": response.provider,
                 "reason": selection_reason,
-                "failover": record.failover,
-                "failover_chain": record.chain(),
             },
         )
         self._last_success_at = datetime.now(UTC)
@@ -169,36 +130,6 @@ class LLMAnalysisTool(BaseTool):
             total_tokens=response.usage.total_tokens,
             model_selection_reason=selection_reason,
         )
-
-    def _record_routing(
-        self,
-        response: object | None,
-        reason: str,
-        attempts: list[ModelRoutingAttempt],
-        error_category: str | None,
-    ) -> ModelRoutingRecord:
-        """Store sanitized routing metadata; never prompts, documents, or outputs."""
-
-        record = ModelRoutingRecord(
-            timestamp=datetime.now(UTC),
-            request_id=getattr(response, "request_id", None),
-            tool=self._definition.name,
-            mode=RoutingMode.FIXED if self._model else RoutingMode.AUTO,
-            status=RoutingOutcome.FAILED if response is None else RoutingOutcome.SUCCEEDED,
-            selected_provider=_name(getattr(response, "provider", None)),
-            selected_model=getattr(response, "model", None),
-            selection_reason=reason,
-            failover=any(item.outcome is RoutingOutcome.FAILED for item in attempts),
-            attempts=tuple(attempts),
-            error_category=error_category,
-        )
-        history = getattr(self._router, "routing_history", None)
-        if history is not None:
-            try:
-                history.record(record)
-            except Exception:  # noqa: BLE001 - observability must never break the tool
-                _logger.debug("routing history unavailable")
-        return record
 
     def _budget_choices(self, arguments: LLMAnalysisInput) -> tuple:
         """Auto mode (no fixed model): free first, then cheapest paid, task-aware."""
@@ -255,9 +186,3 @@ class LLMAnalysisTool(BaseTool):
         """Mark the integration closed without closing the process-owned router."""
 
         self._state = ToolHealthState.CLOSED
-
-
-def _name(value: object | None) -> str | None:
-    if value is None:
-        return None
-    return str(getattr(value, "value", value))

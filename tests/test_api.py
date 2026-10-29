@@ -73,7 +73,6 @@ def test_operations_snapshot_is_safe_and_complete(client: TestClient) -> None:
         "metrics",
         "costs",
         "logs",
-        "routing",
     }
 
 

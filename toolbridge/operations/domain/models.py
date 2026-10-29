@@ -5,8 +5,6 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from toolbridge.providers.domain.routing import ModelRoutingRecord
-
 
 class LifecycleState(StrEnum):
     STARTING = "starting"
@@ -156,4 +154,3 @@ class OperationsSnapshot(BaseModel):
     metrics: MetricsSummary
     costs: CostSummary
     logs: tuple[SafeLogEntry, ...]
-    routing: tuple[ModelRoutingRecord, ...] = ()
