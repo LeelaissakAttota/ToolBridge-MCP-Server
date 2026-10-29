@@ -48,3 +48,7 @@ dashboards/toolbridge-trading-panel.patch
 
 # Internal notes, resume, scripts (kept locally, not published)
 docs/internal/
+
+# Internal reports containing resume/internal-doc content (kept locally)
+dashboards/toolbridge-audit.md
+dashboards/toolbridge-fixes-7-15.patch
