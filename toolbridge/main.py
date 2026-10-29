@@ -14,6 +14,7 @@ from toolbridge.adapters.mcp_security import BearerTokenMiddleware, build_transp
 from toolbridge.bootstrap import build_core_runtime
 from toolbridge.config import get_settings
 from toolbridge.operations.domain.models import OperationsSnapshot, ReadinessSnapshot
+from toolbridge.providers.domain.routing import ModelRoutingRecord
 from toolbridge.providers.infrastructure.logging import configure_provider_logging
 from toolbridge.tools.infrastructure.logging import configure_stock_logging
 
@@ -94,6 +95,7 @@ async def service_info() -> dict[str, str]:
         "health": "/health",
         "readiness": "/ready",
         "operations": "/operations/snapshot",
+        "model_routing": "/operations/model-routing",
         "mcp": "/mcp/",
         "docs": "/docs",
     }
@@ -132,6 +134,17 @@ async def operations_snapshot() -> OperationsSnapshot:
     """Return bounded, read-only, secret-free monitoring data."""
 
     return core.operations.snapshot()
+
+
+@app.get(
+    "/operations/model-routing",
+    tags=["operations"],
+    response_model=tuple[ModelRoutingRecord, ...],
+)
+async def operations_model_routing(limit: int = 50) -> tuple[ModelRoutingRecord, ...]:
+    """Return sanitized provider/model routing and failover metadata (newest first)."""
+
+    return core.operations.model_routing(max(1, min(limit, 200)))
 
 
 mcp_asgi_app = mcp.streamable_http_app()
