@@ -46,3 +46,5 @@ archive/secrets/
 dashboards/toolbridge-control-dashboards.patch
 dashboards/toolbridge-trading-panel.patch
 
+# Internal notes, resume, scripts (kept locally, not published)
+docs/internal/

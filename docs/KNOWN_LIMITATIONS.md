@@ -19,5 +19,3 @@ ToolBridge v1.1.0 is production-ready for its documented local or trusted single
 15. Model catalogs are discovered at enabled-provider startup and have no background refresh scheduler; restart to force a refresh.
 16. Daily/monthly/per-request budgets and health scores are process-local estimates. They reset on restart and do not coordinate multiple workers.
 17. Capability metadata enables safe selection, but provider-native embedding, image, audio, vision, web-search, and tool-call payload APIs are not added to the text generation contract.
-
-See `ROADMAP.md` for separately approved post-v1 possibilities.

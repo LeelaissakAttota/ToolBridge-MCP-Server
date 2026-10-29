@@ -2,7 +2,7 @@
 
 ## Before changing code
 
-Read `PROJECT_RULES.md`, `ARCHITECTURE.md`, `CODING_STANDARDS.md`, `TESTING_STRATEGY.md`, `SECURITY_GUIDELINES.md`, `DECISIONS.md`, and `PROJECT_STATUS.md`. Obtain owner approval for work outside the accepted roadmap.
+Read `ARCHITECTURE.md` and `docs/TESTING_STRATEGY.md`. Open an issue to discuss larger changes before starting work.
 
 ## Development setup
 
