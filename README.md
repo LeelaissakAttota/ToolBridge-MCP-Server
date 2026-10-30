@@ -27,6 +27,8 @@ For example, a client can discover `sql_query`, submit a read-only query, and re
 
 **[▶ Watch Demo](https://youtu.be/A4pQcOFKYcA)**
 
+**Updates:** Model Routing visibility (provider/model, reason, failover in History, Logs and API) – demo: https://youtu.be/dWPxZHaLBko
+
 **Claude Desktop calling ToolBridge through the stdio bridge** (`Convert $100 into Rupees and Euros` → `currency_converter`)
 
 ![Claude Desktop using the ToolBridge currency converter tool](docs/images/claude-desktop-toolbridge.png)
