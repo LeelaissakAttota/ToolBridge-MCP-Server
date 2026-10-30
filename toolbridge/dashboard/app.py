@@ -17,6 +17,7 @@ from toolbridge.operations.domain.models import (
     SafeLogEntry,
     ToolMonitor,
 )
+from toolbridge.providers.domain.routing import ModelRoutingRecord, RoutingOutcome
 
 PageName = Literal[
     "Overview",
@@ -558,6 +559,73 @@ def _render_status_bar(snapshot: OperationsSnapshot | None) -> None:
     )
 
 
+def _routing_badge(record: ModelRoutingRecord) -> str:
+    if record.status is RoutingOutcome.FAILED:
+        return "\u274c failed"
+    if record.failover:
+        failed = sum(1 for item in record.attempts if item.outcome is RoutingOutcome.FAILED)
+        return f"\u26a0\ufe0f failover ({failed} failed)"
+    return "\u2705 first choice"
+
+
+def _render_model_routing(snapshot: OperationsSnapshot) -> None:
+    """Show which provider/model served each LLM call, why, and any failover."""
+
+    st.subheader("Model Routing")
+    st.caption(
+        "Which provider/model answered each LLM call, why it was chosen (free / cheapest / "
+        "task type), and any failover chain. Metadata only: prompts, documents, and "
+        "outputs are never recorded."
+    )
+    records = snapshot.routing
+    if not records:
+        st.info("No LLM calls yet. Run LLM Analysis (Auto mode) and refresh.")
+        return
+    st.dataframe(
+        [
+            {
+                "Time (UTC)": item.timestamp.strftime("%H:%M:%S"),
+                "Mode": "Auto (cheapest)" if item.mode.value == "auto" else "Fixed model",
+                "Provider": item.selected_provider or "\u2014",
+                "Model": item.selected_model or "\u2014",
+                "Why chosen": item.selection_reason or "\u2014",
+                "Routing": _routing_badge(item),
+                "Error": item.error_category or "",
+            }
+            for item in records
+        ],
+        hide_index=True,
+        width="stretch",
+    )
+    labels = [
+        f"{item.timestamp.strftime('%H:%M:%S')} \u00b7 {item.selected_model or 'failed'}"
+        f" \u00b7 {_routing_badge(item)}"
+        for item in records
+    ]
+    index = st.selectbox(
+        "Routing details",
+        range(len(records)),
+        format_func=lambda i: labels[i],
+        key="history_routing_detail",
+    )
+    record = records[index]
+    with st.container(border=True):
+        st.markdown(
+            f"**Selected:** `{record.selected_provider or '-'}` / `{record.selected_model or '-'}`"
+        )
+        st.caption(f"Why: {record.selection_reason or '-'}")
+        if record.request_id:
+            st.caption(f"Request ID: {record.request_id[:8]}...")
+        for step, attempt in enumerate(record.attempts, start=1):
+            if attempt.outcome is RoutingOutcome.FAILED:
+                st.markdown(
+                    f"{step}. \u274c `{attempt.model}` failed "
+                    f"\u2014 `{attempt.error_category or 'error'}`"
+                )
+            else:
+                st.markdown(f"{step}. \u2705 `{attempt.model}` answered")
+
+
 def _render_history(snapshot: OperationsSnapshot) -> None:
     """Render recent tool activity from in-memory metrics and safe logs."""
 
@@ -600,6 +668,8 @@ def _render_history(snapshot: OperationsSnapshot) -> None:
         )
     else:
         st.info("No tool calls yet. Call a tool through the MCP endpoint, then refresh.")
+
+    _render_model_routing(snapshot)
 
     st.subheader("Recent Events")
     events = sorted(
